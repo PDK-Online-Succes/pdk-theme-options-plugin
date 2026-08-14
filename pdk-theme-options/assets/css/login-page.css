@@ -1,0 +1,21 @@
+/* PDK Login Page — basisstijlen (worden aangevuld met inline CSS vanuit de module-instellingen) */
+
+#login h1 a {
+	background-position: center center;
+	background-repeat: no-repeat;
+	background-size: contain;
+	display: block;
+	height: 80px;
+	width: 100%;
+	text-indent: -9999px;
+}
+
+.login form {
+	border-radius: 4px;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, .12);
+}
+
+.login #nav a,
+.login #backtoblog a {
+	text-decoration: none;
+}
