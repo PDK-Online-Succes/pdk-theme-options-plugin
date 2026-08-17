@@ -28,7 +28,13 @@ De installer haalt de laatste GitHub-release op, pakt hem uit naar `wp-content/m
 ### Must-Use Plugin handmatig
 
 1. Kopieer de `pdk-theme-options/` map naar `wp-content/mu-plugins/pdk-theme-options/`
-2. Kopieer `mu-loader.php` naar `wp-content/mu-plugins/pdk-theme-options.php`
+2. Maak `wp-content/mu-plugins/pdk-theme-options.php` met daarin:
+   ```php
+   <?php
+   defined( 'ABSPATH' ) || exit;
+   require_once __DIR__ . '/pdk-theme-options/pdk-theme-options-plugin.php';
+   ```
+   MU-plugins laden geen submappen; dit bestandje laadt de plugin in.
 3. De plugin laadt automatisch — geen activatie nodig
 
 > **Let op:** In MU-modus werkt de ingebouwde GitHub-updater niet (WordPress volgt MU-plugins niet). Update via de PDK MU Installer of handmatig.

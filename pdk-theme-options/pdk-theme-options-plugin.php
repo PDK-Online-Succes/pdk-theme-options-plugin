@@ -3,7 +3,7 @@
  * Plugin Name: PDK Theme Options
  * Plugin URI:  https://github.com/PDK-Online-Succes/pdk-theme-options-plugin
  * Description: Centrale beheerplugin voor PDK Online Succes klanten. Modulaire WordPress/WooCommerce functionaliteiten in één plugin.
- * Version:     2.0.0
+ * Version:     2.1.0
  * Author:      PDK Online Succes
  * Author URI:  https://pdk.nl
  * License:     GPL-2.0-or-later
@@ -20,7 +20,7 @@
 defined( 'ABSPATH' ) || exit;
 
 // Plugin constants.
-define( 'PDK_PLUGIN_VERSION', '2.0.0' );
+define( 'PDK_PLUGIN_VERSION', '2.1.0' );
 define( 'PDK_PLUGIN_FILE',    __FILE__ );
 define( 'PDK_PLUGIN_DIR',     plugin_dir_path( __FILE__ ) );
 define( 'PDK_PLUGIN_URL',     plugin_dir_url( __FILE__ ) );

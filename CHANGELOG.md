@@ -2,7 +2,7 @@
 
 Alle noemenswaardige wijzigingen in PDK Theme Options worden hier bijgehouden.
 
-## [Niet uitgebracht]
+## [2.1.0] — 2026-08-17
 
 ### PDK MU Installer (nieuwe micro-plugin)
 
