@@ -166,6 +166,9 @@ class PDK_Settings {
 			'language_checker' => [
 				'enabled' => false,
 			],
+			'agent_abilities' => [
+				'enabled' => false,
+			],
 		];
 	}
 
@@ -184,6 +187,7 @@ class PDK_Settings {
 			'delivery_time'    => __( 'Levertijden', 'pdk-theme-options' ),
 			'sku_restriction'  => __( 'SKU Beperken & Valideren', 'pdk-theme-options' ),
 			'language_checker' => __( 'Language Cleaner', 'pdk-theme-options' ),
+			'agent_abilities'  => __( 'AI-agent toegang (MCP)', 'pdk-theme-options' ),
 		];
 	}
 
@@ -198,6 +202,7 @@ class PDK_Settings {
 			'delivery_time'    => __( 'Levertijd per weekdag met cutoff-tijd, shortcode [levertijd] (vereist WooCommerce).', 'pdk-theme-options' ),
 			'sku_restriction'  => __( 'SKU\'s beperken tot a-z, A-Z, 0-9, punt en koppelteken; automatisch opschonen en duplicaten blokkeren (vereist WooCommerce).', 'pdk-theme-options' ),
 			'language_checker' => __( 'Taalbestanden beheren en verweesde vertalingen opschonen.', 'pdk-theme-options' ),
+			'agent_abilities'  => __( 'Eigen PHP, CSS en JS lees- en schrijfbaar maken voor een AI-agent via de Abilities API (WordPress 6.9+, bijvoorbeeld met de Agent Connector-plugin). De agent moet inloggen als gebruiker met code-editor rechten — zie de Rechten-tab.', 'pdk-theme-options' ),
 		];
 	}
 }

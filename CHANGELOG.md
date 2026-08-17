@@ -2,6 +2,20 @@
 
 Alle noemenswaardige wijzigingen in PDK Theme Options worden hier bijgehouden.
 
+## [2.3.0] — 2026-08-17
+
+### AI-agent toegang tot eigen PHP, CSS en JS (MCP)
+
+- Nieuwe module *AI-agent toegang (MCP)* (standaard uit): registreert twee abilities via de WordPress Abilities API (WP 6.9+) — `pdk-theme-options/read-custom-code` en `pdk-theme-options/write-custom-code`, met `file` = `php` | `css` | `js`
+- Een MCP-server publiceert die automatisch als tools, via `meta.mcp.public = true` zoals Agent Connector en de WordPress MCP Adapter verwachten. De plugin spreekt zelf geen MCP-protocol
+- Ook bereikbaar over REST onder `wp-abilities/v1` (`meta.show_in_rest = true`)
+- Toegang loopt via de bestaande capability `pdk_edit_custom_code`: de gebruiker waarmee de agent inlogt moet code-editor rechten hebben (Rechten-tab). Beheerder zijn is niet genoeg
+- Zelftest: `php modules/agent-abilities/test-agent-abilities.php`
+
+### Gewijzigd
+
+- `pdk_write_storage_file()` weigert PHP met een syntaxfout (`token_get_all` met `TOKEN_PARSE`) en meldt regelnummer + fout. Geldt voor élke schrijver — dus ook de admin-code-editor kan de site niet meer platleggen met een typefout
+
 ## [2.2.0] — 2026-08-17
 
 ### Afwijkende dagen: één lijst voor openingstijden, levertijden en vakantiemodus

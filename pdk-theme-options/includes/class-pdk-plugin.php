@@ -24,6 +24,7 @@ class PDK_Plugin {
 		'delivery_time'    => [ 'file' => 'modules/delivery-time/class-pdk-delivery-time.php',       'class' => 'PDK_Delivery_Time' ],
 		'sku_restriction'  => [ 'file' => 'modules/sku-restriction/class-pdk-sku-restriction.php',   'class' => 'PDK_SKU_Restriction' ],
 		'language_checker' => [ 'file' => 'modules/language-checker/class-pdk-language-checker.php', 'class' => 'PDK_Language_Checker' ],
+		'agent_abilities'  => [ 'file' => 'modules/agent-abilities/class-pdk-agent-abilities.php',   'class' => 'PDK_Agent_Abilities' ],
 	];
 
 	private function __construct() {

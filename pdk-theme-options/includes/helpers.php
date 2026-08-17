@@ -75,6 +75,24 @@ function pdk_write_storage_file( string $filename, string $content ) {
 	$filename = basename( $filename );
 	$path     = PDK_STORAGE_DIR . $filename;
 
+	// Een parse-fout in custom-functions.php haalt de hele site neer — weiger
+	// die vóór het schrijven, ongeacht wie schrijft (editor of AI-agent).
+	if ( str_ends_with( $filename, '.php' ) ) {
+		try {
+			token_get_all( $content, TOKEN_PARSE );
+		} catch ( ParseError $e ) {
+			return new WP_Error(
+				'php_parse_error',
+				sprintf(
+					/* translators: 1: regelnummer, 2: foutmelding van PHP */
+					__( 'Niet opgeslagen — PHP-syntaxfout op regel %1$d: %2$s', 'pdk-theme-options' ),
+					$e->getLine(),
+					$e->getMessage()
+				)
+			);
+		}
+	}
+
 	if ( false === file_put_contents( $path, $content ) ) {
 		return new WP_Error( 'write_error', __( 'Bestand kon niet worden opgeslagen.', 'pdk-theme-options' ) );
 	}
