@@ -106,6 +106,14 @@ class PDK_Settings {
 					6 => [ 'closed' => false, 'open' => '08:00', 'close' => '12:30' ],
 					7 => [ 'closed' => true,  'open' => '',      'close' => '' ],
 				],
+				/**
+				 * Afwijkende periodes (kerst, zomerperiode, bedrijfsvakantie).
+				 * Eén bron voor openingstijden, levertijden én vakantiemodus.
+				 *
+				 * Per rij: from/to (Y-m-d), label, open/close (leeg = gesloten),
+				 * close_shop (webshop sluiten via de vakantiemodus).
+				 */
+				'periods'             => [],
 			],
 
 			// ----------------------------------------------------------------
@@ -134,8 +142,7 @@ class PDK_Settings {
 				'message'             => 'Wij zijn tijdelijk gesloten. Bedankt voor uw geduld.',
 				'disable_checkout'    => true,
 				'disable_add_to_cart' => true,
-				'start_date'          => '',
-				'end_date'            => '',
+				// Periodes staan in site_settings.periods — zie PDK_Site_Settings.
 			],
 			'sku_restriction' => [
 				'enabled' => false,
@@ -151,7 +158,7 @@ class PDK_Settings {
 					6 => [ 'enabled' => false, 'cutoff' => '17:00' ],
 					7 => [ 'enabled' => true,  'cutoff' => '17:00' ],
 				],
-				'exceptions'  => [],
+				// Niet-verzenddagen komen uit site_settings.periods — zie PDK_Site_Settings.
 				'text_before' => 'Voor {cutoff} uur besteld, {dag} verzonden (indien op voorraad)',
 				'text_after'  => 'Na {cutoff} uur besteld? Verzending op {volgende_dag}.',
 			],
@@ -187,8 +194,8 @@ class PDK_Settings {
 			'custom_js'        => __( 'Eigen JavaScript-code laden op de frontend.', 'pdk-theme-options' ),
 			'custom_fonts'     => __( 'Lettertypen beheren vanuit de uploads/fonts/ map.', 'pdk-theme-options' ),
 			'login_page'       => __( 'Vaste PDK-huisstijl toepassen op de WordPress-loginpagina. Geen aanpasbare instellingen.', 'pdk-theme-options' ),
-			'vacation_mode'    => __( 'Webshop tijdelijk sluiten met een aangepaste melding (vereist WooCommerce).', 'pdk-theme-options' ),
-			'delivery_time'    => __( 'Levertijd per weekdag met cutoff-tijd en uitzonderingsdata, shortcode [levertijd] (vereist WooCommerce).', 'pdk-theme-options' ),
+			'vacation_mode'    => __( 'Webshop sluiten met een aangepaste melding, gepland via Afwijkende dagen (vereist WooCommerce).', 'pdk-theme-options' ),
+			'delivery_time'    => __( 'Levertijd per weekdag met cutoff-tijd, shortcode [levertijd] (vereist WooCommerce).', 'pdk-theme-options' ),
 			'sku_restriction'  => __( 'SKU\'s beperken tot a-z, A-Z, 0-9, punt en koppelteken; automatisch opschonen en duplicaten blokkeren (vereist WooCommerce).', 'pdk-theme-options' ),
 			'language_checker' => __( 'Taalbestanden beheren en verweesde vertalingen opschonen.', 'pdk-theme-options' ),
 		];

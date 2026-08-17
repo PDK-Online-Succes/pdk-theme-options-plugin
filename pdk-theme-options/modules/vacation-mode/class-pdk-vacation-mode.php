@@ -84,34 +84,18 @@ class PDK_Vacation_Mode {
 
 	/**
 	 * Controleert of de vakantiemodus nu actief moet zijn.
-	 * Rekening houdend met optionele start- en einddatum in sitelocaltijd.
+	 *
+	 * De datums staan in de gedeelde periodelijst (Site Instellingen →
+	 * Afwijkende dagen); een periode met "Webshop sluiten" zet de modus aan.
+	 * Staat er geen enkele sluiting gepland, dan telt de module-toggle zelf als
+	 * "nu dicht" — zo blijft de knop bruikbaar om de shop handmatig te sluiten.
 	 */
 	private function is_active_now(): bool {
-		$start = $this->settings['start_date'] ?? '';
-		$end   = $this->settings['end_date']   ?? '';
-
-		// Geen datums ingesteld → altijd actief (module is al ingeschakeld).
-		if ( ! $start && ! $end ) {
+		if ( ! PDK_Site_Settings::has_shop_closures() ) {
 			return true;
 		}
 
-		$now = current_datetime()->getTimestamp();
-
-		if ( $start ) {
-			$start_ts = ( new DateTimeImmutable( $start . ' 00:00:00', wp_timezone() ) )->getTimestamp();
-			if ( $now < $start_ts ) {
-				return false; // Nog niet begonnen.
-			}
-		}
-
-		if ( $end ) {
-			$end_ts = ( new DateTimeImmutable( $end . ' 23:59:59', wp_timezone() ) )->getTimestamp();
-			if ( $now > $end_ts ) {
-				return false; // Al voorbij.
-			}
-		}
-
-		return true;
+		return PDK_Site_Settings::shop_closed_now();
 	}
 
 	private function get_message(): string {

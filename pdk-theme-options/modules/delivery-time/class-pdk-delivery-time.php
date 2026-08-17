@@ -73,11 +73,11 @@ class PDK_Delivery_Time {
 		$now       = current_time( 'H:i' );
 		$current   = $days[ $today_idx ] ?? [ 'enabled' => false, 'cutoff' => '' ];
 
-		// Vandaag is een verzenddag, nog vóór de cutoff en geen uitzonderingsdatum.
+		// Vandaag is een verzenddag, nog vóór de cutoff en geen sluitingsdag.
 		if (
 			! empty( $current['enabled'] )
 			&& $now < $current['cutoff']
-			&& ! self::is_exception( $today->format( 'Y-m-d' ), $settings['exceptions'] )
+			&& ! self::is_closed_period( $today->format( 'Y-m-d' ) )
 		) {
 			return str_replace(
 				[ '{cutoff}', '{dag}' ],
@@ -87,12 +87,12 @@ class PDK_Delivery_Time {
 		}
 
 		// Anders: eerstvolgende kalenderdag die wél verzendt (skipt uitgevinkte
-		// weekdagen én uitzonderingsdata, ook bij meerdaagse sluiting).
+		// weekdagen én sluitingsdagen, ook bij een meerdaagse periode).
 		for ( $i = 1; $i <= 60; $i++ ) {
 			$date  = $today->modify( "+{$i} days" );
 			$index = (int) $date->format( 'N' );
 
-			if ( empty( $days[ $index ]['enabled'] ) || self::is_exception( $date->format( 'Y-m-d' ), $settings['exceptions'] ) ) {
+			if ( empty( $days[ $index ]['enabled'] ) || self::is_closed_period( $date->format( 'Y-m-d' ) ) ) {
 				continue;
 			}
 
@@ -115,21 +115,18 @@ class PDK_Delivery_Time {
 		return str_replace( ':', '.', $time );
 	}
 
-	/** Valt een datum (Y-m-d) binnen een ingestelde uitzonderingsperiode? */
-	private static function is_exception( string $ymd, array $exceptions ): bool {
-		foreach ( $exceptions as $exception ) {
-			if ( empty( $exception['from'] ) ) {
-				continue;
-			}
+	/**
+	 * Valt een datum in een periode waarop de deur dicht is?
+	 *
+	 * Periodes staan centraal in Site Instellingen → Afwijkende dagen. Een
+	 * periode zónder openingstijden telt als sluitingsdag en verzendt dus niet;
+	 * een periode met afwijkende tijden (zomerperiode) verzendt gewoon volgens
+	 * de weekdagregel hierboven.
+	 */
+	private static function is_closed_period( string $ymd ): bool {
+		$period = PDK_Site_Settings::active_period( $ymd );
 
-			$to = ! empty( $exception['to'] ) ? $exception['to'] : $exception['from'];
-
-			if ( $ymd >= $exception['from'] && $ymd <= $to ) {
-				return true;
-			}
-		}
-
-		return false;
+		return $period && ( '' === $period['open'] || '' === $period['close'] );
 	}
 
 	// -------------------------------------------------------------------------
@@ -209,37 +206,13 @@ class PDK_Delivery_Time {
 			];
 		}
 
-		$exceptions = [];
-		foreach ( (array) ( $posted['exceptions'] ?? [] ) as $row ) {
-			if ( ! empty( $row['delete'] ) ) {
-				continue;
-			}
-
-			$from = sanitize_text_field( wp_unslash( $row['from'] ?? '' ) );
-			if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $from ) ) {
-				continue; // Lege of ongeldige rij overslaan.
-			}
-
-			$to = sanitize_text_field( wp_unslash( $row['to'] ?? '' ) );
-			if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $to ) || $to < $from ) {
-				$to = $from;
-			}
-
-			$exceptions[] = [
-				'from'  => $from,
-				'to'    => $to,
-				'label' => sanitize_text_field( wp_unslash( $row['label'] ?? '' ) ),
-			];
-		}
-
 		$options = (array) PDK_Settings::get();
 
-		// Bewust géén PDK_Settings::update(): die merget recursief, waardoor
-		// verwijderde uitzonderingsrijen blijven staan. Dit blok wordt vervangen.
+		// Bewust géén PDK_Settings::update(): die merget recursief, waardoor een
+		// uitgevinkte verzenddag ingeschakeld zou blijven. Dit blok wordt vervangen.
 		$options['delivery_time'] = [
 			'enabled'     => PDK_Settings::get( 'delivery_time', 'enabled' ) ?? $defaults['enabled'],
 			'days'        => $days,
-			'exceptions'  => $exceptions,
 			'text_before' => sanitize_text_field( wp_unslash( $posted['text_before'] ?? $defaults['text_before'] ) ),
 			'text_after'  => sanitize_text_field( wp_unslash( $posted['text_after'] ?? $defaults['text_after'] ) ),
 		];
@@ -250,10 +223,8 @@ class PDK_Delivery_Time {
 
 	/** Rendert de tab-inhoud binnen het bestaande instellingenformulier. */
 	public static function render_inline(): void {
-		$settings   = self::settings();
-		$labels     = self::day_labels();
-		$exceptions = $settings['exceptions'];
-		$exceptions[] = [ 'from' => '', 'to' => '', 'label' => '' ]; // altijd één lege invoerrij
+		$settings = self::settings();
+		$labels   = self::day_labels();
 		?>
 		<p class="description" style="margin:12px 0 16px;">
 			<?php esc_html_e( 'Stel per dag in of er die dag verzonden wordt en tot welk tijdstip een bestelling nog dezelfde dag meegaat. Plaats de shortcode [levertijd] op de productpagina. Per product kan via het productveld "Levertijd (uitzondering)" een afwijkende tekst ingesteld worden; die heeft voorrang.', 'pdk-theme-options' ); ?>
@@ -283,60 +254,19 @@ class PDK_Delivery_Time {
 			</tbody>
 		</table>
 
-		<h2><?php esc_html_e( 'Uitzonderingsdata', 'pdk-theme-options' ); ?></h2>
-		<p class="description" style="margin-bottom:12px;">
-			<?php esc_html_e( 'Voor dagen zonder verzending, zoals kerst of een bedrijfsuitje — die tellen automatisch als niet-verzenddag, zonder dat er iets teruggezet hoeft te worden. "Tot"-datum is alleen nodig bij een periode van meerdere dagen. Vink "Verwijderen" aan en sla op om een rij te verwijderen.', 'pdk-theme-options' ); ?>
+		<h2><?php esc_html_e( 'Sluitingsdagen', 'pdk-theme-options' ); ?></h2>
+		<p class="description" style="margin-bottom:20px;">
+			<?php
+			printf(
+				/* translators: %s: link naar Site Instellingen → Afwijkende dagen */
+				esc_html__( 'Dagen zonder verzending (kerst, bedrijfsvakantie) staan bij %s. Daar gelden ze meteen ook voor de openingstijden, dus je vult ze maar op één plek in. Een periode zonder openingstijden telt als niet-verzenddag; een periode met afwijkende tijden verzendt gewoon volgens de weekdagen hierboven.', 'pdk-theme-options' ),
+				'<a href="' . esc_url( add_query_arg(
+					[ 'page' => PDK_Admin::PAGE_SLUG, 'tab' => 'site_settings' ],
+					admin_url( 'admin.php' )
+				) ) . '#afwijkende-dagen">' . esc_html__( 'Site Instellingen → Afwijkende dagen', 'pdk-theme-options' ) . '</a>'
+			);
+			?>
 		</p>
-		<table class="widefat" style="max-width:800px;margin-bottom:10px;">
-			<thead>
-				<tr>
-					<th><?php esc_html_e( 'Van datum', 'pdk-theme-options' ); ?></th>
-					<th><?php esc_html_e( 'Tot datum (optioneel)', 'pdk-theme-options' ); ?></th>
-					<th><?php esc_html_e( 'Omschrijving', 'pdk-theme-options' ); ?></th>
-					<th><?php esc_html_e( 'Verwijderen', 'pdk-theme-options' ); ?></th>
-				</tr>
-			</thead>
-			<tbody id="pdk-delivery-exceptions">
-			<?php foreach ( $exceptions as $i => $row ) : ?>
-				<tr>
-					<td><input type="date" name="delivery_time[exceptions][<?php echo esc_attr( $i ); ?>][from]" value="<?php echo esc_attr( $row['from'] ); ?>"></td>
-					<td><input type="date" name="delivery_time[exceptions][<?php echo esc_attr( $i ); ?>][to]" value="<?php echo esc_attr( $row['to'] ); ?>"></td>
-					<td><input type="text" class="regular-text" name="delivery_time[exceptions][<?php echo esc_attr( $i ); ?>][label]" value="<?php echo esc_attr( $row['label'] ); ?>" placeholder="<?php esc_attr_e( 'bv. Kerst', 'pdk-theme-options' ); ?>"></td>
-					<td>
-						<?php if ( ! empty( $row['from'] ) ) : ?>
-							<input type="checkbox" name="delivery_time[exceptions][<?php echo esc_attr( $i ); ?>][delete]" value="1">
-						<?php endif; ?>
-					</td>
-				</tr>
-			<?php endforeach; ?>
-			</tbody>
-		</table>
-		<p>
-			<button type="button" class="button" id="pdk-delivery-add-row">+ <?php esc_html_e( 'Rij toevoegen', 'pdk-theme-options' ); ?></button>
-		</p>
-		<script>
-		( function () {
-			var counter = <?php echo (int) count( $exceptions ); ?>;
-			var tbody   = document.getElementById( 'pdk-delivery-exceptions' );
-
-			document.getElementById( 'pdk-delivery-add-row' ).addEventListener( 'click', function () {
-				var rows = tbody.querySelectorAll( 'tr' );
-				var row  = rows[ rows.length - 1 ].cloneNode( true );
-
-				row.querySelectorAll( 'input' ).forEach( function ( input ) {
-					input.name = input.name.replace( /\[\d+\]/, '[' + counter + ']' );
-					if ( input.type === 'checkbox' ) {
-						input.checked = false;
-					} else {
-						input.value = '';
-					}
-				} );
-
-				tbody.appendChild( row );
-				counter++;
-			} );
-		} )();
-		</script>
 
 		<h2 style="margin-top:1.5em;"><?php esc_html_e( 'Teksten', 'pdk-theme-options' ); ?></h2>
 		<table class="form-table">

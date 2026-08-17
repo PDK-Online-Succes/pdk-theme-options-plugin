@@ -178,8 +178,48 @@ class PDK_Admin {
 			];
 		}
 
-		PDK_Settings::update( [
-			'site_settings' => [
+		$periods = [];
+		foreach ( (array) ( $_POST['site_settings']['periods'] ?? [] ) as $row ) {
+			if ( ! empty( $row['delete'] ) ) {
+				continue;
+			}
+
+			$from = sanitize_text_field( wp_unslash( $row['from'] ?? '' ) );
+			if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $from ) ) {
+				continue; // Lege of ongeldige rij overslaan.
+			}
+
+			$to = sanitize_text_field( wp_unslash( $row['to'] ?? '' ) );
+			if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $to ) || $to < $from ) {
+				$to = $from;
+			}
+
+			$open  = sanitize_text_field( wp_unslash( $row['open'] ?? '' ) );
+			$close = sanitize_text_field( wp_unslash( $row['close'] ?? '' ) );
+
+			// Eén van de twee tijden ingevuld is geen halve openstelling —
+			// dan geldt de periode als volledig gesloten.
+			if ( ! preg_match( '/^\d{2}:\d{2}$/', $open ) || ! preg_match( '/^\d{2}:\d{2}$/', $close ) ) {
+				$open  = '';
+				$close = '';
+			}
+
+			$periods[] = [
+				'from'       => $from,
+				'to'         => $to,
+				'label'      => sanitize_text_field( wp_unslash( $row['label'] ?? '' ) ),
+				'open'       => $open,
+				'close'      => $close,
+				'close_shop' => ! empty( $row['close_shop'] ),
+			];
+		}
+
+		// Bewust géén PDK_Settings::update(): die merget recursief, waardoor
+		// verwijderde periode-rijen zouden blijven staan. array_merge vervangt
+		// de hele lijst.
+		$options = (array) PDK_Settings::get();
+
+		$options['site_settings'] = array_merge( (array) ( $options['site_settings'] ?? [] ), [
 				'favicon_url'         => esc_url_raw( $_POST['site_settings']['favicon_url'] ?? '' ),
 				'disable_page_editor' => ! empty( $_POST['site_settings']['disable_page_editor'] ),
 				'client_logo'         => esc_url_raw( $_POST['site_settings']['client_logo'] ?? '' ),
@@ -197,8 +237,10 @@ class PDK_Admin {
 				'social_youtube'      => esc_url_raw( $_POST['site_settings']['social_youtube'] ?? '' ),
 				'social_tiktok'       => esc_url_raw( $_POST['site_settings']['social_tiktok'] ?? '' ),
 				'opening_hours'      => $hours,
-			],
+				'periods'            => $periods,
 		] );
+
+		update_option( PDK_Settings::OPTION_KEY, $options );
 		// phpcs:enable
 	}
 
@@ -209,8 +251,7 @@ class PDK_Admin {
 				'message'             => wp_kses_post( $_POST['vacation_mode']['message'] ?? '' ),
 				'disable_checkout'    => ! empty( $_POST['vacation_mode']['disable_checkout'] ),
 				'disable_add_to_cart' => ! empty( $_POST['vacation_mode']['disable_add_to_cart'] ),
-				'start_date'          => sanitize_text_field( $_POST['vacation_mode']['start_date'] ?? '' ),
-				'end_date'            => sanitize_text_field( $_POST['vacation_mode']['end_date'] ?? '' ),
+				// Periodes worden opgeslagen bij Site Instellingen → Afwijkende dagen.
 			],
 		] );
 		// phpcs:enable
@@ -609,10 +650,11 @@ class PDK_Admin {
 		// Sub-tabs: alle secties blijven in hetzelfde formulier staan (één keer
 		// opslaan bewaart álles) — JS toont alleen de actieve sectie.
 		$sections = [
-			'basis'          => __( 'Basis', 'pdk-theme-options' ),
-			'klantgegevens'  => __( 'Klantgegevens', 'pdk-theme-options' ),
-			'openingstijden' => __( 'Openingstijden', 'pdk-theme-options' ),
-			'social'         => __( 'Social Media', 'pdk-theme-options' ),
+			'basis'            => __( 'Basis', 'pdk-theme-options' ),
+			'klantgegevens'    => __( 'Klantgegevens', 'pdk-theme-options' ),
+			'openingstijden'   => __( 'Openingstijden', 'pdk-theme-options' ),
+			'afwijkende-dagen' => __( 'Afwijkende dagen', 'pdk-theme-options' ),
+			'social'           => __( 'Social Media', 'pdk-theme-options' ),
 		];
 		?>
 		<nav class="nav-tab-wrapper pdk-subtabs" style="margin:12px 0 0;">
@@ -711,6 +753,80 @@ class PDK_Admin {
 		</table>
 
 		</div><!-- /openingstijden -->
+
+		<div class="pdk-subtab" id="afwijkende-dagen">
+		<p class="description" style="margin-bottom:12px;">
+			<?php esc_html_e( 'Periodes die afwijken van de vaste weekindeling: kerst, oud en nieuw, een zomerperiode of een bedrijfsvakantie. Eén keer invullen — de openingstijden, de levertijden en de vakantiemodus gebruiken allemaal deze lijst.', 'pdk-theme-options' ); ?>
+		</p>
+		<p class="description" style="margin-bottom:12px;">
+			<strong><?php esc_html_e( 'Openingstijden leeg laten', 'pdk-theme-options' ); ?></strong>
+			<?php esc_html_e( '= die dagen volledig gesloten, en er wordt niet verzonden. Vul je wél tijden in, dan gelden die afwijkende tijden en gaat het verzenden gewoon door. "Tot"-datum is alleen nodig bij een periode van meerdere dagen.', 'pdk-theme-options' ); ?>
+		</p>
+		<?php
+		$periods   = class_exists( 'PDK_Site_Settings' ) ? PDK_Site_Settings::periods() : [];
+		$periods[] = [ 'from' => '', 'to' => '', 'label' => '', 'open' => '', 'close' => '', 'close_shop' => false ]; // altijd één lege invoerrij
+		?>
+		<table class="widefat" style="max-width:1000px;margin-bottom:10px;">
+			<thead>
+				<tr>
+					<th><?php esc_html_e( 'Van datum', 'pdk-theme-options' ); ?></th>
+					<th><?php esc_html_e( 'Tot datum', 'pdk-theme-options' ); ?></th>
+					<th><?php esc_html_e( 'Omschrijving', 'pdk-theme-options' ); ?></th>
+					<th><?php esc_html_e( 'Open van', 'pdk-theme-options' ); ?></th>
+					<th><?php esc_html_e( 'Tot', 'pdk-theme-options' ); ?></th>
+					<th><?php esc_html_e( 'Webshop sluiten', 'pdk-theme-options' ); ?></th>
+					<th><?php esc_html_e( 'Verwijderen', 'pdk-theme-options' ); ?></th>
+				</tr>
+			</thead>
+			<tbody id="pdk-periods">
+			<?php foreach ( $periods as $i => $row ) : ?>
+				<tr>
+					<td><input type="date" name="site_settings[periods][<?php echo esc_attr( $i ); ?>][from]" value="<?php echo esc_attr( $row['from'] ); ?>"></td>
+					<td><input type="date" name="site_settings[periods][<?php echo esc_attr( $i ); ?>][to]" value="<?php echo esc_attr( $row['to'] ); ?>"></td>
+					<td><input type="text" class="regular-text" name="site_settings[periods][<?php echo esc_attr( $i ); ?>][label]" value="<?php echo esc_attr( $row['label'] ); ?>" placeholder="<?php esc_attr_e( 'bv. Kerst', 'pdk-theme-options' ); ?>"></td>
+					<td><input type="time" name="site_settings[periods][<?php echo esc_attr( $i ); ?>][open]" value="<?php echo esc_attr( $row['open'] ); ?>"></td>
+					<td><input type="time" name="site_settings[periods][<?php echo esc_attr( $i ); ?>][close]" value="<?php echo esc_attr( $row['close'] ); ?>"></td>
+					<td><input type="checkbox" name="site_settings[periods][<?php echo esc_attr( $i ); ?>][close_shop]" value="1" <?php checked( ! empty( $row['close_shop'] ) ); ?>></td>
+					<td>
+						<?php if ( ! empty( $row['from'] ) ) : ?>
+							<input type="checkbox" name="site_settings[periods][<?php echo esc_attr( $i ); ?>][delete]" value="1">
+						<?php endif; ?>
+					</td>
+				</tr>
+			<?php endforeach; ?>
+			</tbody>
+		</table>
+		<p>
+			<button type="button" class="button" id="pdk-periods-add-row">+ <?php esc_html_e( 'Rij toevoegen', 'pdk-theme-options' ); ?></button>
+		</p>
+		<p class="description">
+			<?php esc_html_e( '"Webshop sluiten" schakelt de vakantiemodus in tijdens die periode — bestellen wordt dan geblokkeerd. Laat dit uit voor een gewone sluitingsdag zoals kerst, waarop de webshop gewoon bestellingen mag aannemen en alleen de levertijd opschuift. De module Vakantiemodus moet daarvoor wel aan staan.', 'pdk-theme-options' ); ?>
+		</p>
+		<script>
+		( function () {
+			var counter = <?php echo (int) count( $periods ); ?>;
+			var tbody   = document.getElementById( 'pdk-periods' );
+
+			document.getElementById( 'pdk-periods-add-row' ).addEventListener( 'click', function () {
+				var rows = tbody.querySelectorAll( 'tr' );
+				var row  = rows[ rows.length - 1 ].cloneNode( true );
+
+				row.querySelectorAll( 'input' ).forEach( function ( input ) {
+					input.name = input.name.replace( /\[\d+\]/, '[' + counter + ']' );
+					if ( input.type === 'checkbox' ) {
+						input.checked = false;
+					} else {
+						input.value = '';
+					}
+				} );
+
+				tbody.appendChild( row );
+				counter++;
+			} );
+		} )();
+		</script>
+
+		</div><!-- /afwijkende-dagen -->
 
 		<div class="pdk-subtab" id="social">
 		<table class="form-table">
@@ -937,15 +1053,52 @@ class PDK_Admin {
 				<td><label><input type="checkbox" name="vacation_mode[disable_checkout]" value="1" <?php checked( $s['disable_checkout'] ); ?>> <?php esc_html_e( 'Afrekenproces uitschakelen (redirect naar winkel)', 'pdk-theme-options' ); ?></label></td>
 			</tr>
 			<tr>
-				<th><?php esc_html_e( 'Startdatum (optioneel)', 'pdk-theme-options' ); ?></th>
+				<th><?php esc_html_e( 'Periode', 'pdk-theme-options' ); ?></th>
 				<td>
-					<input type="date" name="vacation_mode[start_date]" value="<?php echo esc_attr( $s['start_date'] ); ?>">
-					<p class="description"><?php esc_html_e( 'Laat leeg om direct te activeren (zolang de module aan staat).', 'pdk-theme-options' ); ?></p>
+					<?php
+					$periods_url = esc_url( add_query_arg(
+						[ 'page' => self::PAGE_SLUG, 'tab' => 'site_settings' ],
+						admin_url( 'admin.php' )
+					) ) . '#afwijkende-dagen';
+
+					$closures = class_exists( 'PDK_Site_Settings' )
+						? array_filter( PDK_Site_Settings::periods(), static fn( array $p ): bool => $p['close_shop'] )
+						: [];
+
+					if ( $closures ) :
+						?>
+						<ul style="margin:0 0 8px;">
+						<?php foreach ( $closures as $p ) : ?>
+							<li>
+								<strong><?php echo esc_html( $p['label'] ?: __( '(zonder omschrijving)', 'pdk-theme-options' ) ); ?></strong>
+								— <?php echo esc_html( $p['from'] === $p['to'] ? $p['from'] : $p['from'] . ' t/m ' . $p['to'] ); ?>
+							</li>
+						<?php endforeach; ?>
+						</ul>
+						<p class="description">
+							<?php
+							printf(
+								/* translators: %s: link naar Site Instellingen → Afwijkende dagen */
+								esc_html__( 'De webshop sluit automatisch tijdens deze periodes. Beheren bij %s.', 'pdk-theme-options' ),
+								'<a href="' . $periods_url . '">' . esc_html__( 'Site Instellingen → Afwijkende dagen', 'pdk-theme-options' ) . '</a>'
+							);
+							?>
+						</p>
+					<?php else : ?>
+						<p class="description" style="color:#d63638;font-weight:600;">
+							<?php esc_html_e( 'Er is geen periode met "Webshop sluiten" ingesteld — de webshop is daarom nú dicht zolang deze module aan staat.', 'pdk-theme-options' ); ?>
+						</p>
+						<p class="description">
+							<?php
+							printf(
+								/* translators: %s: link naar Site Instellingen → Afwijkende dagen */
+								esc_html__( 'Wil je vooruit plannen in plaats van direct sluiten? Voeg een periode toe bij %s en vink daar "Webshop sluiten" aan.', 'pdk-theme-options' ),
+								'<a href="' . $periods_url . '">' . esc_html__( 'Site Instellingen → Afwijkende dagen', 'pdk-theme-options' ) . '</a>'
+							);
+							?>
+						</p>
+					<?php endif; ?>
 				</td>
-			</tr>
-			<tr>
-				<th><?php esc_html_e( 'Einddatum (optioneel)', 'pdk-theme-options' ); ?></th>
-				<td><input type="date" name="vacation_mode[end_date]" value="<?php echo esc_attr( $s['end_date'] ); ?>"></td>
 			</tr>
 		</table>
 		<?php

@@ -52,7 +52,7 @@ Op Kinsta staat de mu-plugins map op: `/app/mu-plugins/`
 | Module | Omschrijving |
 |---|---|
 | **Critical Error Status** | Stuurt HTTP 500 terug bij fatale PHP-fouten (SEO-vriendelijk) |
-| **Site Instellingen** | Favicon, klantgegevens, logo, social media — opvraagbaar in thema's |
+| **Site Instellingen** | Favicon, klantgegevens, logo, social media, openingstijden en afwijkende dagen — opvraagbaar in thema's |
 
 ### Optioneel (per module in-/uitschakelbaar)
 
@@ -63,8 +63,8 @@ Op Kinsta staat de mu-plugins map op: `/app/mu-plugins/`
 | **Custom JS** | Eigen JavaScript laden vanuit `uploads/pdk-theme-options/custom-script.js` |
 | **Custom Fonts** | `@font-face` CSS genereren vanuit `uploads/fonts/`; upload en beheer via admin |
 | **Login Page** | Aangepaste loginpagina met PDK-logo en achtergrond |
-| **Vakantiemodus** | Winkelwagen en/of checkout tijdelijk blokkeren (WooCommerce) |
-| **Levertijden** | Levertijdtekst per weekdag met cutoff-tijd, uitzonderingsdata en product-uitzondering; shortcode `[levertijd]` (WooCommerce) |
+| **Vakantiemodus** | Winkelwagen en/of checkout blokkeren tijdens een periode met "Webshop sluiten" (WooCommerce) |
+| **Levertijden** | Levertijdtekst per weekdag met cutoff-tijd en product-uitzondering; shortcode `[levertijd]` (WooCommerce) |
 | **SKU Beperken & Valideren** | SKU's beperkt tot `a-z A-Z 0-9 . -`; automatisch opschonen, duplicaten geblokkeerd, WP-CLI-conversie (WooCommerce) |
 | **Language Cleaner** | Geïnstalleerde kerntalen verwijderen; verweesde vertaalbestanden opsporen |
 
@@ -137,6 +137,30 @@ Een eigen module aansluiten kost één regel in de constructor:
 pdk_register_frontend_output( 'mijn_blok', [ $this, 'render' ] );
 // levert [mijn_blok] én do_action( 'pdk_mijn_blok' )
 ```
+
+---
+
+## Afwijkende dagen
+
+Kerst, oud en nieuw, een zomerperiode of een bedrijfsvakantie vul je op één plek in: *PDK Tools → Site Instellingen → Afwijkende dagen*. Die lijst stuurt drie dingen tegelijk aan, zodat dezelfde datum nooit op meerdere plekken bijgehouden hoeft te worden.
+
+| Periode | Openingstijden | Levertijden | Webshop |
+|---|---|---|---|
+| Tijden leeg gelaten | Toont "Gesloten" op die dagen | Telt als niet-verzenddag, levertijd schuift op | Blijft open |
+| Afwijkende tijden ingevuld | Toont die tijden | Verzendt volgens de gewone weekdagregel | Blijft open |
+| "Webshop sluiten" aangevinkt | Volgt de ingevulde tijden | Volgt de ingevulde tijden | Dicht tijdens de periode |
+
+De openingstijden-tabel kijkt zeven dagen vooruit: elke weekdag krijgt de eerstvolgende concrete datum, dus een periode landt op de juiste rij. Loopt er een periode, dan komt er een regel boven de tabel: *"Let op: afwijkende openingstijden i.v.m. Kerst"*.
+
+Voor thema's:
+
+```php
+PDK_Site_Settings::active_period();              // periode van vandaag, of null
+PDK_Site_Settings::active_period( '2026-12-25' ); // periode op een datum
+PDK_Site_Settings::is_closed_on( '2026-12-25' );  // gesloten? periode wint van de weekdag
+```
+
+> **Vakantiemodus:** staat de module aan zonder dat er ergens "Webshop sluiten" is aangevinkt, dan is de webshop meteen dicht — zo blijft de toggle bruikbaar om handmatig te sluiten. Zodra er wél een sluitingsperiode staat, geldt alleen die periode.
 
 ---
 

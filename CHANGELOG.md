@@ -2,6 +2,23 @@
 
 Alle noemenswaardige wijzigingen in PDK Theme Options worden hier bijgehouden.
 
+## [2.2.0] — 2026-08-17
+
+### Afwijkende dagen: één lijst voor openingstijden, levertijden en vakantiemodus
+
+- Nieuwe sub-tab *Site Instellingen → Afwijkende dagen*: periodes met van/tot, omschrijving, afwijkende openingstijden en een vinkje "Webshop sluiten"
+- Kerst, oud en nieuw, zomerperiodes en bedrijfsvakanties worden nog maar op één plek ingevuld; voorheen kostte een sluiting twee invoerplekken en waren afwijkende openingstijden helemaal niet mogelijk
+- Openingstijden per periode: tijden leeg = gesloten, tijden ingevuld = afwijkende openstelling
+- De openingstijden-tabel kijkt zeven dagen vooruit, zodat een periode op de juiste weekdag landt, met een melding erboven: "Let op: afwijkende openingstijden i.v.m. Kerst"
+- Verzenden wordt afgeleid en heeft geen eigen instelling meer: een gesloten periode telt als niet-verzenddag, een periode met afwijkende tijden verzendt gewoon door
+- Nieuwe API voor thema's: `PDK_Site_Settings::active_period()`, `::matching_periods()`, `::is_closed_on()`
+
+### Gewijzigd
+
+- **Levertijden:** de tabel "Uitzonderingsdata" is vervallen; die data staat nu bij Afwijkende dagen, met een verwijzing op de tab
+- **Vakantiemodus:** start- en einddatum zijn vervallen; de tab toont de geplande sluitingen uit de periodelijst. Staat de module aan zonder enige sluitingsperiode, dan is de webshop direct dicht — gelijk aan het oude gedrag zonder datums
+- Bestaande uitzonderingsdata en vakantiedatums worden automatisch omgezet naar periodes bij de eerste keer laden; vielen ze samen, dan worden het één rij
+
 ## [2.1.0] — 2026-08-17
 
 ### PDK MU Installer (nieuwe micro-plugin)
