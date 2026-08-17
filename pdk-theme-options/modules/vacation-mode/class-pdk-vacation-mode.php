@@ -23,7 +23,14 @@ class PDK_Vacation_Mode {
 		// Shortcode [vakantiemelding] + template-hook do_action( 'pdk_vakantiemelding' ):
 		// toont de melding op een eigen plek in het thema. Geeft niets terug
 		// wanneer de vakantiemodus (nog) niet actief is.
-		pdk_register_frontend_output( 'vakantiemelding', [ $this, 'render_notice' ] );
+		pdk_register_frontend_output(
+			'vakantiemelding',
+			[ $this, 'render_notice' ],
+			'<div class="pdk-vacation-notice">het ingestelde bericht (wp_kses_post, dus HTML mag)</div>. '
+			. 'Geeft een lege string zolang de vakantiemodus niet actief is. Los hiervan plaatst de module dezelfde melding '
+			. 'automatisch boven de shoploop, de productpagina, de winkelwagen en de kassa; in de shoploop vervangt '
+			. '<span class="pdk-vacation-label button disabled"> de bestelknop.'
+		);
 	}
 
 	/** Melding als HTML — leeg zolang de vakantiemodus niet actief is. */

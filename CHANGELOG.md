@@ -2,11 +2,26 @@
 
 Alle noemenswaardige wijzigingen in PDK Theme Options worden hier bijgehouden.
 
+## [2.3.1] — 2026-08-17
+
+### De agent weet nu wat de plugin op de frontend rendert
+
+- Nieuwe ability `pdk-theme-options/get-site-info`: bedrijfsgegevens, social media, openingstijden, afwijkende periodes, of het vandaag gesloten is, welke modules aan staan, en de bestaande helpers (`pdk_site_setting()`, `pdk_company_address()`, `pdk_opening_hours_html()`, `PDK_Site_Settings::*`) en shortcodes
+- Per frontend-uitvoer (`[openingstijden]`, `[levertijd]`, `[vakantiemelding]`) de shortcode, de template-hook, de HTML-opbouw met CSS-klassen én `html_now`: de HTML zoals die er op dat moment daadwerkelijk uitkomt. Ook de uitvoer buiten shortcodes staat erin — favicon, de handles `pdk-custom-style` en `pdk-custom-script`, het `@font-face`-blok, de loginpagina en de term-meta `short_description`
+- De markup-beschrijving staat als derde argument bij `pdk_register_frontend_output()`, dus náást de render-code; nieuwe modules die die helper gebruiken verschijnen automatisch in de ability. Nieuw: `pdk_frontend_outputs()` geeft dat register terug
+- De schrijf-ability verwijst naar `get-site-info`, zodat een agent gegevens ophaalt en bestaande shortcodes hergebruikt in plaats van hard codeert, en CSS op de juiste klassen zet
+- De agent kan de openingstijden en klantgegevens alleen lézen — wijzigen blijft aan de klant via *Site Instellingen*
+
+### Site Instellingen
+
+- Favicon en logo kiezen uit de mediabibliotheek, met voorbeeldweergave en een "Verwijderen"-knop. De waarde blijft een URL, dus `pdk_client_logo_url()` en de favicon-output werken ongewijzigd en bestaande instellingen blijven staan
+- De regel "Gebruik pdk_site_setting(...)" stond onder élk sub-tabblad; hij staat nu alleen onder Klantgegevens, en noemt ook `pdk_company_address()`
+
 ## [2.3.0] — 2026-08-17
 
 ### AI-agent toegang tot eigen PHP, CSS en JS (MCP)
 
-- Nieuwe module *AI-agent toegang (MCP)* (standaard uit): registreert twee abilities via de WordPress Abilities API (WP 6.9+) — `pdk-theme-options/read-custom-code` en `pdk-theme-options/write-custom-code`, met `file` = `php` | `css` | `js`
+- Nieuwe module *AI-agent toegang (MCP)* (standaard uit): registreert `pdk-theme-options/read-custom-code` en `pdk-theme-options/write-custom-code` via de WordPress Abilities API (WP 6.9+), met `file` = `php` | `css` | `js`
 - Een MCP-server publiceert die automatisch als tools, via `meta.mcp.public = true` zoals Agent Connector en de WordPress MCP Adapter verwachten. De plugin spreekt zelf geen MCP-protocol
 - Ook bereikbaar over REST onder `wp-abilities/v1` (`meta.show_in_rest = true`)
 - Toegang loopt via de bestaande capability `pdk_edit_custom_code`: de gebruiker waarmee de agent inlogt moet code-editor rechten hebben (Rechten-tab). Beheerder zijn is niet genoeg

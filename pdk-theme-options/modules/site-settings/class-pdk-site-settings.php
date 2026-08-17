@@ -25,7 +25,17 @@ class PDK_Site_Settings {
 		$loader->add_action( 'init',    $this, 'maybe_disable_page_editor' );
 
 		// Shortcode [openingstijden] + template-hook do_action( 'pdk_openingstijden' ).
-		pdk_register_frontend_output( 'openingstijden', [ self::class, 'opening_hours_html' ] );
+		pdk_register_frontend_output(
+			'openingstijden',
+			[ self::class, 'opening_hours_html' ],
+			'Optioneel <h3 class="pdk-openingstijden__title"> (alleen met het title-attribuut), daarna optioneel '
+			. '<p class="pdk-openingstijden__notice"> ("Let op: afwijkende openingstijden i.v.m. Kerst" — alleen als er een '
+			. 'periode loopt), daarna <table class="pdk-openingstijden"><tbody> met zeven rijen '
+			. '<tr class="pdk-openingstijden__row"> van maandag t/m zondag; een gesloten dag krijgt ook '
+			. 'pdk-openingstijden__row--closed. Per rij <th scope="row">dagnaam</th> en <td>"07:00 - 17:30" of "Gesloten"</td>. '
+			. 'De plugin laadt geen eigen frontend-CSS: opmaak doe je via Custom CSS op deze klassen. '
+			. 'Attribuut: [openingstijden title="Openingstijden bouwshop"].'
+		);
 	}
 
 	/** Voegt de favicon-link toe aan de <head>. */

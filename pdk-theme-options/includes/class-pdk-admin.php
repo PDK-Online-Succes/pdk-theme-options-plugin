@@ -79,6 +79,9 @@ class PDK_Admin {
 			PDK_PLUGIN_VERSION
 		);
 
+		// Mediabibliotheek voor de favicon- en logo-velden.
+		wp_enqueue_media();
+
 		wp_enqueue_script(
 			'pdk-admin',
 			PDK_PLUGIN_URL . 'assets/js/admin.js',
@@ -88,8 +91,10 @@ class PDK_Admin {
 		);
 
 		wp_localize_script( 'pdk-admin', 'pdkAdmin', [
-			'nonce'     => wp_create_nonce( 'pdk_admin_js' ),
-			'savedText' => __( 'Opgeslagen!', 'pdk-theme-options' ),
+			'nonce'       => wp_create_nonce( 'pdk_admin_js' ),
+			'savedText'   => __( 'Opgeslagen!', 'pdk-theme-options' ),
+			'mediaTitle'  => __( 'Afbeelding kiezen', 'pdk-theme-options' ),
+			'mediaButton' => __( 'Deze gebruiken', 'pdk-theme-options' ),
 		] );
 	}
 
@@ -666,10 +671,13 @@ class PDK_Admin {
 		<div class="pdk-subtab" id="basis">
 		<table class="form-table">
 			<tr>
-				<th><?php esc_html_e( 'Favicon URL', 'pdk-theme-options' ); ?></th>
+				<th><?php esc_html_e( 'Favicon', 'pdk-theme-options' ); ?></th>
 				<td>
-					<input type="url" name="site_settings[favicon_url]" value="<?php echo esc_url( $s['favicon_url'] ); ?>" class="regular-text">
-					<p class="description"><?php esc_html_e( 'Directe URL naar het .ico, .png of .svg favicon-bestand.', 'pdk-theme-options' ); ?></p>
+					<?php $this->render_media_field(
+						'favicon_url',
+						$s['favicon_url'],
+						__( 'Kies een .ico, .png of .svg uit de mediabibliotheek, of vul een externe URL in.', 'pdk-theme-options' )
+					); ?>
 				</td>
 			</tr>
 			<tr>
@@ -688,10 +696,13 @@ class PDK_Admin {
 		<div class="pdk-subtab" id="klantgegevens">
 		<table class="form-table">
 			<tr>
-				<th><?php esc_html_e( 'Logo URL', 'pdk-theme-options' ); ?></th>
+				<th><?php esc_html_e( 'Logo', 'pdk-theme-options' ); ?></th>
 				<td>
-					<input type="url" name="site_settings[client_logo]" value="<?php echo esc_url( $s['client_logo'] ); ?>" class="regular-text">
-					<p class="description"><?php esc_html_e( 'Opvraagbaar in thema via pdk_client_logo_url()', 'pdk-theme-options' ); ?></p>
+					<?php $this->render_media_field(
+						'client_logo',
+						$s['client_logo'],
+						__( 'Opvraagbaar in thema via pdk_client_logo_url()', 'pdk-theme-options' )
+					); ?>
 				</td>
 			</tr>
 			<tr>
@@ -721,6 +732,10 @@ class PDK_Admin {
 				<td><input type="email" name="site_settings[company_email]" value="<?php echo esc_attr( $s['company_email'] ?? '' ); ?>" class="regular-text"></td>
 			</tr>
 		</table>
+
+		<p class="description">
+			<?php esc_html_e( 'Opvragen in je thema: pdk_site_setting("company_name"), pdk_company_address() voor het volledige adres.', 'pdk-theme-options' ); ?>
+		</p>
 
 		</div><!-- /klantgegevens -->
 
@@ -848,10 +863,24 @@ class PDK_Admin {
 			<?php endforeach; ?>
 		</table>
 		</div><!-- /social -->
+		<?php
+	}
 
-		<p class="description" style="margin-top:12px;">
-			<?php esc_html_e( 'Gebruik pdk_site_setting("company_name") in je thema om klantgegevens op te halen.', 'pdk-theme-options' ); ?>
-		</p>
+	/**
+	 * URL-veld met mediabibliotheek-kiezer. De waarde blijft een URL, zodat
+	 * pdk_client_logo_url() en de favicon-output ongewijzigd blijven werken.
+	 */
+	private function render_media_field( string $key, string $value, string $description ): void {
+		?>
+		<div class="pdk-media-field">
+			<img src="<?php echo esc_url( $value ); ?>" class="pdk-media-preview" alt="" <?php echo $value ? '' : 'style="display:none;"'; ?>>
+			<p>
+				<input type="url" name="site_settings[<?php echo esc_attr( $key ); ?>]" value="<?php echo esc_url( $value ); ?>" class="regular-text">
+				<button type="button" class="button pdk-media-pick"><?php esc_html_e( 'Kies uit mediabibliotheek', 'pdk-theme-options' ); ?></button>
+				<button type="button" class="button-link pdk-media-clear"><?php esc_html_e( 'Verwijderen', 'pdk-theme-options' ); ?></button>
+			</p>
+			<p class="description"><?php echo esc_html( $description ); ?></p>
+		</div>
 		<?php
 	}
 

@@ -135,8 +135,15 @@ function pdk_day_labels(): array {
  *
  * De callback krijgt de shortcode-attributen mee en geeft klaargezette,
  * ge-escapete HTML terug. Eén registratie per module — geen dubbele bedrading.
+ *
+ * $markup beschrijft welke HTML de callback teruggeeft. Die beschrijving staat
+ * bewust náást de render-code en wordt uitgeleverd via de ability
+ * pdk-theme-options/get-site-info, zodat een AI-agent weet hoe de uitvoer
+ * eruitziet zonder dat er een tweede lijst is die kan verouderen.
  */
-function pdk_register_frontend_output( string $name, callable $render ): void {
+function pdk_register_frontend_output( string $name, callable $render, string $markup = '' ): void {
+	$GLOBALS['pdk_frontend_output'][ $name ] = [ 'render' => $render, 'markup' => $markup ];
+
 	add_shortcode( $name, static function ( $atts = [] ) use ( $render ): string {
 		return (string) $render( (array) $atts );
 	} );
@@ -144,6 +151,16 @@ function pdk_register_frontend_output( string $name, callable $render ): void {
 	add_action( 'pdk_' . $name, static function ( array $atts = [] ) use ( $render ): void {
 		echo $render( $atts ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- callback levert al ge-escapete HTML.
 	} );
+}
+
+/**
+ * Alle geregistreerde frontend-uitvoer: naam → [ render, markup ].
+ * Bevat alleen modules die daadwerkelijk ingeschakeld zijn.
+ *
+ * @return array<string,array{render:callable,markup:string}>
+ */
+function pdk_frontend_outputs(): array {
+	return $GLOBALS['pdk_frontend_output'] ?? [];
 }
 
 /**

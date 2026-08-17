@@ -17,7 +17,14 @@ class PDK_Delivery_Time {
 
 	public function __construct( PDK_Loader $loader ) {
 		// Shortcode [levertijd] + template-hook do_action( 'pdk_levertijd' ).
-		pdk_register_frontend_output( 'levertijd', [ $this, 'shortcode' ] );
+		pdk_register_frontend_output(
+			'levertijd',
+			[ $this, 'shortcode' ],
+			'<h4 class="eta__title">Levertijd: </h4> gevolgd door <p class="eta__content">de levertijdtekst</p>. '
+			. 'Geeft een lege string buiten een productpagina (er is dan geen $product) en wanneer er geen tekst is ingesteld. '
+			. 'De tekst komt uit het productveld pdk_edt, of anders uit de algemene instelling met {cutoff}, {dag} en '
+			. '{volgende_dag} al ingevuld. Opmaak via Custom CSS op .eta__title en .eta__content.'
+		);
 
 		// Productveld: WooCommerce-functies zijn pas op plugins_loaded beschikbaar.
 		add_action( 'plugins_loaded', [ $this, 'init_product_field' ], 20 );

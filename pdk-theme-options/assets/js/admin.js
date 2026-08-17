@@ -1,5 +1,5 @@
 /* PDK Theme Options — Admin JavaScript */
-/* global pdkAdmin */
+/* global pdkAdmin, wp */
 
 (function ($) {
 	'use strict';
@@ -62,6 +62,44 @@
 		this.value           = val.substring(0, start) + '\t' + val.substring(end);
 		this.selectionStart  = start + 1;
 		this.selectionEnd    = start + 1;
+	});
+
+	// Mediabibliotheek-kiezer voor URL-velden (favicon, logo). Het veld blijft
+	// een URL — thema-helpers en de favicon-output veranderen dus niet.
+	var frame = null;
+
+	$(document).on('click', '.pdk-media-pick', function (e) {
+		e.preventDefault();
+
+		var $field = $(this).closest('.pdk-media-field');
+
+		// Eén frame hergebruiken, maar wél per veld opnieuw bedraden.
+		if (frame) frame.off('select');
+		if (!frame) {
+			frame = wp.media({
+				title: pdkAdmin.mediaTitle,
+				button: { text: pdkAdmin.mediaButton },
+				multiple: false
+			});
+		}
+
+		frame.on('select', function () {
+			var attachment = frame.state().get('selection').first().toJSON();
+			var url = (attachment.sizes && attachment.sizes.medium) ? attachment.sizes.medium.url : attachment.url;
+
+			$field.find('input[type="url"]').val(attachment.url);
+			$field.find('.pdk-media-preview').attr('src', url).show();
+		});
+
+		frame.open();
+	});
+
+	$(document).on('click', '.pdk-media-clear', function (e) {
+		e.preventDefault();
+
+		var $field = $(this).closest('.pdk-media-field');
+		$field.find('input[type="url"]').val('');
+		$field.find('.pdk-media-preview').removeAttr('src').hide();
 	});
 
 	// Toon "opgeslagen" bericht na redirect met ?saved=1.

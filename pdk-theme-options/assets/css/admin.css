@@ -150,3 +150,20 @@
 	cursor: default;
 	opacity: .7;
 }
+
+/* -----------------------------------------------------------------------
+   Mediabibliotheek-veld (favicon, logo)
+----------------------------------------------------------------------- */
+.pdk-media-field p {
+	margin: 4px 0;
+}
+
+.pdk-media-preview {
+	max-width: 160px;
+	max-height: 80px;
+	height: auto;
+	display: block;
+	padding: 4px;
+	background: #fff;
+	border: 1px solid #dcdcde;
+}
