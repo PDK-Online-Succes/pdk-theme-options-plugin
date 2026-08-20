@@ -167,3 +167,20 @@
 	background: #fff;
 	border: 1px solid #dcdcde;
 }
+
+/* -----------------------------------------------------------------------
+   Diff-weergave (CodeMirror merge view)
+----------------------------------------------------------------------- */
+.pdk-diff .cm-mergeView,
+.pdk-diff .cm-mergeViewEditors {
+	height: 70vh;
+}
+
+.pdk-diff .cm-merge-revert {
+	display: none; /* Alleen-lezen vergelijking — niets om terug te zetten. */
+}
+
+[data-pdk-diff-toggle] {
+	margin-left: 8px;
+	vertical-align: baseline;
+}

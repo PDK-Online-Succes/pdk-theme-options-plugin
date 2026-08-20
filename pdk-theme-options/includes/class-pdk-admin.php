@@ -33,6 +33,13 @@ class PDK_Admin {
 		'language_checker' => 'Taalcontrole',
 	];
 
+	/** Tabs met een code-editor → het bestand in de storage-map. */
+	private const CODE_TABS = [
+		'custom_functions' => 'custom-functions.php',
+		'custom_css'       => 'custom-style.css',
+		'custom_js'        => 'custom-script.js',
+	];
+
 	public function __construct( PDK_Loader $loader ) {
 		$this->loader = $loader;
 	}
@@ -76,6 +83,10 @@ class PDK_Admin {
 			<?php foreach ( $tampered as $filename ) : ?>
 				<p>
 					<code><?php echo esc_html( $filename ); ?></code>
+					<a class="button button-small" href="<?php echo esc_url( add_query_arg(
+						[ 'page' => self::PAGE_SLUG, 'tab' => array_search( $filename, self::CODE_TABS, true ), 'diff' => 1 ],
+						admin_url( 'admin.php' )
+					) ); ?>"><?php esc_html_e( 'Bekijk de wijziging', 'pdk-theme-options' ); ?></a>
 					<?php if ( ! pdk_current_user_can_edit_code() ) : ?>
 						— <?php esc_html_e( 'alleen een gebruiker met code-editor rechten kan dit afhandelen.', 'pdk-theme-options' ); ?>
 					<?php endif; ?>
@@ -173,6 +184,18 @@ class PDK_Admin {
 			PDK_PLUGIN_VERSION,
 			true
 		);
+
+		// CodeMirror 6-bundel: alleen op de tabs met een code-editor (671 kB).
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( isset( self::CODE_TABS[ sanitize_key( $_GET['tab'] ?? '' ) ] ) ) {
+			wp_enqueue_script(
+				'pdk-code-editor',
+				PDK_PLUGIN_URL . 'assets/js/editor.bundle.js',
+				[],
+				PDK_PLUGIN_VERSION,
+				true
+			);
+		}
 
 		wp_localize_script( 'pdk-admin', 'pdkAdmin', [
 			'nonce'       => wp_create_nonce( 'pdk_admin_js' ),
@@ -399,17 +422,10 @@ class PDK_Admin {
 			wp_die( esc_html__( 'Je hebt geen rechten om code-bestanden te bewerken.', 'pdk-theme-options' ), 403 );
 		}
 
-		// phpcs:disable WordPress.Security.NonceVerification.Missing
-		$file_map = [
-			'custom_functions' => 'custom-functions.php',
-			'custom_css'       => 'custom-style.css',
-			'custom_js'        => 'custom-script.js',
-		];
-
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing
 		$content = wp_unslash( $_POST['file_content'] ?? '' );
-		// phpcs:enable
 
-		$result = pdk_write_storage_file( $file_map[ $tab ], $content );
+		$result = pdk_write_storage_file( self::CODE_TABS[ $tab ], $content );
 
 		if ( is_wp_error( $result ) ) {
 			wp_safe_redirect( add_query_arg(
@@ -997,9 +1013,21 @@ class PDK_Admin {
 			return;
 		}
 
-		$path    = PDK_STORAGE_DIR . $filename;
-		$content = file_exists( $path ) ? file_get_contents( $path ) : ''; // phpcs:ignore
+		$path     = PDK_STORAGE_DIR . $filename;
+		$content  = file_exists( $path ) ? file_get_contents( $path ) : ''; // phpcs:ignore
+		$baseline = file_exists( $path . '.bak' ) ? file_get_contents( $path . '.bak' ) : null; // phpcs:ignore
+		$tampered = pdk_file_is_tampered( $filename );
+
+		// Vanuit de integriteitsmelding komt men binnen met ?diff=1 — dan opent
+		// de vergelijking meteen, zodat je ziet wat er is bijgeschreven.
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$open_diff = $tampered || ! empty( $_GET['diff'] );
 		?>
+		<?php if ( $tampered ) : ?>
+			<div class="notice notice-error inline" style="margin:0 0 12px;">
+				<p><?php esc_html_e( 'Dit bestand is buiten de editor om gewijzigd en wordt niet geladen. Vergelijk hieronder met de laatst opgeslagen versie.', 'pdk-theme-options' ); ?></p>
+			</div>
+		<?php endif; ?>
 		<p class="description">
 			<?php
 			printf(
@@ -1007,15 +1035,30 @@ class PDK_Admin {
 				'<code>' . esc_html( $path ) . '</code>'
 			);
 			?>
+			<?php if ( null !== $baseline ) : ?>
+				<button
+					type="button"
+					class="button button-small"
+					data-pdk-diff-toggle
+					data-label-on="<?php esc_attr_e( 'Vergelijk met laatst opgeslagen versie', 'pdk-theme-options' ); ?>"
+					data-label-off="<?php esc_attr_e( 'Terug naar de editor', 'pdk-theme-options' ); ?>"
+					hidden
+				><?php echo esc_html( $open_diff ? __( 'Terug naar de editor', 'pdk-theme-options' ) : __( 'Vergelijk met laatst opgeslagen versie', 'pdk-theme-options' ) ); ?></button>
+			<?php endif; ?>
 		</p>
-		<textarea
-			name="file_content"
-			id="pdk-code-editor"
-			class="pdk-code-editor"
-			data-lang="<?php echo esc_attr( $lang ); ?>"
-			rows="30"
-			spellcheck="false"
-		><?php echo esc_textarea( $content ); ?></textarea>
+		<div class="pdk-editor" data-diff="<?php echo $open_diff && null !== $baseline ? '1' : '0'; ?>">
+			<textarea
+				name="file_content"
+				id="pdk-code-editor"
+				class="pdk-code-editor"
+				data-lang="<?php echo esc_attr( $lang ); ?>"
+				rows="30"
+				spellcheck="false"
+			><?php echo esc_textarea( $content ); ?></textarea>
+			<?php if ( null !== $baseline ) : ?>
+				<textarea class="pdk-code-baseline" hidden readonly><?php echo esc_textarea( $baseline ); ?></textarea>
+			<?php endif; ?>
+		</div>
 		<?php
 	}
 

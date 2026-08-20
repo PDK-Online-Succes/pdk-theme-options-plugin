@@ -2,6 +2,27 @@
 
 Alle noemenswaardige wijzigingen in PDK Theme Options worden hier bijgehouden.
 
+## [2.5.0] — 2026-08-20
+
+### Echte code-editor: CodeMirror 6
+
+- De textarea voor PHP, CSS en JS is vervangen door CodeMirror 6: syntax-kleuring, regelnummers, code vouwen, haakjes-matching, meerdere cursors, zoeken/vervangen (Ctrl+F), autocompletion en undo/redo
+- **Geen linters** — de editor kleurt, hij keurt niet af. CSS Nesting, PHP 8.5 en ES2026 leveren dus nooit een valse foutmelding. De echte PHP-syntaxcontrole gebeurt bij het opslaan server-side met `token_get_all()`, dus met de PHP-versie van de site zelf
+- De textarea blijft achter de schermen bestaan en loopt mee: opslaan, Ctrl+S en terugvallen zonder JavaScript werken ongewijzigd
+- Bijwerken naar de nieuwste CodeMirror: `npm run update` in de repo-root (bouwt de bundel opnieuw en draait de rooktest). Klanten hebben geen build-stap: `assets/js/editor.bundle.js` staat gebouwd in de repo
+- De bundel (672 kB) laadt alleen op de drie code-tabs, niet op de rest van de admin
+
+### Diff-weergave
+
+- Knop *Vergelijk met laatst opgeslagen versie* op elke code-tab: zij-aan-zij vergelijking tussen de `.bak` (laatst via de editor opgeslagen) en de huidige inhoud, met ongewijzigde blokken ingeklapt
+- De integriteitsmelding heeft een knop *Bekijk de wijziging* die direct in die vergelijking opent — zo zie je precies wat er buiten de editor om is bijgeschreven
+- Op een gemanipuleerd bestand opent de vergelijking automatisch
+
+### Overig
+
+- Nieuw in de repo-root: `package.json` en `src/` (buildbronnen). De MU-installer pakt alleen `pdk-theme-options/` uit, dus klanten krijgen ze niet mee
+- Rooktest voor de editor: `npm test`
+
 ## [2.4.0] — 2026-08-20
 
 ### Code-editor-rechten vastzetten in wp-config.php

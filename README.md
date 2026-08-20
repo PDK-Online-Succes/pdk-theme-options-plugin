@@ -164,6 +164,32 @@ PDK_Site_Settings::is_closed_on( '2026-12-25' );  // gesloten? periode wint van 
 
 ---
 
+## Code-editor
+
+De tabs *PHP Functions*, *Custom CSS* en *Custom JS* gebruiken **CodeMirror 6**: syntax-kleuring, regelnummers, vouwen, haakjes-matching, meerdere cursors, zoeken/vervangen (Ctrl+F) en autocompletion. Ctrl+S slaat op.
+
+Bewust **zonder linters**: de editor kleurt, hij keurt niet af. CSS Nesting, PHP 8.5 of ES2026 leveren dus nooit een valse foutmelding over "ongeldige" syntax. De echte controle gebeurt waar hij hoort:
+
+- **PHP** — bij het opslaan server-side met `token_get_all()`, dus met de PHP-versie van de site zelf. Een parse-fout wordt geweigerd vóór het schrijven, zodat een typefout de site nooit plat legt
+- **CSS/JS** — de browser is de enige waarheid; wat hij begrijpt, werkt
+
+### Diff-weergave
+
+Elke code-tab heeft de knop *Vergelijk met laatst opgeslagen versie*: een zij-aan-zij vergelijking tussen `<bestand>.bak` (de vorige versie) en de huidige inhoud, met ongewijzigde blokken ingeklapt. Bij een gemanipuleerd bestand opent die vergelijking automatisch — zie [Integriteitscontrole](#integriteitscontrole-van-de-code-bestanden).
+
+### Editor bijwerken
+
+De gebouwde bundel `pdk-theme-options/assets/js/editor.bundle.js` staat in de repo — klanten hebben dus **geen** build-stap. Alleen om te updaten:
+
+```bash
+npm install     # eenmalig
+npm run update  # npm update + bundel opnieuw bouwen + rooktest
+```
+
+`package.json`, `src/` en `node_modules/` blijven in de repo-root; de MU-installer pakt alleen `pdk-theme-options/` uit, dus klanten krijgen ze niet mee. Bump daarna de plugin-versie zodat browsers de nieuwe bundel ophalen.
+
+---
+
 ## Beveiliging
 
 ### Code-editor-rechten (`pdk_edit_custom_code`)

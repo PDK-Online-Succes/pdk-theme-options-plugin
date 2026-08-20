@@ -50,19 +50,8 @@
 		}
 	});
 
-	// Code-editor: Tab-toets invoegen als spaties.
-	$(document).on('keydown', '.pdk-code-editor', function (e) {
-		if (e.key !== 'Tab') return;
-		e.preventDefault();
-
-		var start = this.selectionStart;
-		var end   = this.selectionEnd;
-		var val   = this.value;
-
-		this.value           = val.substring(0, start) + '\t' + val.substring(end);
-		this.selectionStart  = start + 1;
-		this.selectionEnd    = start + 1;
-	});
+	// De code-editor zelf zit in editor.bundle.js (CodeMirror 6); die vervangt
+	// de textarea en houdt hem gesynchroniseerd, zodat opslaan blijft werken.
 
 	// Mediabibliotheek-kiezer voor URL-velden (favicon, logo). Het veld blijft
 	// een URL — thema-helpers en de favicon-output veranderen dus niet.
