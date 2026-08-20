@@ -66,6 +66,9 @@ class PDK_Plugin {
 
 		// Eerste-keer initialisatie — werkt ook als MU-plugin (geen activatie-hook).
 		$this->loader->add_action( 'admin_init',    $this, 'maybe_first_run' );
+
+		// Baseline voor de integriteitscontrole op bestaande installaties.
+		add_action( 'admin_init', 'pdk_seed_file_hashes' );
 		$this->loader->add_action( 'admin_notices', $this, 'show_first_run_notice' );
 
 		// Optionele modules — alleen laden wanneer ingeschakeld.

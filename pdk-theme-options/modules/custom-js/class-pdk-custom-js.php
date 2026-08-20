@@ -21,6 +21,11 @@ class PDK_Custom_JS {
 			return;
 		}
 
+		// Buiten de editor om gewijzigd → niet uitserveren (zie pdk_file_is_tampered).
+		if ( pdk_file_is_tampered( 'custom-script.js' ) ) {
+			return;
+		}
+
 		wp_enqueue_script(
 			'pdk-custom-script',
 			PDK_STORAGE_URL . 'custom-script.js',

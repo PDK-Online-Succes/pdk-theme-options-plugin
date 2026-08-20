@@ -52,12 +52,21 @@ function is_multisite(): bool {
 }
 function add_shortcode( string $tag, callable $cb ): void {}
 function add_action( string $hook, $cb, int $prio = 10, int $args = 1 ): void {}
+function add_filter( string $hook, $cb, int $prio = 10, int $args = 1 ): void {}
 function get_option( string $key, $default = false ) {
 	if ( 'active_plugins' === $key ) {
 		return [];
 	}
 
+	if ( 'pdk_file_hashes' === $key ) {
+		return $GLOBALS['file_hashes'] ?? $default;
+	}
+
 	return $GLOBALS['options'] ?? $default;
+}
+function update_option( string $key, $value, $autoload = null ): bool {
+	$GLOBALS[ 'pdk_file_hashes' === $key ? 'file_hashes' : 'options' ] = $value;
+	return true;
 }
 
 class WP_Error {

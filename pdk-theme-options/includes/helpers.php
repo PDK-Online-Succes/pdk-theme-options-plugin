@@ -29,12 +29,13 @@ function pdk_ensure_storage_dir(): bool {
 		}
 	}
 
+	// Blokkeer directe toegang tot PHP én de .bak-kopieën (anders is de
+	// broncode van custom-functions.php gewoon op te vragen via de browser).
+	// Altijd schrijven: bestaande installaties hebben nog de oude regel.
 	$htaccess = $dir . '.htaccess';
-	if ( ! file_exists( $htaccess ) ) {
-		file_put_contents(
-			$htaccess,
-			"Options -Indexes\n<FilesMatch \"\\.php$\">\n  Deny from all\n</FilesMatch>\n"
-		);
+	$rules    = "Options -Indexes\n<FilesMatch \"\\.(php|bak)$\">\n  Require all denied\n  <IfModule !mod_authz_core.c>\n    Deny from all\n  </IfModule>\n</FilesMatch>\n";
+	if ( ! file_exists( $htaccess ) || file_get_contents( $htaccess ) !== $rules ) {
+		file_put_contents( $htaccess, $rules );
 	}
 
 	$index = $dir . 'index.php';
@@ -53,7 +54,10 @@ function pdk_maybe_create_storage_file( string $filename, string $placeholder = 
 	$path = PDK_STORAGE_DIR . $filename;
 
 	if ( ! file_exists( $path ) ) {
-		return false !== file_put_contents( $path, $placeholder );
+		if ( false === file_put_contents( $path, $placeholder ) ) {
+			return false;
+		}
+		pdk_store_file_hash( $filename, $placeholder );
 	}
 
 	return true;
@@ -93,9 +97,16 @@ function pdk_write_storage_file( string $filename, string $content ) {
 		}
 	}
 
+	// Back-up van de vorige versie — de terugvalknop bij een gehackt bestand.
+	if ( file_exists( $path ) ) {
+		copy( $path, $path . '.bak' );
+	}
+
 	if ( false === file_put_contents( $path, $content ) ) {
 		return new WP_Error( 'write_error', __( 'Bestand kon niet worden opgeslagen.', 'pdk-theme-options' ) );
 	}
+
+	pdk_store_file_hash( $filename, $content );
 
 	return true;
 }
@@ -182,4 +193,131 @@ function pdk_woocommerce_active(): bool {
 	}
 
 	return in_array( 'woocommerce/woocommerce.php', $active, true );
+}
+
+// -----------------------------------------------------------------------------
+// Rechten via wp-config — persistent, niet te wijzigen via database of admin
+// -----------------------------------------------------------------------------
+
+/**
+ * De in wp-config.php vastgelegde code-editors.
+ *
+ *   define( 'PDK_CODE_EDITORS', '1,luuk' );   // ID, login of e-mailadres
+ *
+ * @return int[]|null  null = constante niet gedefinieerd (de Rechten-tab beslist).
+ */
+function pdk_config_code_editors(): ?array {
+	if ( ! defined( 'PDK_CODE_EDITORS' ) ) {
+		return null;
+	}
+
+	static $ids = null;
+	if ( null !== $ids ) {
+		return $ids;
+	}
+
+	$entries = is_array( PDK_CODE_EDITORS ) ? PDK_CODE_EDITORS : explode( ',', (string) PDK_CODE_EDITORS );
+	$ids     = [];
+
+	foreach ( $entries as $entry ) {
+		$entry = trim( (string) $entry );
+
+		if ( '' === $entry ) {
+			continue;
+		}
+
+		if ( ctype_digit( $entry ) ) {
+			$ids[] = (int) $entry;
+			continue;
+		}
+
+		$user = is_email( $entry ) ? get_user_by( 'email', $entry ) : get_user_by( 'login', $entry );
+		if ( $user ) {
+			$ids[] = (int) $user->ID;
+		}
+	}
+
+	return $ids;
+}
+
+/**
+ * Maakt de constante uit wp-config leidend boven alles wat in de database staat.
+ *
+ * Via `map_meta_cap` (niet `user_has_cap`) zodat ook multisite-superbeheerders
+ * geblokkeerd worden — die passeren de user_has_cap-filter namelijk niet.
+ * Zonder de constante verandert er niets en blijft de Rechten-tab bepalend.
+ */
+function pdk_map_code_cap( array $caps, string $cap, int $user_id ): array {
+	if ( PDK_CAP_EDIT_CODE !== $cap ) {
+		return $caps;
+	}
+
+	$allowed = pdk_config_code_editors();
+	if ( null === $allowed ) {
+		return $caps;
+	}
+
+	return in_array( $user_id, $allowed, true ) ? [ 'exist' ] : [ 'do_not_allow' ];
+}
+add_filter( 'map_meta_cap', 'pdk_map_code_cap', 10, 3 );
+
+// -----------------------------------------------------------------------------
+// Integriteitscontrole van de code-bestanden
+// -----------------------------------------------------------------------------
+
+/** De drie bestanden die via de editor beheerd worden. */
+function pdk_code_files(): array {
+	return [ 'custom-functions.php', 'custom-style.css', 'custom-script.js' ];
+}
+
+/** Legt de vingerafdruk van een via de editor opgeslagen bestand vast. */
+function pdk_store_file_hash( string $filename, string $content ): void {
+	$hashes              = (array) get_option( 'pdk_file_hashes', [] );
+	$hashes[ $filename ] = hash( 'sha256', $content );
+	update_option( 'pdk_file_hashes', $hashes, false );
+}
+
+/**
+ * true zodra een bestand buiten de editor om is gewijzigd — bijvoorbeeld door
+ * een backdoor die code aan custom-functions.php toevoegt.
+ *
+ * Zonder opgeslagen vingerafdruk (bestaande installatie, nog nooit opgeslagen)
+ * is er niets om mee te vergelijken en geldt het bestand als vertrouwd.
+ */
+function pdk_file_is_tampered( string $filename ): bool {
+	$hashes = (array) get_option( 'pdk_file_hashes', [] );
+
+	if ( empty( $hashes[ $filename ] ) ) {
+		return false;
+	}
+
+	$path = PDK_STORAGE_DIR . $filename;
+	if ( ! file_exists( $path ) ) {
+		return false;
+	}
+
+	return ! hash_equals( $hashes[ $filename ], (string) hash_file( 'sha256', $path ) );
+}
+
+/** @return string[] Bestanden waarvan de vingerafdruk niet meer klopt. */
+function pdk_tampered_files(): array {
+	return array_values( array_filter( pdk_code_files(), 'pdk_file_is_tampered' ) );
+}
+
+/**
+ * Legt eenmalig een baseline vast op installaties die nog geen vingerafdrukken
+ * hebben (upgrade van een oudere versie). Trust-on-first-use: controleer de
+ * bestanden één keer handmatig na de update.
+ */
+function pdk_seed_file_hashes(): void {
+	if ( is_array( get_option( 'pdk_file_hashes' ) ) ) {
+		return;
+	}
+
+	foreach ( pdk_code_files() as $filename ) {
+		$path = PDK_STORAGE_DIR . $filename;
+		if ( file_exists( $path ) ) {
+			pdk_store_file_hash( $filename, (string) file_get_contents( $path ) );
+		}
+	}
 }

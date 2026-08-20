@@ -21,6 +21,11 @@ class PDK_Custom_CSS {
 			return;
 		}
 
+		// Buiten de editor om gewijzigd → niet uitserveren (zie pdk_file_is_tampered).
+		if ( pdk_file_is_tampered( 'custom-style.css' ) ) {
+			return;
+		}
+
 		wp_enqueue_style(
 			'pdk-custom-style',
 			PDK_STORAGE_URL . 'custom-style.css',

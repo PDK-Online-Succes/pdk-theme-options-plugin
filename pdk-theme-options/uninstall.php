@@ -14,6 +14,7 @@ defined( 'WP_UNINSTALL_PLUGIN' ) || exit;
 
 // Verwijder plugin-opties.
 delete_option( 'pdk_theme_options' );
+delete_option( 'pdk_file_hashes' );
 delete_site_option( 'pdk_theme_options' ); // Multisite.
 
 // Verwijder gecachte GitHub-release-transients.

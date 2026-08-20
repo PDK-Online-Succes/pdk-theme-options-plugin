@@ -172,6 +172,38 @@ De PHP/CSS/JS-editor is **niet** toegankelijk voor alle beheerders. Gebruikers m
 
 > **Reden:** beheerders-accounts kunnen zijn gecompromitteerd. Code-schrijftoegang geeft directe servertoegang. Wijs zo min mogelijk gebruikers aan.
 
+### Rechten vastzetten in `wp-config.php` (aanbevolen)
+
+```php
+define( 'PDK_CODE_EDITORS', '1,7' );          // gebruikers-ID's
+define( 'PDK_CODE_EDITORS', 'luuk,beheer' );  // of logins / e-mailadressen
+```
+
+Staat deze constante gedefinieerd, dan bepaalt **alleen wp-config.php** wie code mag bewerken. De Rechten-tab wordt read-only en capabilities in de database — ook een `pdk_edit_custom_code` die een aanvaller aan de administrator-rol toevoegt — worden genegeerd. Ook multisite-superbeheerders vallen hieronder.
+
+### Integriteitscontrole van de code-bestanden
+
+Bij elke opslag via de editor legt de plugin een SHA-256-vingerafdruk vast en bewaart hij de vorige versie als `.bak`. Wijkt de inhoud daarna af, dan is het bestand buiten de editor om gewijzigd:
+
+- `custom-functions.php` wordt **niet meer ingeladen** — een bijgeschreven backdoor draait dus nooit
+- `custom-style.css` en `custom-script.js` worden niet meer uitgeserveerd
+- Beheerders zien een melding met *Herstel back-up* of *Wijziging vertrouwen*
+
+Wijzig je bewust via SFTP of WP-CLI, kies dan *Wijziging vertrouwen* — dan wordt de nieuwe inhoud de baseline.
+
+> Bij het bijwerken vanaf een oudere versie wordt de huidige inhoud éénmalig als vertrouwd vastgelegd. Controleer die bestanden dus één keer na de update.
+
+Aanvullend in `wp-config.php`, buiten deze plugin om:
+
+```php
+define( 'DISALLOW_FILE_EDIT', true );  // schakelt de WordPress thema-/plugin-editor uit
+define( 'DISALLOW_FILE_MODS', true );  // blokkeert ook plugin-/thema-installaties
+```
+
+`DISALLOW_FILE_MODS` schakelt ook de GitHub-updater van deze plugin uit; gebruik die alleen op sites die je handmatig of via deploys bijwerkt.
+
+Zelftest: `php includes/test-file-integrity.php`
+
 ### Font-upload-rechten
 
 Fontbestanden uploaden en verwijderen vereist `manage_options`. Dit is de standaard WordPress-beheerdercapabiliteit.

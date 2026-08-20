@@ -55,6 +55,13 @@ class PDK_Custom_Functions {
 			return;
 		}
 
+		// Integriteitscontrole: klopt de vingerafdruk niet meer, dan is het
+		// bestand buiten de editor om gewijzigd. Niet laden — een backdoor die
+		// zichzelf hier bijschrijft draait dan nooit. De admin krijgt een melding.
+		if ( pdk_file_is_tampered( 'custom-functions.php' ) ) {
+			return;
+		}
+
 		include_once $file;
 	}
 

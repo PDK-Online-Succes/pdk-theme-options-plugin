@@ -44,6 +44,90 @@ class PDK_Admin {
 		$this->loader->add_action( 'admin_post_pdk_save_fonts_display',  $this, 'handle_save_fonts_display' );
 		$this->loader->add_action( 'admin_post_pdk_font_upload',         $this, 'handle_font_upload' );
 		$this->loader->add_action( 'admin_post_pdk_font_delete',         $this, 'handle_font_delete' );
+		$this->loader->add_action( 'admin_notices',                      $this, 'show_integrity_notice' );
+		$this->loader->add_action( 'admin_post_pdk_file_integrity',      $this, 'handle_integrity_action' );
+	}
+
+	// -------------------------------------------------------------------------
+	// Integriteit van de code-bestanden
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Waarschuwt zodra een code-bestand buiten de editor om is gewijzigd.
+	 * Het bestand wordt tot die tijd niet meer geladen of uitgeserveerd.
+	 */
+	public function show_integrity_notice(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		$tampered = pdk_tampered_files();
+		if ( ! $tampered ) {
+			return;
+		}
+
+		$ap_url = admin_url( 'admin-post.php' );
+		?>
+		<div class="notice notice-error">
+			<p>
+				<strong><?php esc_html_e( 'PDK Theme Options — bestand gewijzigd buiten de editor om', 'pdk-theme-options' ); ?></strong><br>
+				<?php esc_html_e( 'De inhoud komt niet overeen met wat er via de editor is opgeslagen. Het bestand wordt niet geladen tot je hieronder kiest wat er moet gebeuren.', 'pdk-theme-options' ); ?>
+			</p>
+			<?php foreach ( $tampered as $filename ) : ?>
+				<p>
+					<code><?php echo esc_html( $filename ); ?></code>
+					<?php if ( ! pdk_current_user_can_edit_code() ) : ?>
+						— <?php esc_html_e( 'alleen een gebruiker met code-editor rechten kan dit afhandelen.', 'pdk-theme-options' ); ?>
+					<?php endif; ?>
+					<?php foreach ( pdk_current_user_can_edit_code() ? [ 'restore' => __( 'Herstel back-up', 'pdk-theme-options' ), 'accept' => __( 'Wijziging vertrouwen', 'pdk-theme-options' ) ] : [] as $op => $label ) : ?>
+						<form method="post" action="<?php echo esc_url( $ap_url ); ?>" style="display:inline;margin-left:8px;">
+							<?php wp_nonce_field( 'pdk_file_integrity' ); ?>
+							<input type="hidden" name="action" value="pdk_file_integrity">
+							<input type="hidden" name="op" value="<?php echo esc_attr( $op ); ?>">
+							<input type="hidden" name="file" value="<?php echo esc_attr( $filename ); ?>">
+							<button class="button button-small"><?php echo esc_html( $label ); ?></button>
+						</form>
+					<?php endforeach; ?>
+				</p>
+			<?php endforeach; ?>
+		</div>
+		<?php
+	}
+
+	/**
+	 * "Herstel back-up" zet de laatst opgeslagen versie terug, "Wijziging
+	 * vertrouwen" legt de huidige inhoud vast als nieuwe vingerafdruk.
+	 * Beide vereisen de code-capability — niet alleen manage_options.
+	 */
+	public function handle_integrity_action(): void {
+		check_admin_referer( 'pdk_file_integrity' );
+
+		if ( ! pdk_current_user_can_edit_code() ) {
+			wp_die( esc_html__( 'Je hebt geen rechten om code-bestanden te bewerken.', 'pdk-theme-options' ), 403 );
+		}
+
+		// phpcs:disable WordPress.Security.NonceVerification.Missing
+		$file = basename( sanitize_file_name( wp_unslash( $_POST['file'] ?? '' ) ) );
+		$op   = sanitize_key( $_POST['op'] ?? '' );
+		// phpcs:enable
+
+		if ( in_array( $file, pdk_code_files(), true ) ) {
+			$path = PDK_STORAGE_DIR . $file;
+
+			if ( 'restore' === $op && file_exists( $path . '.bak' ) ) {
+				$good = (string) file_get_contents( $path . '.bak' ); // phpcs:ignore
+				if ( true === pdk_write_storage_file( $file, $good ) ) {
+					// De schrijfactie zette de gehackte versie in .bak — terugdraaien,
+					// zodat een tweede "Herstel" niet de hack terugzet.
+					copy( $path, $path . '.bak' );
+				}
+			} elseif ( 'accept' === $op && file_exists( $path ) ) {
+				pdk_store_file_hash( $file, (string) file_get_contents( $path ) ); // phpcs:ignore
+			}
+		}
+
+		wp_safe_redirect( wp_get_referer() ?: admin_url() );
+		exit;
 	}
 
 	public function add_menu_page(): void {
@@ -273,8 +357,23 @@ class PDK_Admin {
 	}
 
 	private function save_permissions(): void {
+		// wp-config is leidend — dan valt hier niets te wijzigen.
+		if ( null !== pdk_config_code_editors() ) {
+			return;
+		}
+
 		// phpcs:disable WordPress.Security.NonceVerification.Missing
 		$allowed_users = array_map( 'absint', (array) ( $_POST['allowed_users'] ?? [] ) );
+
+		// Haal de cap weg bij ROLLEN. Oudere installaties hebben hem op de
+		// administrator-rol staan; remove_cap() op een gebruiker haalt een
+		// rol-cap niet weg, waardoor uitvinken van een beheerder niets deed.
+		foreach ( array_keys( wp_roles()->roles ) as $role_name ) {
+			$role = get_role( $role_name );
+			if ( $role && $role->has_cap( PDK_CAP_EDIT_CODE ) ) {
+				$role->remove_cap( PDK_CAP_EDIT_CODE );
+			}
+		}
 
 		// Verwijder cap van ALLE niet-primaire gebruikers.
 		$all_users = get_users( [ 'fields' => 'ID' ] );
@@ -1150,7 +1249,17 @@ class PDK_Admin {
 
 	private function render_tab_permissions(): void {
 		$all_users = get_users( [ 'orderby' => 'display_name' ] );
+		$locked    = pdk_config_code_editors();
 		?>
+		<?php if ( null !== $locked ) : ?>
+			<div class="notice notice-info inline" style="margin:0 0 16px;">
+				<p>
+					<strong><?php esc_html_e( 'Vastgezet in wp-config.php', 'pdk-theme-options' ); ?></strong> —
+					<?php esc_html_e( 'de constante PDK_CODE_EDITORS bepaalt wie code mag bewerken. Niemand kan dat hier of via de database wijzigen; pas wp-config.php aan.', 'pdk-theme-options' ); ?>
+				</p>
+				<p><code>define( 'PDK_CODE_EDITORS', '<?php echo esc_html( implode( ',', $locked ) ); ?>' );</code></p>
+			</div>
+		<?php endif; ?>
 		<p>
 			<?php esc_html_e( 'Selecteer welke gebruikers de custom PHP-, CSS- en JS-bestanden mogen bewerken. Administrators krijgen deze rechten NIET automatisch — ze moeten hier expliciet worden aangewezen.', 'pdk-theme-options' ); ?>
 		</p>
@@ -1168,6 +1277,7 @@ class PDK_Admin {
 								name="allowed_users[]"
 								value="<?php echo esc_attr( $user->ID ); ?>"
 								<?php checked( user_can( $user->ID, PDK_CAP_EDIT_CODE ) ); ?>
+								<?php disabled( null !== $locked ); ?>
 							>
 							<span>
 								<?php echo esc_html( $user->display_name ); ?>

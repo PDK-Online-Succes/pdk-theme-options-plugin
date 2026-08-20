@@ -2,6 +2,27 @@
 
 Alle noemenswaardige wijzigingen in PDK Theme Options worden hier bijgehouden.
 
+## [2.4.0] — 2026-08-20
+
+### Code-editor-rechten vastzetten in wp-config.php
+
+- Nieuwe constante `PDK_CODE_EDITORS` (gebruikers-ID's, logins of e-mailadressen, komma-gescheiden). Is die gedefinieerd, dan is wp-config leidend: capabilities uit de database worden genegeerd en de Rechten-tab is read-only
+- Werkt via `map_meta_cap`, dus ook multisite-superbeheerders passeren de controle niet meer
+- **Bugfix:** een beheerder uitvinken in de Rechten-tab had geen effect als de capability op de administrator-*rol* stond (oudere installaties) — `remove_cap()` op een gebruiker haalt een rol-capability niet weg. Opslaan verwijdert de capability nu ook van alle rollen
+
+### Integriteitscontrole van custom PHP, CSS en JS
+
+- Bij elke opslag wordt een SHA-256-vingerafdruk vastgelegd en de vorige versie bewaard als `.bak`
+- Wijkt een bestand daarna af, dan wordt `custom-functions.php` niet meer ingeladen en worden CSS/JS niet meer uitgeserveerd — een backdoor die zichzelf bijschrijft draait dus nooit
+- Beheerders krijgen een melding met *Herstel back-up* of *Wijziging vertrouwen* (voor bewuste wijzigingen via SFTP of WP-CLI)
+- Bestaande installaties: de huidige inhoud wordt éénmalig als vertrouwd vastgelegd — controleer de bestanden één keer na deze update
+- `.htaccess` in de storage-map blokkeert nu ook `.bak`-bestanden (voorheen alleen `.php`) en gebruikt `Require all denied` voor Apache 2.4. Wordt bij deze update automatisch herschreven
+- Zelftest: `php includes/test-file-integrity.php`
+
+### Documentatie
+
+- README: `DISALLOW_FILE_EDIT` / `DISALLOW_FILE_MODS` als aanvullende hardening, plus uitleg over `PDK_CODE_EDITORS` en de integriteitscontrole
+
 ## [2.3.1] — 2026-08-17
 
 ### De agent weet nu wat de plugin op de frontend rendert
