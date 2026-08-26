@@ -40,6 +40,10 @@ class PDK_Plugin {
 	}
 
 	private function init(): void {
+		// Security: eerst, want de header-firewall moet vóór al het andere lopen.
+		require_once PDK_PLUGIN_DIR . 'modules/security/class-pdk-security.php';
+		new PDK_Security( $this->loader );
+
 		// Kritieke module: altijd laden, geen afhankelijkheid van instellingen.
 		require_once PDK_PLUGIN_DIR . 'modules/critical-error-status/class-pdk-critical-error.php';
 		new PDK_Critical_Error_Status( $this->loader );

@@ -3,7 +3,7 @@
  * Plugin Name: PDK MU Installer
  * Plugin URI:  https://github.com/PDK-Online-Succes/pdk-theme-options-plugin
  * Description: Installeert en update PDK Theme Options als must-use plugin, rechtstreeks vanuit GitHub Releases. Must-use plugins zijn altijd actief en kunnen niet per ongeluk gedeactiveerd worden — maar WordPress kan ze zelf niet installeren of bijwerken. Deze plugin doet dat wel.
- * Version:     1.0.0
+ * Version:     1.1.0
  * Author:      PDK Online Succes
  * Author URI:  https://pdk.nl
  * License:     GPL-2.0-or-later
@@ -44,8 +44,19 @@ class PDK_MU_Installer {
 		return trailingslashit( WPMU_PLUGIN_DIR ) . self::DIR_NAME;
 	}
 
-	/** De loader die WordPress daadwerkelijk inleest (mu-plugins laadt geen submappen). */
+	/**
+	 * De loader die WordPress daadwerkelijk inleest (mu-plugins laadt geen submappen).
+	 *
+	 * WordPress laadt must-use plugins in alfabetische volgorde — er is geen
+	 * prioriteit. De `00-`-prefix zet ons dus vóór elke andere MU-plugin, zodat
+	 * de header-firewall en de blacklist-opruiming als eerste draaien.
+	 */
 	public static function loader_file(): string {
+		return trailingslashit( WPMU_PLUGIN_DIR ) . '00-' . self::DIR_NAME . '.php';
+	}
+
+	/** De loadernaam van vóór 1.1.0, zonder `00-`-prefix. Wordt opgeruimd. */
+	public static function legacy_loader_file(): string {
 		return trailingslashit( WPMU_PLUGIN_DIR ) . self::DIR_NAME . '.php';
 	}
 
@@ -261,7 +272,7 @@ class PDK_MU_Installer {
 				<?php
 				printf(
 					/* translators: 1: loader-bestand, 2: pluginmap */
-					esc_html__( 'Bij installeren wordt de release van GitHub gehaald en uitgepakt naar %2$s. Daarnaast wordt %1$s aangemaakt: must-use plugins laden geen submappen, dus dat bestandje laadt de plugin in. Deze installer mag daarna gewoon actief blijven — hij controleert elke 12 uur op een nieuwe release en meldt het in de admin.', 'pdk-mu-installer' ),
+					esc_html__( 'Bij installeren wordt de release van GitHub gehaald en uitgepakt naar %2$s. Daarnaast wordt %1$s aangemaakt: must-use plugins laden geen submappen, dus dat bestandje laadt de plugin in. De naam begint met 00- omdat WordPress must-use plugins op alfabet laadt — zo draait de PDK-plugin vóór alle andere. Deze installer mag daarna gewoon actief blijven — hij controleert elke 12 uur op een nieuwe release en meldt het in de admin.', 'pdk-mu-installer' ),
 					'<code>' . esc_html( basename( self::loader_file() ) ) . '</code>',
 					'<code>' . esc_html( self::mu_dir() ) . '</code>'
 				);
@@ -334,8 +345,10 @@ class PDK_MU_Installer {
 		if ( is_dir( self::mu_dir() ) ) {
 			$wp_filesystem->delete( self::mu_dir(), true );
 		}
-		if ( file_exists( self::loader_file() ) ) {
-			$wp_filesystem->delete( self::loader_file() );
+		foreach ( [ self::loader_file(), self::legacy_loader_file() ] as $loader ) {
+			if ( file_exists( $loader ) ) {
+				$wp_filesystem->delete( $loader );
+			}
 		}
 
 		if ( file_exists( self::main_file() ) ) {
@@ -428,6 +441,11 @@ class PDK_MU_Installer {
 
 		if ( ! $wp_filesystem->put_contents( self::loader_file(), $loader, FS_CHMOD_FILE ) ) {
 			return new WP_Error( 'pdk_loader_failed', __( 'De bestanden zijn geplaatst, maar het loader-bestand kon niet worden geschreven.', 'pdk-mu-installer' ) );
+		}
+
+		// Loader van vóór 1.1.0 opruimen, anders staan er twee.
+		if ( file_exists( self::legacy_loader_file() ) ) {
+			$wp_filesystem->delete( self::legacy_loader_file() );
 		}
 
 		return true;

@@ -2,6 +2,30 @@
 
 Alle noemenswaardige wijzigingen in PDK Theme Options worden hier bijgehouden.
 
+## [2.6.0] — 2026-08-26
+
+### Nieuwe module: Security — vier maatregelen, geen toggle
+
+`modules/security/class-pdk-security.php` wordt als eerste geladen, nog vóór Critical Error Status. Er is bewust **geen instelling** om hem uit te zetten; de lijsten staan als constanten in het bestand.
+
+**1. Header-firewall.** Requests met een verdachte custom header krijgen een 403 en worden gelogd. Geblokkeerd wordt een headernaam die alleen uit hex bestaat (`HTTP_F5C4F24` — het patroon van eval-via-header backdoors) en elke headerwaarde die op PHP-code lijkt (`eval(`, `base64_decode(`, `system(`, `exec(`, `assert(`). Draait direct bij het laden van de module, dus vóór `init` en vóór de rest van de plugin.
+
+**2. MU-plugin blacklist.** Verwijdert `installatron_hide_status_test.php`, `automation-by-installatron.php` en `test-mu-plugin.php` uit `wp-content/mu-plugins/`, plus alles wat op `*.suspected` matcht (het patroon dat scanners voor quarantaine gebruiken). Draait op `muplugins_loaded` (prioriteit 1) wanneer de plugin als must-use draait; in reguliere plugin-modus is die hook al gepasseerd op het moment dat de plugin laadt, dus dan gebeurt het meteen bij het inladen van de module.
+
+**3. Plugin-blacklist.** Staat een geblokkeerde plugin actief, dan wordt hij op `admin_init` gedeactiveerd met een foutmelding in de admin. Nu in de lijst: `wp-file-manager` en `wtec-webp`. **Alleen de slug (mapnaam) invoeren** — `wp-file-manager`, niet `wp-file-manager/file_folder_manager.php`; de naam van het hoofdbestand doet er niet toe, ook niet als die na een update verandert. Overgezet uit de losse `pdk-custom-functions`-snippet.
+
+**4. Integriteitscontrole van `mu-plugins/`.** Maximaal één keer per uur worden de SHA-256-vingerafdrukken van alle `.php` in `mu-plugins/` vergeleken; bij een nieuw, gewijzigd of verwijderd bestand gaat er een mail naar `admin_email` en een regel naar `debug.log`. De baseline staat in de optie `pdk_mu_hashes`, niet in `mu-plugins/` zelf — een backdoor kan hem daar niet bijwerken. Eerste run legt de baseline vast zonder te mailen (trust-on-first-use), en na een melding wordt de baseline direct bijgewerkt zodat dezelfde afwijking niet elk uur opnieuw mailt.
+
+- Alle meldingen loggen naar `debug.log` met de prefix `[PDK Security]`
+- Zelftest: `php modules/security/test-security.php`
+- Let op: netwerk-geactiveerde plugins op multisite worden bij punt 3 nog niet gecontroleerd
+
+### MU Installer 1.1.0 — loader draait nu als eerste MU-plugin
+
+- WordPress laadt must-use plugins puur op alfabet, er is geen prioriteit. De loader heet daarom niet meer `pdk-theme-options.php` maar **`00-pdk-theme-options.php`**, zodat de header-firewall en de blacklist-opruiming vóór elke andere MU-plugin draaien
+- Bij (her)installeren wordt de oude loader zonder prefix automatisch verwijderd, dus er blijven er nooit twee staan. Verwijderen ruimt beide namen op
+- **Installer-wijziging: klanten krijgen dit niet via GitHub.** De zip van `pdk-mu-installer/` moet opnieuw geüpload en geactiveerd worden, daarna één keer op *Installeren/Bijwerken* klikken om de loader te hernoemen
+
 ## [2.5.0] — 2026-08-20
 
 ### Echte code-editor: CodeMirror 6
