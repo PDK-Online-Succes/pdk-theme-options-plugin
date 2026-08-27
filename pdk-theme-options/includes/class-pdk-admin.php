@@ -1339,7 +1339,7 @@ class PDK_Admin {
 		}
 		?>
 		<p>
-			<?php esc_html_e( 'Upload hier kant-en-klare JS- en CSS-bestanden — bijvoorbeeld Glide.js, Swiper of Splide. Elk ingeschakeld bestand laadt op alle frontend-pagina\'s: CSS in de head, JS in de footer.', 'pdk-theme-options' ); ?>
+			<?php esc_html_e( 'Upload hier kant-en-klare JS- en CSS-bestanden — bijvoorbeeld Glide.js, Swiper of Splide. Meerdere bestanden tegelijk mag. Elk ingeschakeld bestand laadt op alle frontend-pagina\'s: CSS in de head, JS in de footer. Hoort er een .map bij, upload die dan mee: die wordt nooit ingeladen, maar voorkomt een 404 in de browserconsole.', 'pdk-theme-options' ); ?>
 		</p>
 		<p class="description">
 			<?php
@@ -1359,7 +1359,7 @@ class PDK_Admin {
 			<form method="post" action="<?php echo $ap_url; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>" enctype="multipart/form-data" style="margin:16px 0;">
 				<?php wp_nonce_field( 'pdk_library_upload' ); ?>
 				<input type="hidden" name="action" value="pdk_library_upload">
-				<input type="file" name="pdk_library" accept=".js,.css" required>
+				<input type="file" name="pdk_library[]" accept=".js,.css,.map" multiple required>
 				<?php submit_button( __( 'Uploaden', 'pdk-theme-options' ), 'secondary', 'submit', false ); ?>
 			</form>
 		<?php endif; ?>
@@ -1387,13 +1387,17 @@ class PDK_Admin {
 					<?php foreach ( $bestanden as $bestand ) : ?>
 						<tr>
 							<td>
-								<input
-									type="checkbox"
-									name="libraries_enabled[]"
-									value="<?php echo esc_attr( $bestand ); ?>"
-									<?php checked( PDK_Libraries::is_enabled( $bestand ) ); ?>
-									<?php disabled( ! $mag_uploaden ); ?>
-								>
+								<?php if ( PDK_Libraries::is_enqueueable( $bestand ) ) : ?>
+									<input
+										type="checkbox"
+										name="libraries_enabled[]"
+										value="<?php echo esc_attr( $bestand ); ?>"
+										<?php checked( PDK_Libraries::is_enabled( $bestand ) ); ?>
+										<?php disabled( ! $mag_uploaden ); ?>
+									>
+								<?php else : ?>
+									<span style="color:#888;" title="<?php esc_attr_e( 'Een sourcemap wordt nooit ingeladen; hij staat er alleen voor de browserconsole.', 'pdk-theme-options' ); ?>">—</span>
+								<?php endif; ?>
 							</td>
 							<td>
 								<code><?php echo esc_html( $bestand ); ?></code>
@@ -1490,7 +1494,9 @@ class PDK_Admin {
 		// phpcs:enable
 
 		// Opgeslagen wordt wat NIET laadt, zodat een nieuwe upload meteen werkt.
-		$uit = array_values( array_diff( PDK_Libraries::scan(), $aangevinkt ) );
+		// Sourcemaps hebben geen vinkje en horen dus ook niet in die lijst.
+		$laadbaar = array_filter( PDK_Libraries::scan(), [ 'PDK_Libraries', 'is_enqueueable' ] );
+		$uit      = array_values( array_diff( $laadbaar, $aangevinkt ) );
 
 		// Niet via PDK_Settings::update(): array_replace_recursive() voegt lijsten
 		// per index samen, waardoor een weer ingeschakeld bestand uit zou blijven.
@@ -1532,33 +1538,11 @@ class PDK_Admin {
 			admin_url( 'admin.php' )
 		);
 
-		if ( empty( $_FILES['pdk_library'] ) || UPLOAD_ERR_OK !== $_FILES['pdk_library']['error'] ) {
-			$this->redirect_with_error( __( 'Geen bestand ontvangen of uploadfout.', 'pdk-theme-options' ), $redirect );
-		}
+		// Het veld is een multi-upload, dus PHP levert arrays per eigenschap.
+		$upload = (array) ( $_FILES['pdk_library'] ?? [] );
 
-		// Bewust geen sanitize_file_name(): die maakt van glide.min.js een
-		// glide.min_.js. Alleen a-z, 0-9, punt, koppelteken en underscore
-		// overhouden is hier genoeg — de extensie wordt hieronder afgedwongen.
-		$naam = preg_replace( '/[^a-zA-Z0-9._-]/', '', basename( (string) $_FILES['pdk_library']['name'] ) );
-		$ext  = strtolower( pathinfo( (string) $naam, PATHINFO_EXTENSION ) );
-
-		if ( ! in_array( $ext, PDK_Libraries::allowed_extensions(), true ) ) {
-			$this->redirect_with_error(
-				sprintf(
-					/* translators: %s: toegestane extensies */
-					__( 'Ongeldig bestandstype. Toegestaan: %s.', 'pdk-theme-options' ),
-					implode( ', ', PDK_Libraries::allowed_extensions() )
-				),
-				$redirect
-			);
-		}
-
-		// Alleen a-z, 0-9, punt, koppelteken en underscore — en de naam mag na het
-		// schonen niet leeg zijn of met een punt beginnen (.htaccess-achtige namen).
-		$naam = preg_replace( '/[^a-zA-Z0-9._-]/', '', $naam );
-
-		if ( '' === (string) $naam || str_starts_with( (string) $naam, '.' ) ) {
-			$this->redirect_with_error( __( 'Ongeldige bestandsnaam.', 'pdk-theme-options' ), $redirect );
+		if ( empty( $upload['name'] ) ) {
+			$this->redirect_with_error( __( 'Geen bestand ontvangen.', 'pdk-theme-options' ), $redirect );
 		}
 
 		pdk_ensure_storage_dir();
@@ -1567,10 +1551,78 @@ class PDK_Admin {
 			$this->redirect_with_error( __( 'Kan de libraries-map niet aanmaken.', 'pdk-theme-options' ), $redirect );
 		}
 
-		if ( ! is_uploaded_file( $_FILES['pdk_library']['tmp_name'] )
-			|| ! move_uploaded_file( $_FILES['pdk_library']['tmp_name'], PDK_Libraries::dir() . $naam ) ) {
-			$this->redirect_with_error( __( 'Uploaden mislukt (schrijfrechten?).', 'pdk-theme-options' ), $redirect );
+		$geplaatst = 0;
+		$mislukt   = [];
+
+		foreach ( array_keys( (array) $upload['name'] ) as $i ) {
+			$fout = $this->store_library_upload(
+				(string) $upload['name'][ $i ],
+				(string) $upload['tmp_name'][ $i ],
+				(int) $upload['error'][ $i ]
+			);
+
+			if ( '' === $fout ) {
+				$geplaatst++;
+				continue;
+			}
+
+			$mislukt[] = $fout;
 		}
+
+		if ( $mislukt ) {
+			$this->redirect_with_error(
+				sprintf(
+					/* translators: 1: aantal geplaatste bestanden, 2: opsomming van fouten */
+					_n( '%1$d bestand geplaatst. %2$s', '%1$d bestanden geplaatst. %2$s', $geplaatst, 'pdk-theme-options' ),
+					$geplaatst,
+					implode( ' ', $mislukt )
+				),
+				$redirect
+			);
+		}
+
+		wp_safe_redirect( add_query_arg( 'saved', '1', $redirect ) );
+		exit;
+	}
+
+	/**
+	 * Zet één geüpload bestand in de libraries-map.
+	 *
+	 * @return string Lege string bij succes, anders de foutmelding voor dit bestand.
+	 */
+	private function store_library_upload( string $origineel, string $tmp, int $error ): string {
+		// Bewust geen sanitize_file_name(): die maakt van glide.min.js een
+		// glide.min_.js. Alleen a-z, 0-9, punt, koppelteken en underscore
+		// overhouden is genoeg — de extensie wordt hieronder afgedwongen.
+		$naam = (string) preg_replace( '/[^a-zA-Z0-9._-]/', '', basename( $origineel ) );
+		$toon = '' !== $naam ? $naam : __( 'naamloos bestand', 'pdk-theme-options' );
+
+		if ( UPLOAD_ERR_OK !== $error ) {
+			/* translators: %s: bestandsnaam */
+			return sprintf( __( '%s: uploadfout.', 'pdk-theme-options' ), $toon );
+		}
+
+		if ( '' === $naam || str_starts_with( $naam, '.' ) ) {
+			/* translators: %s: bestandsnaam */
+			return sprintf( __( '%s: ongeldige bestandsnaam.', 'pdk-theme-options' ), $toon );
+		}
+
+		if ( ! in_array( PDK_Libraries::extension( $naam ), PDK_Libraries::allowed_extensions(), true ) ) {
+			return sprintf(
+				/* translators: 1: bestandsnaam, 2: toegestane extensies */
+				__( '%1$s: ongeldig bestandstype, toegestaan is %2$s.', 'pdk-theme-options' ),
+				$toon,
+				implode( ', ', PDK_Libraries::allowed_extensions() )
+			);
+		}
+
+		if ( ! is_uploaded_file( $tmp ) || ! move_uploaded_file( $tmp, PDK_Libraries::dir() . $naam ) ) {
+			/* translators: %s: bestandsnaam */
+			return sprintf( __( '%s: opslaan mislukt (schrijfrechten?).', 'pdk-theme-options' ), $toon );
+		}
+
+		// Was deze naam ooit uitgezet? Een nieuwe upload telt als een frisse start.
+		PDK_Libraries::forget_disabled( $naam );
 
 		// Vingerafdruk van wat er net geüpload is — vanaf nu telt elke wijziging
 		// buiten de editor om als manipulatie.
@@ -1579,8 +1631,7 @@ class PDK_Admin {
 			(string) file_get_contents( PDK_Libraries::dir() . $naam ) // phpcs:ignore
 		);
 
-		wp_safe_redirect( add_query_arg( 'saved', '1', $redirect ) );
-		exit;
+		return '';
 	}
 
 	/** Verwijdert één bestand uit de libraries-map en gaat terug naar de tab. */
@@ -1596,6 +1647,9 @@ class PDK_Admin {
 		}
 
 		wp_delete_file( PDK_Libraries::dir() . $bestand );
+
+		// Geen weesregels laten staan in de uit-lijst.
+		PDK_Libraries::forget_disabled( $bestand );
 
 		wp_safe_redirect( add_query_arg( 'saved', '1', $redirect ) );
 		exit;

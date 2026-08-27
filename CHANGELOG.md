@@ -2,6 +2,14 @@
 
 Alle noemenswaardige wijzigingen in PDK Theme Options worden hier bijgehouden.
 
+## [2.8.1] — 2026-08-27
+
+### Libraries: meerdere bestanden tegelijk en sourcemaps
+
+- **Meerdere bestanden tegelijk uploaden** kan nu: het uploadveld accepteert een selectie. Lukt er één niet, dan gaan de rest gewoon door en meldt de foutmelding welk bestand is overgeslagen en waarom (*2 bestanden geplaatst. nope.php: ongeldig bestandstype…*)
+- **`.map`-bestanden mogen mee.** Een minified bestand eindigt op `sourceMappingURL=….map`; ontbreekt die, dan geeft de browserconsole een 404. Een sourcemap wordt zelf nooit ingeladen: hij staat in de lijst zonder vinkje, alleen met een verwijderknop
+- **Bugfix:** een bestandsnaam die ooit is uitgezet bleef in de uit-lijst staan, ook nadat het bestand verwijderd was. Een later opnieuw geüpload bestand met dezelfde naam laadde daardoor niet. Uploaden en verwijderen halen de naam nu uit die lijst
+
 ## [2.8.0] — 2026-08-27
 
 ### Nieuwe module: Libraries — losse JS- en CSS-bestanden

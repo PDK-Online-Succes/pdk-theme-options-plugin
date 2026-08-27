@@ -38,9 +38,19 @@ class PDK_Loader {
 }
 
 class PDK_Settings {
+	const OPTION_KEY = 'pdk_theme_options';
+
 	public static function get( string $module = '', string $key = '' ) {
 		return $GLOBALS['settings'][ $module ][ $key ] ?? null;
 	}
+}
+
+function get_option( string $key, $default = false ) {
+	return $GLOBALS['options'][ $key ] ?? $default;
+}
+function update_option( string $key, $value, $autoload = null ): bool {
+	$GLOBALS['options'][ $key ] = $value;
+	return true;
 }
 
 require_once __DIR__ . '/class-pdk-libraries.php';
@@ -100,6 +110,37 @@ check( 'de rest blijft aan', PDK_Libraries::is_enabled( '10-glide.min.js' ) );
 check( 'uitgezet bestand laadt niet', ! isset( $GLOBALS['scripts']['pdk-lib-20-slider-init'] ) );
 check( 'ingeschakeld bestand laadt wel', isset( $GLOBALS['scripts']['pdk-lib-10-glide-min'] ) );
 check( 'uitgezet bestand blijft op schijf staan', file_exists( $dir . '20-slider-init.js' ) );
+
+// Opnieuw uploaden van een naam die ooit is uitgezet moet gewoon laden.
+$GLOBALS['options'] = [ 'pdk_theme_options' => [ 'libraries' => [ 'disabled' => [ '20-slider-init.js' ] ] ] ];
+PDK_Libraries::forget_disabled( '20-slider-init.js' );
+$GLOBALS['settings'] = [ 'libraries' => [ 'disabled' => $GLOBALS['options']['pdk_theme_options']['libraries']['disabled'] ] ];
+
+check( 'na forget_disabled staat het bestand weer aan', PDK_Libraries::is_enabled( '20-slider-init.js' ) );
+
+echo "\nSourcemaps\n";
+
+$GLOBALS['settings'] = [];
+$GLOBALS['scripts']  = [];
+$GLOBALS['styles']   = [];
+
+file_put_contents( $dir . '10-glide.min.js.map', '{"version":3}' );
+file_put_contents( $dir . 'glide.core.css.map', '{"version":3}' );
+
+check( 'sourcemaps staan in de lijst', in_array( '10-glide.min.js.map', PDK_Libraries::scan(), true ) );
+check( 'map is niet laadbaar', ! PDK_Libraries::is_enqueueable( '10-glide.min.js.map' ) );
+check( 'js is wel laadbaar', PDK_Libraries::is_enqueueable( '10-glide.min.js' ) );
+check( 'css is wel laadbaar', PDK_Libraries::is_enqueueable( 'glide.core.css' ) );
+
+( new PDK_Libraries( new PDK_Loader() ) )->enqueue();
+
+check( 'sourcemap wordt niet ingeladen als script', ! isset( $GLOBALS['scripts']['pdk-lib-10-glide-min-js'] ) );
+check( 'sourcemap wordt niet ingeladen als style', ! isset( $GLOBALS['styles']['pdk-lib-glide-core-css'] ) );
+check( 'aantal scripts blijft 2', 2 === count( $GLOBALS['scripts'] ) );
+check( 'aantal styles blijft 1', 1 === count( $GLOBALS['styles'] ) );
+
+unlink( $dir . '10-glide.min.js.map' );
+unlink( $dir . 'glide.core.css.map' );
 
 echo "\nIntegriteitscontrole\n";
 
