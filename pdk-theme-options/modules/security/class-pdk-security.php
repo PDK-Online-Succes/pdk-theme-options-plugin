@@ -2,13 +2,16 @@
 /**
  * Module: Security
  *
- * Vier maatregelen die ALTIJD draaien — geen toggle, geen instelling:
+ * Vijf maatregelen die ALTIJD draaien — alleen de lijst met verplichte plugins
+ * is instelbaar, de rest staat vast in de code:
  *
  *  1. Header-firewall — blokkeert requests met verdachte custom headers
  *     (eval-via-header backdoors).
  *  2. MU-plugin blacklist — verwijdert ongewenste bestanden uit mu-plugins/.
  *  3. Plugin-blacklist — deactiveert gevaarlijke plugins op slug.
- *  4. Integriteitscontrole van mu-plugins/ — mailt de beheerder bij afwijking.
+ *  4. Verplichte plugins — mailt de beheerder zodra er één uit staat. Welke dat
+ *     zijn is wél instelbaar, via de Security-tab.
+ *  5. Integriteitscontrole van mu-plugins/ — mailt de beheerder bij afwijking.
  *
  * 1 en 2 draaien direct bij het laden van de module, dus nog vóór `init`.
  */
@@ -19,6 +22,9 @@ class PDK_Security {
 
 	/** Vingerafdrukken van mu-plugins/, sha256 per bestandsnaam. */
 	private const MU_HASH_OPTION = 'pdk_mu_hashes';
+
+	/** Laatst gemelde lijst met verplichte plugins die uit stonden. */
+	private const MISSING_OPTION = 'pdk_missing_required_plugins';
 
 	/**
 	 * MU-plugins die altijd verwijderd worden. Exacte bestandsnamen.
@@ -60,6 +66,8 @@ class PDK_Security {
 
 		add_action( 'admin_init', [ $this, 'deactivate_dangerous_plugins' ] );
 		add_action( 'init', [ $this, 'check_mu_integrity' ], 0 );
+		add_action( 'init', [ $this, 'check_required_plugins' ], 0 );
+		add_action( 'admin_notices', [ $this, 'show_required_plugins_notice' ] );
 	}
 
 	// -------------------------------------------------------------------------
@@ -169,7 +177,99 @@ class PDK_Security {
 	}
 
 	// -------------------------------------------------------------------------
-	// 4. Integriteitscontrole van mu-plugins/
+	// 4. Plugins die actief moeten blijven
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Slugs van plugins die aangemerkt zijn als verplicht, maar niet actief zijn.
+	 *
+	 * @return string[] Gesorteerd, zodat twee controles vergelijkbaar zijn.
+	 */
+	public static function missing_required_plugins(): array {
+		$vereist = (array) ( PDK_Settings::get( 'security', 'required_plugins' ) ?: [] );
+
+		if ( ! $vereist ) {
+			return [];
+		}
+
+		$actief = (array) get_option( 'active_plugins', [] );
+
+		if ( is_multisite() ) {
+			$actief = array_merge( $actief, array_keys( (array) get_site_option( 'active_sitewide_plugins', [] ) ) );
+		}
+
+		$actieve_slugs = array_map( static fn( $basename ) => strtok( (string) $basename, '/' ), $actief );
+		$ontbreekt     = array_values( array_diff( $vereist, $actieve_slugs ) );
+
+		sort( $ontbreekt );
+
+		return $ontbreekt;
+	}
+
+	/**
+	 * Mailt de beheerder zodra een verplichte plugin niet meer actief is.
+	 *
+	 * Mailt alleen als de lijst met ontbrekende plugins verandert — anders volgt
+	 * bij elke pageload dezelfde melding. Komt alles weer goed, dan wordt de
+	 * stand gewist zodat een volgende uitval opnieuw gemeld wordt.
+	 */
+	public function check_required_plugins(): void {
+		$ontbreekt = self::missing_required_plugins();
+		$gemeld    = (array) get_option( self::MISSING_OPTION, [] );
+
+		if ( $ontbreekt === $gemeld ) {
+			return;
+		}
+
+		update_option( self::MISSING_OPTION, $ontbreekt, false );
+
+		if ( ! $ontbreekt ) {
+			return;
+		}
+
+		$bericht = sprintf(
+			/* translators: 1: sitenaam, 2: komma-gescheiden lijst met plugin-slugs */
+			__( "Op %1\$s is een plugin die actief moet blijven niet meer actief:\n\n%2\$s\n\nControleer de site en zet de plugin(s) terug aan.", 'pdk-theme-options' ),
+			get_bloginfo( 'name' ),
+			implode( "\n", $ontbreekt )
+		);
+
+		error_log( '[PDK Security] Verplichte plugin niet actief: ' . implode( ', ', $ontbreekt ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+
+		wp_mail(
+			(string) get_option( 'admin_email' ),
+			sprintf(
+				/* translators: %s: sitenaam */
+				__( 'Verplichte plugin niet meer actief — %s', 'pdk-theme-options' ),
+				get_bloginfo( 'name' )
+			),
+			$bericht
+		);
+	}
+
+	/** Melding in de admin zolang er een verplichte plugin uit staat. */
+	public function show_required_plugins_notice(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		$ontbreekt = self::missing_required_plugins();
+
+		if ( ! $ontbreekt ) {
+			return;
+		}
+
+		echo '<div class="notice notice-error"><p>';
+		printf(
+			/* translators: %s: komma-gescheiden lijst met plugin-slugs */
+			esc_html__( 'Deze plugin(s) moeten actief blijven, maar staan uit: %s', 'pdk-theme-options' ),
+			esc_html( implode( ', ', $ontbreekt ) )
+		);
+		echo '</p></div>';
+	}
+
+	// -------------------------------------------------------------------------
+	// 5. Integriteitscontrole van mu-plugins/
 	// -------------------------------------------------------------------------
 
 	/**

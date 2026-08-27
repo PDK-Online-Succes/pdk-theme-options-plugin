@@ -70,7 +70,21 @@ function esc_html__( string $text, string $domain = '' ): string {
 	return $text;
 }
 
+function is_multisite(): bool {
+	return false;
+}
+function current_user_can( string $cap ): bool {
+	return true;
+}
+
 class PDK_Loader {}
+
+/** Alleen wat de security-module gebruikt. */
+class PDK_Settings {
+	public static function get( string $module = '', string $key = '' ) {
+		return $GLOBALS['settings'][ $module ][ $key ] ?? null;
+	}
+}
 
 require_once __DIR__ . '/class-pdk-security.php';
 
@@ -183,6 +197,53 @@ $GLOBALS['deactivated']               = [];
 $GLOBALS['options']['active_plugins'] = [ 'woocommerce/woocommerce.php' ];
 ( new PDK_Security_Test( new PDK_Loader() ) )->deactivate_dangerous_plugins();
 check( 'schone site: niets gedeactiveerd', [] === $GLOBALS['deactivated'] );
+
+echo "\nVerplichte plugins\n";
+
+$GLOBALS['mails']                     = [];
+$GLOBALS['options']['active_plugins'] = [ 'woocommerce/woocommerce.php', 'wordfence/wordfence.php' ];
+$GLOBALS['settings']                  = [ 'security' => [ 'required_plugins' => [ 'woocommerce', 'wordfence' ] ] ];
+
+$security = new PDK_Security_Test( new PDK_Loader() );
+
+$security->check_required_plugins();
+check( 'alles actief: geen mail', [] === $GLOBALS['mails'] );
+
+// Wordfence gaat uit.
+$GLOBALS['options']['active_plugins'] = [ 'woocommerce/woocommerce.php' ];
+$security->check_required_plugins();
+check( 'uitgezette plugin wordt gemeld', [ 'wordfence' ] === PDK_Security::missing_required_plugins() );
+check( 'mail verstuurd', 1 === count( $GLOBALS['mails'] ) );
+check( 'mail noemt de plugin', str_contains( $GLOBALS['mails'][0]['body'] ?? '', 'wordfence' ) );
+
+// Zelfde situatie op de volgende pageload: niet nóg een mail.
+$security->check_required_plugins();
+check( 'geen herhaalde mail bij dezelfde stand', 1 === count( $GLOBALS['mails'] ) );
+
+// Er valt er nog één uit: dat is een nieuwe stand, dus wel een mail.
+$GLOBALS['options']['active_plugins'] = [];
+$security->check_required_plugins();
+check( 'tweede uitval mailt opnieuw', 2 === count( $GLOBALS['mails'] ) );
+check(
+	'tweede mail noemt beide plugins',
+	str_contains( $GLOBALS['mails'][1]['body'] ?? '', 'woocommerce' )
+	&& str_contains( $GLOBALS['mails'][1]['body'] ?? '', 'wordfence' )
+);
+
+// Alles weer aan: stand wissen, geen mail.
+$GLOBALS['options']['active_plugins'] = [ 'woocommerce/woocommerce.php', 'wordfence/wordfence.php' ];
+$security->check_required_plugins();
+check( 'herstel mailt niet', 2 === count( $GLOBALS['mails'] ) );
+check( 'stand is gewist', [] === $GLOBALS['options']['pdk_missing_required_plugins'] );
+
+// Opnieuw uitvallen na herstel moet weer melden.
+$GLOBALS['options']['active_plugins'] = [ 'woocommerce/woocommerce.php' ];
+$security->check_required_plugins();
+check( 'uitval na herstel mailt weer', 3 === count( $GLOBALS['mails'] ) );
+
+$GLOBALS['settings'] = [];
+$GLOBALS['mails']    = [];
+check( 'lege lijst: niets te melden', [] === PDK_Security::missing_required_plugins() );
 
 echo "\nIntegriteitscontrole mu-plugins/\n";
 

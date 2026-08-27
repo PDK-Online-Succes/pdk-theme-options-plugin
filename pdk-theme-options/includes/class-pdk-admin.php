@@ -237,6 +237,9 @@ class PDK_Admin {
 			case 'custom_fonts':
 				$this->save_custom_fonts();
 				break;
+			case 'security':
+				$this->save_security();
+				break;
 			case 'permissions':
 				$this->save_permissions();
 				break;
@@ -632,6 +635,7 @@ class PDK_Admin {
 		$tabs = [
 			'modules'       => __( 'Modules', 'pdk-theme-options' ),
 			'site_settings' => __( 'Site Instellingen', 'pdk-theme-options' ),
+			'security'      => __( 'Security', 'pdk-theme-options' ),
 			'permissions'   => __( 'Rechten', 'pdk-theme-options' ),
 		];
 
@@ -671,6 +675,9 @@ class PDK_Admin {
 				break;
 			case 'site_settings':
 				$this->render_tab_site_settings();
+				break;
+			case 'security':
+				$this->render_tab_security();
 				break;
 			case 'permissions':
 				$this->render_tab_permissions();
@@ -1289,6 +1296,87 @@ class PDK_Admin {
 	// -------------------------------------------------------------------------
 	// Tab: Rechten
 	// -------------------------------------------------------------------------
+
+	/**
+	 * Security-tab: aanvinken welke plugins actief moeten blijven.
+	 *
+	 * De rest van de security-module (header-firewall, blacklists, MU-integriteit)
+	 * heeft bewust geen instellingen — die staan vast in de code.
+	 */
+	private function render_tab_security(): void {
+		require_once ABSPATH . 'wp-admin/includes/plugin.php';
+
+		$alle      = get_plugins();
+		$vereist   = (array) ( PDK_Settings::get( 'security', 'required_plugins' ) ?: [] );
+		$actief    = (array) get_option( 'active_plugins', [] );
+		$ontbreekt = PDK_Security::missing_required_plugins();
+		?>
+		<p>
+			<?php esc_html_e( 'Vink de plugins aan die op deze site altijd actief moeten blijven. Zodra er één uit gaat, krijgt de beheerder een mail en verschijnt er een melding in de admin.', 'pdk-theme-options' ); ?>
+		</p>
+		<p class="description">
+			<?php esc_html_e( 'De plugin wordt niet automatisch heractiveerd — dat blijft een bewuste handeling.', 'pdk-theme-options' ); ?>
+		</p>
+
+		<?php if ( $ontbreekt ) : ?>
+			<div class="notice notice-error inline" style="margin:16px 0;">
+				<p>
+					<?php
+					printf(
+						/* translators: %s: komma-gescheiden lijst met plugin-slugs */
+						esc_html__( 'Nu niet actief: %s', 'pdk-theme-options' ),
+						'<strong>' . esc_html( implode( ', ', $ontbreekt ) ) . '</strong>'
+					);
+					?>
+				</p>
+			</div>
+		<?php endif; ?>
+
+		<table class="form-table">
+			<tr>
+				<th style="width:220px;"><?php esc_html_e( 'Moeten actief blijven', 'pdk-theme-options' ); ?></th>
+				<td>
+					<?php foreach ( $alle as $basename => $data ) : ?>
+						<?php $slug = strtok( $basename, '/' ); ?>
+						<label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+							<input
+								type="checkbox"
+								name="security_required[]"
+								value="<?php echo esc_attr( $slug ); ?>"
+								<?php checked( in_array( $slug, $vereist, true ) ); ?>
+							>
+							<span>
+								<?php echo esc_html( $data['Name'] ); ?>
+								<code style="color:#888;"><?php echo esc_html( $slug ); ?></code>
+								<?php if ( ! in_array( $basename, $actief, true ) ) : ?>
+									<span style="color:#d63638;">— <?php esc_html_e( 'niet actief', 'pdk-theme-options' ); ?></span>
+								<?php endif; ?>
+							</span>
+						</label>
+					<?php endforeach; ?>
+				</td>
+			</tr>
+		</table>
+		<?php
+	}
+
+	private function save_security(): void {
+		// phpcs:disable WordPress.Security.NonceVerification.Missing
+		$posted = array_map( 'sanitize_text_field', (array) wp_unslash( $_POST['security_required'] ?? [] ) );
+		// phpcs:enable
+
+		require_once ABSPATH . 'wp-admin/includes/plugin.php';
+
+		// Alleen slugs die echt geïnstalleerd zijn — meteen de sanitisatie.
+		$installed = array_map( static fn( $basename ) => strtok( (string) $basename, '/' ), array_keys( get_plugins() ) );
+		$vereist   = array_values( array_intersect( $installed, $posted ) );
+
+		// Niet via PDK_Settings::update(): array_replace_recursive() voegt lijsten
+		// per index samen, waardoor een uitgevinkte plugin zou blijven staan.
+		$options                                  = (array) get_option( PDK_Settings::OPTION_KEY, [] );
+		$options['security']['required_plugins']  = $vereist;
+		update_option( PDK_Settings::OPTION_KEY, $options );
+	}
 
 	private function render_tab_permissions(): void {
 		$all_users = get_users( [ 'orderby' => 'display_name' ] );

@@ -77,6 +77,14 @@ class PDK_Settings {
 	public static function get_defaults(): array {
 		return [
 			// ----------------------------------------------------------------
+			// Security — de module zelf is niet uitschakelbaar, alleen de lijst
+			// met plugins die actief moeten blijven is instelbaar.
+			// ----------------------------------------------------------------
+			'security' => [
+				'required_plugins' => [],
+			],
+
+			// ----------------------------------------------------------------
 			// Site-brede instellingen (Carbon Fields migratie)
 			// ----------------------------------------------------------------
 			'site_settings' => [

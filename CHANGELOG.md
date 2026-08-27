@@ -2,6 +2,17 @@
 
 Alle noemenswaardige wijzigingen in PDK Theme Options worden hier bijgehouden.
 
+## [2.7.0] — 2026-08-26
+
+### Security-tab: plugins die actief moeten blijven
+
+- Nieuwe tab **Security** in het PDK-menu met een vinklijst van alle geïnstalleerde plugins. Vink aan welke op deze site altijd actief moeten blijven; per site instelbaar, opgeslagen als slug onder `security.required_plugins`
+- Gaat er één uit, dan gaat er een mail naar `admin_email` en zien beheerders een melding in de admin. De tab zelf toont ook direct wat er mist
+- Er wordt pas opnieuw gemaild als de lijst met uitgevallen plugins *verandert* — dus geen mail bij elke pageload. Komt alles weer goed, dan wordt de stand (`pdk_missing_required_plugins`) gewist zodat een volgende uitval opnieuw gemeld wordt
+- De plugin wordt **niet** automatisch geheractiveerd; dat blijft een bewuste handeling
+- Dit is het enige onderdeel van de security-module met een instelling. De header-firewall, de blacklists en de MU-integriteitscontrole blijven vastliggen in de code
+- Zelftest uitgebreid: `php modules/security/test-security.php`
+
 ## [2.6.0] — 2026-08-26
 
 ### Nieuwe module: Security — vier maatregelen, geen toggle
