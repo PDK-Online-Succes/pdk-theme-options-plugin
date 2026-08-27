@@ -141,6 +141,12 @@ class PDK_Settings {
 				'display'    => 'swap',
 				'css_output' => 'inline',
 			],
+			'libraries' => [
+				'enabled' => false,
+				// Bestandsnamen die NIET geladen worden; al het andere in de map wel,
+				// zodat een nieuwe upload meteen werkt.
+				'disabled' => [],
+			],
 			// Login page: geen configureerbare opties — vaste PDK-stijl.
 			'login_page' => [
 				'enabled' => false,
@@ -190,6 +196,7 @@ class PDK_Settings {
 			'custom_css'       => __( 'Custom CSS', 'pdk-theme-options' ),
 			'custom_js'        => __( 'Custom JavaScript', 'pdk-theme-options' ),
 			'custom_fonts'     => __( 'Custom Fonts', 'pdk-theme-options' ),
+			'libraries'        => __( 'Libraries (JS/CSS)', 'pdk-theme-options' ),
 			'login_page'       => __( 'Login Pagina (PDK-stijl)', 'pdk-theme-options' ),
 			'vacation_mode'    => __( 'Vakantiemodus', 'pdk-theme-options' ),
 			'delivery_time'    => __( 'Levertijden', 'pdk-theme-options' ),
@@ -205,6 +212,7 @@ class PDK_Settings {
 			'custom_css'       => __( 'Eigen CSS-stijlen laden op de frontend.', 'pdk-theme-options' ),
 			'custom_js'        => __( 'Eigen JavaScript-code laden op de frontend.', 'pdk-theme-options' ),
 			'custom_fonts'     => __( 'Lettertypen beheren vanuit de uploads/fonts/ map.', 'pdk-theme-options' ),
+			'libraries'        => __( 'Kant-en-klare JS- en CSS-bestanden uploaden en op de frontend laden — bijvoorbeeld Glide.js, Swiper of Splide.', 'pdk-theme-options' ),
 			'login_page'       => __( 'Vaste PDK-huisstijl toepassen op de WordPress-loginpagina. Geen aanpasbare instellingen.', 'pdk-theme-options' ),
 			'vacation_mode'    => __( 'Webshop sluiten met een aangepaste melding, gepland via Afwijkende dagen (vereist WooCommerce).', 'pdk-theme-options' ),
 			'delivery_time'    => __( 'Levertijd per weekdag met cutoff-tijd, shortcode [levertijd] (vereist WooCommerce).', 'pdk-theme-options' ),

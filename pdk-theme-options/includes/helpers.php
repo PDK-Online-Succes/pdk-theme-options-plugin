@@ -5,6 +5,10 @@
 
 defined( 'ABSPATH' ) || exit;
 
+// Submap binnen PDK_STORAGE_DIR met de geüploade JS/CSS-libraries. Staat hier en
+// niet in het hoofdbestand, zodat de zelftests hem via helpers.php meekrijgen.
+defined( 'PDK_LIBRARY_SUBDIR' ) || define( 'PDK_LIBRARY_SUBDIR', 'libraries/' );
+
 /**
  * Controleert of de huidige gebruiker de code-editor capability heeft.
  *
@@ -75,8 +79,7 @@ function pdk_write_storage_file( string $filename, string $content ) {
 
 	pdk_ensure_storage_dir();
 
-	// Voorkom pad-traversal.
-	$filename = basename( $filename );
+	$filename = pdk_storage_rel_path( $filename );
 	$path     = PDK_STORAGE_DIR . $filename;
 
 	// Een parse-fout in custom-functions.php haalt de hele site neer — weiger
@@ -270,6 +273,25 @@ function pdk_code_files(): array {
 	return [ 'custom-functions.php', 'custom-style.css', 'custom-script.js' ];
 }
 
+/**
+ * Maakt een bestandsnaam veilig als pad binnen PDK_STORAGE_DIR.
+ *
+ * De code-bestanden staan in de hoofdmap, de libraries in één submap. Alleen die
+ * ene submap is toegestaan; op de rest van het pad blijft basename() staan, dus
+ * ../ komt er niet doorheen.
+ */
+function pdk_storage_rel_path( string $filename ): string {
+	$filename = str_replace( '\\', '/', $filename );
+	$prefix   = str_starts_with( $filename, PDK_LIBRARY_SUBDIR ) ? PDK_LIBRARY_SUBDIR : '';
+
+	return $prefix . basename( $filename );
+}
+
+/** True voor een bestand in de libraries-submap. */
+function pdk_is_library_file( string $filename ): bool {
+	return str_starts_with( $filename, PDK_LIBRARY_SUBDIR );
+}
+
 /** Legt de vingerafdruk van een via de editor opgeslagen bestand vast. */
 function pdk_store_file_hash( string $filename, string $content ): void {
 	$hashes              = (array) get_option( 'pdk_file_hashes', [] );
@@ -285,7 +307,8 @@ function pdk_store_file_hash( string $filename, string $content ): void {
  * is er niets om mee te vergelijken en geldt het bestand als vertrouwd.
  */
 function pdk_file_is_tampered( string $filename ): bool {
-	$hashes = (array) get_option( 'pdk_file_hashes', [] );
+	$filename = pdk_storage_rel_path( $filename );
+	$hashes   = (array) get_option( 'pdk_file_hashes', [] );
 
 	if ( empty( $hashes[ $filename ] ) ) {
 		return false;
@@ -299,9 +322,27 @@ function pdk_file_is_tampered( string $filename ): bool {
 	return ! hash_equals( $hashes[ $filename ], (string) hash_file( 'sha256', $path ) );
 }
 
+/**
+ * Alles wat onder de integriteitscontrole valt: de drie code-bestanden plus de
+ * geüploade libraries. Die laatste alleen als de module bestaat en aan staat.
+ *
+ * @return string[] Paden relatief aan PDK_STORAGE_DIR.
+ */
+function pdk_watched_files(): array {
+	$files = pdk_code_files();
+
+	if ( class_exists( 'PDK_Libraries' ) ) {
+		foreach ( PDK_Libraries::scan() as $bestand ) {
+			$files[] = PDK_LIBRARY_SUBDIR . $bestand;
+		}
+	}
+
+	return $files;
+}
+
 /** @return string[] Bestanden waarvan de vingerafdruk niet meer klopt. */
 function pdk_tampered_files(): array {
-	return array_values( array_filter( pdk_code_files(), 'pdk_file_is_tampered' ) );
+	return array_values( array_filter( pdk_watched_files(), 'pdk_file_is_tampered' ) );
 }
 
 /**

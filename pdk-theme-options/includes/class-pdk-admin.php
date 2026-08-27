@@ -50,6 +50,7 @@ class PDK_Admin {
 		$this->loader->add_action( 'admin_post_pdk_save_settings',       $this, 'handle_save' );
 		$this->loader->add_action( 'admin_post_pdk_save_fonts_display',  $this, 'handle_save_fonts_display' );
 		$this->loader->add_action( 'admin_post_pdk_font_upload',         $this, 'handle_font_upload' );
+		$this->loader->add_action( 'admin_post_pdk_library_upload',      $this, 'handle_library_upload' );
 		$this->loader->add_action( 'admin_post_pdk_font_delete',         $this, 'handle_font_delete' );
 		$this->loader->add_action( 'admin_notices',                      $this, 'show_integrity_notice' );
 		$this->loader->add_action( 'admin_post_pdk_file_integrity',      $this, 'handle_integrity_action' );
@@ -84,7 +85,9 @@ class PDK_Admin {
 				<p>
 					<code><?php echo esc_html( $filename ); ?></code>
 					<a class="button button-small" href="<?php echo esc_url( add_query_arg(
-						[ 'page' => self::PAGE_SLUG, 'tab' => array_search( $filename, self::CODE_TABS, true ), 'diff' => 1 ],
+						pdk_is_library_file( $filename )
+							? [ 'page' => self::PAGE_SLUG, 'tab' => 'libraries', 'edit' => basename( $filename ), 'diff' => 1 ]
+							: [ 'page' => self::PAGE_SLUG, 'tab' => array_search( $filename, self::CODE_TABS, true ), 'diff' => 1 ],
 						admin_url( 'admin.php' )
 					) ); ?>"><?php esc_html_e( 'Bekijk de wijziging', 'pdk-theme-options' ); ?></a>
 					<?php if ( ! pdk_current_user_can_edit_code() ) : ?>
@@ -118,11 +121,13 @@ class PDK_Admin {
 		}
 
 		// phpcs:disable WordPress.Security.NonceVerification.Missing
-		$file = basename( sanitize_file_name( wp_unslash( $_POST['file'] ?? '' ) ) );
+		// pdk_storage_rel_path() laat alleen de libraries-submap door, de rest
+		// wordt tot een kale bestandsnaam teruggebracht.
+		$file = pdk_storage_rel_path( (string) wp_unslash( $_POST['file'] ?? '' ) );
 		$op   = sanitize_key( $_POST['op'] ?? '' );
 		// phpcs:enable
 
-		if ( in_array( $file, pdk_code_files(), true ) ) {
+		if ( in_array( $file, pdk_watched_files(), true ) ) {
 			$path = PDK_STORAGE_DIR . $file;
 
 			if ( 'restore' === $op && file_exists( $path . '.bak' ) ) {
@@ -186,8 +191,14 @@ class PDK_Admin {
 		);
 
 		// CodeMirror 6-bundel: alleen op de tabs met een code-editor (671 kB).
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		if ( isset( self::CODE_TABS[ sanitize_key( $_GET['tab'] ?? '' ) ] ) ) {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended
+		$huidige_tab = sanitize_key( $_GET['tab'] ?? '' );
+		$code_editor = isset( self::CODE_TABS[ $huidige_tab ] )
+			// De Libraries-tab heeft alleen een editor als er een bestand open staat.
+			|| ( 'libraries' === $huidige_tab && ! empty( $_GET['edit'] ) );
+		// phpcs:enable
+
+		if ( $code_editor ) {
 			wp_enqueue_script(
 				'pdk-code-editor',
 				PDK_PLUGIN_URL . 'assets/js/editor.bundle.js',
@@ -236,6 +247,9 @@ class PDK_Admin {
 				break;
 			case 'custom_fonts':
 				$this->save_custom_fonts();
+				break;
+			case 'libraries':
+				$this->save_libraries();
 				break;
 			case 'security':
 				$this->save_security();
@@ -582,7 +596,7 @@ class PDK_Admin {
 		}
 
 		// Tabs met eigen forms (geen wrapper-form nodig — anders geneste forms).
-		$standalone_tabs = [ 'language_checker', 'custom_fonts' ];
+		$standalone_tabs = [ 'language_checker', 'custom_fonts', 'libraries' ];
 		$use_form        = ! in_array( $tab, $standalone_tabs, true );
 		?>
 		<div class="wrap pdk-wrap">
@@ -645,6 +659,7 @@ class PDK_Admin {
 			'custom_css'       => __( 'Custom CSS', 'pdk-theme-options' ),
 			'custom_js'        => __( 'Custom JS', 'pdk-theme-options' ),
 			'custom_fonts'     => __( 'Fonts', 'pdk-theme-options' ),
+			'libraries'        => __( 'Libraries', 'pdk-theme-options' ),
 			'vacation_mode'    => __( 'Vakantiemodus', 'pdk-theme-options' ),
 			'delivery_time'    => __( 'Levertijden', 'pdk-theme-options' ),
 			'language_checker' => __( 'Language Cleaner', 'pdk-theme-options' ),
@@ -693,6 +708,9 @@ class PDK_Admin {
 				break;
 			case 'custom_fonts':
 				$this->render_tab_fonts();
+				break;
+			case 'libraries':
+				$this->render_tab_libraries();
 				break;
 			case 'vacation_mode':
 				$this->render_tab_vacation();
@@ -1296,6 +1314,298 @@ class PDK_Admin {
 	// -------------------------------------------------------------------------
 	// Tab: Rechten
 	// -------------------------------------------------------------------------
+
+	// -------------------------------------------------------------------------
+	// Libraries-tab: losse JS/CSS-bestanden (Glide.js, Swiper, Splide, …)
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Uploaden en aan/uit zetten van JS- en CSS-bestanden.
+	 *
+	 * Een JS-bestand uploaden is code op de site zetten, dus dat vraagt dezelfde
+	 * rechten als de code-editor — niet alleen manage_options.
+	 */
+	private function render_tab_libraries(): void {
+		$mag_uploaden = current_user_can( PDK_CAP_EDIT_CODE );
+		$bestanden    = PDK_Libraries::scan();
+		$ap_url       = esc_url( admin_url( 'admin-post.php' ) );
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$bewerken = basename( (string) wp_unslash( $_GET['edit'] ?? '' ) );
+
+		if ( '' !== $bewerken && in_array( $bewerken, $bestanden, true ) ) {
+			$this->render_library_editor( $bewerken );
+			return;
+		}
+		?>
+		<p>
+			<?php esc_html_e( 'Upload hier kant-en-klare JS- en CSS-bestanden — bijvoorbeeld Glide.js, Swiper of Splide. Elk ingeschakeld bestand laadt op alle frontend-pagina\'s: CSS in de head, JS in de footer.', 'pdk-theme-options' ); ?>
+		</p>
+		<p class="description">
+			<?php
+			printf(
+				/* translators: %s: map waarin de bestanden staan */
+				esc_html__( 'De bestanden staan in %s, dus buiten de pluginmap: een plugin-update raakt ze niet. Laadvolgorde is alfabetisch — zet er een cijfer voor (10-swiper.min.js, 20-slider-init.js) als de volgorde uitmaakt.', 'pdk-theme-options' ),
+				'<code>' . esc_html( PDK_Libraries::dir() ) . '</code>'
+			);
+			?>
+		</p>
+
+		<?php if ( ! $mag_uploaden ) : ?>
+			<div class="notice notice-warning inline" style="margin:16px 0;">
+				<p><?php esc_html_e( 'Je mag deze bestanden niet wijzigen. Uploaden en verwijderen vraagt code-editor rechten — zie de Rechten-tab.', 'pdk-theme-options' ); ?></p>
+			</div>
+		<?php else : ?>
+			<form method="post" action="<?php echo $ap_url; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>" enctype="multipart/form-data" style="margin:16px 0;">
+				<?php wp_nonce_field( 'pdk_library_upload' ); ?>
+				<input type="hidden" name="action" value="pdk_library_upload">
+				<input type="file" name="pdk_library" accept=".js,.css" required>
+				<?php submit_button( __( 'Uploaden', 'pdk-theme-options' ), 'secondary', 'submit', false ); ?>
+			</form>
+		<?php endif; ?>
+
+		<?php if ( ! $bestanden ) : ?>
+			<p><em><?php esc_html_e( 'Nog geen bestanden geüpload.', 'pdk-theme-options' ); ?></em></p>
+			<?php return; ?>
+		<?php endif; ?>
+
+		<form method="post" action="<?php echo $ap_url; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>">
+			<?php wp_nonce_field( self::NONCE_ACTION ); ?>
+			<input type="hidden" name="action"  value="pdk_save_settings">
+			<input type="hidden" name="pdk_tab" value="libraries">
+
+			<table class="widefat striped" style="max-width:800px;">
+				<thead>
+					<tr>
+						<th style="width:80px;"><?php esc_html_e( 'Laden', 'pdk-theme-options' ); ?></th>
+						<th><?php esc_html_e( 'Bestand', 'pdk-theme-options' ); ?></th>
+						<th style="width:90px;"><?php esc_html_e( 'Grootte', 'pdk-theme-options' ); ?></th>
+						<th style="width:110px;"><?php esc_html_e( 'Actie', 'pdk-theme-options' ); ?></th>
+					</tr>
+				</thead>
+				<tbody>
+					<?php foreach ( $bestanden as $bestand ) : ?>
+						<tr>
+							<td>
+								<input
+									type="checkbox"
+									name="libraries_enabled[]"
+									value="<?php echo esc_attr( $bestand ); ?>"
+									<?php checked( PDK_Libraries::is_enabled( $bestand ) ); ?>
+									<?php disabled( ! $mag_uploaden ); ?>
+								>
+							</td>
+							<td>
+								<code><?php echo esc_html( $bestand ); ?></code>
+								<?php if ( pdk_file_is_tampered( PDK_Libraries::rel_path( $bestand ) ) ) : ?>
+									<span style="color:#b32d2e;font-weight:600;margin-left:8px;"><?php esc_html_e( 'gewijzigd buiten de editor — wordt niet geladen', 'pdk-theme-options' ); ?></span>
+								<?php endif; ?>
+								<a href="<?php echo esc_url( PDK_Libraries::url() . $bestand ); ?>" target="_blank" rel="noopener" style="margin-left:8px;"><?php esc_html_e( 'bekijk', 'pdk-theme-options' ); ?></a>
+							</td>
+							<td><?php echo esc_html( size_format( (int) filesize( PDK_Libraries::dir() . $bestand ) ) ); ?></td>
+							<td>
+								<?php if ( $mag_uploaden ) : ?>
+									<a href="<?php echo esc_url( add_query_arg(
+										[ 'page' => self::PAGE_SLUG, 'tab' => 'libraries', 'edit' => $bestand ],
+										admin_url( 'admin.php' )
+									) ); ?>"><?php esc_html_e( 'Bewerken', 'pdk-theme-options' ); ?></a>
+									|
+									<button
+										type="submit"
+										class="button-link delete"
+										style="color:#b32d2e;"
+										name="pdk_delete_file"
+										value="<?php echo esc_attr( $bestand ); ?>"
+										onclick="return confirm('<?php echo esc_js( __( 'Dit bestand definitief verwijderen?', 'pdk-theme-options' ) ); ?>');"
+									><?php esc_html_e( 'Verwijderen', 'pdk-theme-options' ); ?></button>
+								<?php endif; ?>
+							</td>
+						</tr>
+					<?php endforeach; ?>
+				</tbody>
+			</table>
+
+			<?php if ( $mag_uploaden ) : ?>
+				<?php submit_button( __( 'Opslaan', 'pdk-theme-options' ) ); ?>
+			<?php endif; ?>
+		</form>
+		<?php
+	}
+
+	/**
+	 * Eén library-bestand bewerken, met dezelfde beveiliging als de code-tabs:
+	 * vingerafdruk bij opslaan, .bak van de vorige versie, en niet uitserveren
+	 * zodra het bestand buiten de editor om verandert.
+	 */
+	private function render_library_editor( string $bestand ): void {
+		$terug = add_query_arg(
+			[ 'page' => self::PAGE_SLUG, 'tab' => 'libraries' ],
+			admin_url( 'admin.php' )
+		);
+
+		$lang = 'css' === strtolower( pathinfo( $bestand, PATHINFO_EXTENSION ) ) ? 'css' : 'javascript';
+		?>
+		<p>
+			<a href="<?php echo esc_url( $terug ); ?>">&larr; <?php esc_html_e( 'Terug naar de lijst', 'pdk-theme-options' ); ?></a>
+		</p>
+		<h2 style="margin-top:0;"><code><?php echo esc_html( $bestand ); ?></code></h2>
+
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="pdk-settings-form">
+			<?php wp_nonce_field( self::NONCE_ACTION ); ?>
+			<input type="hidden" name="action"  value="pdk_save_settings">
+			<input type="hidden" name="pdk_tab" value="libraries">
+			<input type="hidden" name="pdk_edit_file" value="<?php echo esc_attr( $bestand ); ?>">
+
+			<?php $this->render_tab_code_editor( PDK_Libraries::rel_path( $bestand ), $lang ); ?>
+
+			<?php submit_button( __( 'Bestand opslaan', 'pdk-theme-options' ) ); ?>
+		</form>
+		<?php
+	}
+
+	private function save_libraries(): void {
+		if ( ! current_user_can( PDK_CAP_EDIT_CODE ) ) {
+			wp_die( esc_html__( 'Geen toegang.', 'pdk-theme-options' ), 403 );
+		}
+
+		// phpcs:disable WordPress.Security.NonceVerification.Missing
+		$bewerkt = basename( (string) wp_unslash( $_POST['pdk_edit_file'] ?? '' ) );
+
+		if ( '' !== $bewerkt ) {
+			$this->save_library_file( $bewerkt, (string) wp_unslash( $_POST['file_content'] ?? '' ) );
+			return;
+		}
+		// phpcs:enable
+
+		// phpcs:disable WordPress.Security.NonceVerification.Missing
+		// De verwijderknop zit in hetzelfde formulier — die heeft voorrang.
+		$te_verwijderen = sanitize_text_field( wp_unslash( $_POST['pdk_delete_file'] ?? '' ) );
+
+		if ( '' !== $te_verwijderen ) {
+			$this->delete_library_file( $te_verwijderen );
+			return;
+		}
+
+		$aangevinkt = array_map( 'sanitize_text_field', (array) wp_unslash( $_POST['libraries_enabled'] ?? [] ) );
+		// phpcs:enable
+
+		// Opgeslagen wordt wat NIET laadt, zodat een nieuwe upload meteen werkt.
+		$uit = array_values( array_diff( PDK_Libraries::scan(), $aangevinkt ) );
+
+		// Niet via PDK_Settings::update(): array_replace_recursive() voegt lijsten
+		// per index samen, waardoor een weer ingeschakeld bestand uit zou blijven.
+		$options                           = (array) get_option( PDK_Settings::OPTION_KEY, [] );
+		$options['libraries']['disabled']  = $uit;
+		update_option( PDK_Settings::OPTION_KEY, $options );
+	}
+
+	/** Schrijft de editor-inhoud weg en gaat terug naar dat bestand. */
+	private function save_library_file( string $bestand, string $content ): void {
+		$redirect = add_query_arg(
+			[ 'page' => self::PAGE_SLUG, 'tab' => 'libraries', 'edit' => $bestand ],
+			admin_url( 'admin.php' )
+		);
+
+		if ( ! in_array( $bestand, PDK_Libraries::scan(), true ) ) {
+			$this->redirect_with_error( __( 'Onbekend bestand.', 'pdk-theme-options' ), $redirect );
+		}
+
+		$result = pdk_write_storage_file( PDK_Libraries::rel_path( $bestand ), $content );
+
+		if ( is_wp_error( $result ) ) {
+			$this->redirect_with_error( $result->get_error_message(), $redirect );
+		}
+
+		wp_safe_redirect( add_query_arg( 'saved', '1', $redirect ) );
+		exit;
+	}
+
+	public function handle_library_upload(): void {
+		if ( ! current_user_can( PDK_CAP_EDIT_CODE ) ) {
+			wp_die( esc_html__( 'Geen toegang.', 'pdk-theme-options' ), 403 );
+		}
+
+		check_admin_referer( 'pdk_library_upload' );
+
+		$redirect = add_query_arg(
+			[ 'page' => self::PAGE_SLUG, 'tab' => 'libraries' ],
+			admin_url( 'admin.php' )
+		);
+
+		if ( empty( $_FILES['pdk_library'] ) || UPLOAD_ERR_OK !== $_FILES['pdk_library']['error'] ) {
+			$this->redirect_with_error( __( 'Geen bestand ontvangen of uploadfout.', 'pdk-theme-options' ), $redirect );
+		}
+
+		// Bewust geen sanitize_file_name(): die maakt van glide.min.js een
+		// glide.min_.js. Alleen a-z, 0-9, punt, koppelteken en underscore
+		// overhouden is hier genoeg — de extensie wordt hieronder afgedwongen.
+		$naam = preg_replace( '/[^a-zA-Z0-9._-]/', '', basename( (string) $_FILES['pdk_library']['name'] ) );
+		$ext  = strtolower( pathinfo( (string) $naam, PATHINFO_EXTENSION ) );
+
+		if ( ! in_array( $ext, PDK_Libraries::allowed_extensions(), true ) ) {
+			$this->redirect_with_error(
+				sprintf(
+					/* translators: %s: toegestane extensies */
+					__( 'Ongeldig bestandstype. Toegestaan: %s.', 'pdk-theme-options' ),
+					implode( ', ', PDK_Libraries::allowed_extensions() )
+				),
+				$redirect
+			);
+		}
+
+		// Alleen a-z, 0-9, punt, koppelteken en underscore — en de naam mag na het
+		// schonen niet leeg zijn of met een punt beginnen (.htaccess-achtige namen).
+		$naam = preg_replace( '/[^a-zA-Z0-9._-]/', '', $naam );
+
+		if ( '' === (string) $naam || str_starts_with( (string) $naam, '.' ) ) {
+			$this->redirect_with_error( __( 'Ongeldige bestandsnaam.', 'pdk-theme-options' ), $redirect );
+		}
+
+		pdk_ensure_storage_dir();
+
+		if ( ! wp_mkdir_p( PDK_Libraries::dir() ) ) {
+			$this->redirect_with_error( __( 'Kan de libraries-map niet aanmaken.', 'pdk-theme-options' ), $redirect );
+		}
+
+		if ( ! is_uploaded_file( $_FILES['pdk_library']['tmp_name'] )
+			|| ! move_uploaded_file( $_FILES['pdk_library']['tmp_name'], PDK_Libraries::dir() . $naam ) ) {
+			$this->redirect_with_error( __( 'Uploaden mislukt (schrijfrechten?).', 'pdk-theme-options' ), $redirect );
+		}
+
+		// Vingerafdruk van wat er net geüpload is — vanaf nu telt elke wijziging
+		// buiten de editor om als manipulatie.
+		pdk_store_file_hash(
+			PDK_Libraries::rel_path( $naam ),
+			(string) file_get_contents( PDK_Libraries::dir() . $naam ) // phpcs:ignore
+		);
+
+		wp_safe_redirect( add_query_arg( 'saved', '1', $redirect ) );
+		exit;
+	}
+
+	/** Verwijdert één bestand uit de libraries-map en gaat terug naar de tab. */
+	private function delete_library_file( string $bestand ): void {
+		$redirect = add_query_arg(
+			[ 'page' => self::PAGE_SLUG, 'tab' => 'libraries' ],
+			admin_url( 'admin.php' )
+		);
+
+		// Alleen bestanden die er echt staan — geen ../-trucs.
+		if ( ! in_array( $bestand, PDK_Libraries::scan(), true ) ) {
+			$this->redirect_with_error( __( 'Onbekend bestand.', 'pdk-theme-options' ), $redirect );
+		}
+
+		wp_delete_file( PDK_Libraries::dir() . $bestand );
+
+		wp_safe_redirect( add_query_arg( 'saved', '1', $redirect ) );
+		exit;
+	}
+
+	/** Terug naar de tab met een foutmelding. Beëindigt het request. */
+	private function redirect_with_error( string $melding, string $redirect ): void {
+		wp_safe_redirect( add_query_arg( 'error', rawurlencode( $melding ), $redirect ) );
+		exit;
+	}
 
 	/**
 	 * Security-tab: aanvinken welke plugins actief moeten blijven.

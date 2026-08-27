@@ -71,46 +71,58 @@ class WP_Error {
 
 require_once __DIR__ . '/helpers.php';
 
+// Niet assert(): die worden met zend.assertions=-1 wegcompileerd, waardoor deze
+// test altijd zou slagen zonder iets te controleren.
+$fouten = 0;
+function check( $ok, string $naam = '' ): void {
+	global $fouten;
+	if ( ! $ok ) {
+		$fouten++;
+		echo '  FOUT ' . ( $naam ?: 'controle' ) . "
+";
+	}
+}
+
 $file = 'custom-functions.php';
 $path = PDK_STORAGE_DIR . $file;
 
 // --- Rechten uit wp-config gaan boven alles wat in de database staat --------
-assert( pdk_map_code_cap( [ PDK_CAP_EDIT_CODE ], PDK_CAP_EDIT_CODE, 7 ) === [ 'exist' ] );
-assert( pdk_map_code_cap( [ PDK_CAP_EDIT_CODE ], PDK_CAP_EDIT_CODE, 1 ) === [ 'do_not_allow' ] );
+check( pdk_map_code_cap( [ PDK_CAP_EDIT_CODE ], PDK_CAP_EDIT_CODE, 7 ) === [ 'exist' ] );
+check( pdk_map_code_cap( [ PDK_CAP_EDIT_CODE ], PDK_CAP_EDIT_CODE, 1 ) === [ 'do_not_allow' ] );
 // Andere capabilities blijven ongemoeid.
-assert( pdk_map_code_cap( [ 'manage_options' ], 'manage_options', 1 ) === [ 'manage_options' ] );
+check( pdk_map_code_cap( [ 'manage_options' ], 'manage_options', 1 ) === [ 'manage_options' ] );
 
 // --- Integriteit ------------------------------------------------------------
 pdk_maybe_create_storage_file( $file, "<?php\n// origineel\n" );
-assert( false === pdk_file_is_tampered( $file ), 'vers bestand is niet gemanipuleerd' );
+check( false === pdk_file_is_tampered( $file ), 'vers bestand is niet gemanipuleerd' );
 
 // Opslaan via de editor verlegt de baseline.
-assert( true === pdk_write_storage_file( $file, "<?php\n// versie 2\n" ) );
-assert( false === pdk_file_is_tampered( $file ) );
+check( true === pdk_write_storage_file( $file, "<?php\n// versie 2\n" ) );
+check( false === pdk_file_is_tampered( $file ) );
 
 // Een hack schrijft rechtstreeks naar het bestand.
 file_put_contents( $path, "<?php\n// versie 2\n// hier schrijft de aanvaller zijn backdoor\n" );
-assert( true === pdk_file_is_tampered( $file ), 'wijziging buiten de editor wordt gedetecteerd' );
-assert( pdk_tampered_files() === [ $file ] );
+check( true === pdk_file_is_tampered( $file ), 'wijziging buiten de editor wordt gedetecteerd' );
+check( pdk_tampered_files() === [ $file ] );
 
 // Herstel uit de back-up maakt het weer schoon.
-assert( true === pdk_write_storage_file( $file, file_get_contents( $path . '.bak' ) ) );
-assert( false === pdk_file_is_tampered( $file ) );
-assert( str_contains( file_get_contents( $path ), 'origineel' ), 'back-up bevat de vorige versie' );
+check( true === pdk_write_storage_file( $file, file_get_contents( $path . '.bak' ) ) );
+check( false === pdk_file_is_tampered( $file ) );
+check( str_contains( file_get_contents( $path ), 'origineel' ), 'back-up bevat de vorige versie' );
 
 // Syntaxfouten worden nog steeds geweigerd (en laten het bestand met rust).
-assert( pdk_write_storage_file( $file, '<?php if ( {' ) instanceof WP_Error );
+check( pdk_write_storage_file( $file, '<?php if ( {' ) instanceof WP_Error );
 
 // Zonder baseline (bestaande installatie) geldt alles als vertrouwd, tot seeding.
 $GLOBALS['options'] = [];
-assert( false === pdk_file_is_tampered( $file ) );
+check( false === pdk_file_is_tampered( $file ) );
 pdk_seed_file_hashes();
-assert( false === pdk_file_is_tampered( $file ) );
+check( false === pdk_file_is_tampered( $file ) );
 file_put_contents( $path, '<?php // gehackt' );
-assert( true === pdk_file_is_tampered( $file ) );
+check( true === pdk_file_is_tampered( $file ) );
 
 // .htaccess blokkeert zowel .php als de .bak-kopieën.
-assert( str_contains( file_get_contents( PDK_STORAGE_DIR . '.htaccess' ), '(php|bak)' ) );
+check( str_contains( file_get_contents( PDK_STORAGE_DIR . '.htaccess' ), '(php|bak)' ) );
 
 // Opruimen.
 foreach ( array_diff( scandir( PDK_STORAGE_DIR ), [ '.', '..' ] ) as $f ) {
@@ -118,4 +130,5 @@ foreach ( array_diff( scandir( PDK_STORAGE_DIR ), [ '.', '..' ] ) as $f ) {
 }
 rmdir( PDK_STORAGE_DIR );
 
-echo "OK\n";
+echo $fouten ? "{$fouten} controle(s) gefaald\n" : "OK — alle controles geslaagd\n";
+exit( $fouten ? 1 : 0 );

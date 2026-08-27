@@ -2,6 +2,36 @@
 
 Alle noemenswaardige wijzigingen in PDK Theme Options worden hier bijgehouden.
 
+## [2.8.0] — 2026-08-27
+
+### Nieuwe module: Libraries — losse JS- en CSS-bestanden
+
+Voor kant-en-klare bibliotheken als Glide.js, Swiper of Splide, zonder ze in het thema te zetten.
+
+- Nieuwe tab **Libraries** (zichtbaar zodra de module aan staat in de Modules-tab) met een upload-veld voor `.js` en `.css`, een lijst van wat er staat, een vinkje per bestand om het wel/niet te laden, en een verwijderknop
+- Elk ingeschakeld bestand laadt op **alle** frontend-pagina's: CSS in de head, JS in de footer. Versie = `filemtime`, dus na een nieuwe upload is de cache meteen vers
+- **Laadvolgorde is alfabetisch.** Zet er een cijfer voor als het uitmaakt: `10-swiper.min.js` vóór `20-slider-init.js`
+- Bestanden staan in `uploads/pdk-theme-options/libraries/`, dus buiten de pluginmap — een plugin-update raakt ze niet. De bestaande `.htaccess` in de storage-map blokkeert daar ook `.php`
+- Uitzetten laat het bestand staan (alleen niet laden); alleen wat expliciet uit staat wordt overgeslagen, zodat een nieuwe upload meteen werkt
+- **Uploaden en verwijderen vraagt code-editor rechten** (`PDK_CAP_EDIT_CODE`), niet alleen `manage_options` — een JS-bestand uploaden is code op de site zetten. Beheerders zonder die rechten zien de lijst read-only
+- Alleen `.js` en `.css` worden geaccepteerd, bestandsnamen worden geschoond en namen die met een punt beginnen geweigerd
+- Zelftest: `php modules/libraries/test-libraries.php`
+
+### Library-bestanden bewerken, met dezelfde beveiliging als de custom code
+
+Handig voor bestanden als `glide.theme.css` — de optionele opmaak die je per site aanpast.
+
+- Knop **Bewerken** per bestand opent dezelfde CodeMirror-editor als de PHP-, CSS- en JS-tabs, inclusief de vergelijking met de laatst opgeslagen versie
+- Opslaan legt een SHA-256-vingerafdruk vast en bewaart de vorige versie als `.bak`, precies zoals bij `custom-style.css`
+- Wijkt een bestand daarna af, dan **wordt het niet meer ingeladen** en verschijnt de bestaande integriteitsmelding met *Herstel back-up* / *Wijziging vertrouwen*. In de lijst staat er dan bij: *gewijzigd buiten de editor — wordt niet geladen*
+- Bij het uploaden wordt de vingerafdruk meteen vastgelegd, dus vanaf dat moment telt elke wijziging buiten de editor als manipulatie
+- Bewerken vraagt code-editor rechten, net als uploaden
+- De integriteitscontrole kijkt nu naar `pdk_watched_files()`: de drie code-bestanden plus alle libraries
+
+### Bugfix: de integriteits-zelftest controleerde niets
+
+- `includes/test-file-integrity.php` gebruikte `assert()`. Met `zend.assertions=-1` — de standaard in een productie-PHP, ook in Local — worden die regels wegcompileerd, dus de test printte altijd `OK` zonder iets te doen. Vervangen door een echte controle die faalt met exitcode 1. Alle 16 controles slagen; de gecontroleerde logica was dus in orde, de test alleen niet
+
 ## [2.7.0] — 2026-08-26
 
 ### Security-tab: plugins die actief moeten blijven

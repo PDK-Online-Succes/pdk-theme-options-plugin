@@ -19,6 +19,7 @@ class PDK_Plugin {
 		'custom_css'       => [ 'file' => 'modules/custom-css/class-pdk-custom-css.php',             'class' => 'PDK_Custom_CSS' ],
 		'custom_js'        => [ 'file' => 'modules/custom-js/class-pdk-custom-js.php',               'class' => 'PDK_Custom_JS' ],
 		'custom_fonts'     => [ 'file' => 'modules/custom-fonts/class-pdk-custom-fonts.php',         'class' => 'PDK_Custom_Fonts' ],
+		'libraries'        => [ 'file' => 'modules/libraries/class-pdk-libraries.php',               'class' => 'PDK_Libraries' ],
 		'login_page'       => [ 'file' => 'modules/login-page/class-pdk-login-page.php',             'class' => 'PDK_Login_Page' ],
 		'vacation_mode'    => [ 'file' => 'modules/vacation-mode/class-pdk-vacation-mode.php',       'class' => 'PDK_Vacation_Mode' ],
 		'delivery_time'    => [ 'file' => 'modules/delivery-time/class-pdk-delivery-time.php',       'class' => 'PDK_Delivery_Time' ],
