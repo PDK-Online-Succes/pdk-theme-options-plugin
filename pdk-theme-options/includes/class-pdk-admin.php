@@ -46,6 +46,7 @@ class PDK_Admin {
 
 	public function register_hooks(): void {
 		$this->loader->add_action( 'admin_menu',                         $this, 'add_menu_page' );
+		$this->loader->add_filter( 'submenu_file',                       $this, 'highlight_submenu' );
 		$this->loader->add_action( 'admin_enqueue_scripts',              $this, 'enqueue_assets' );
 		$this->loader->add_action( 'admin_post_pdk_save_settings',       $this, 'handle_save' );
 		$this->loader->add_action( 'admin_post_pdk_save_fonts_display',  $this, 'handle_save_fonts_display' );
@@ -156,6 +157,45 @@ class PDK_Admin {
 			'dashicons-admin-tools',
 			80
 		);
+
+		// Elke tab ook als submenu-item, zodat je er in één klik heen kunt.
+		// Het eerste item krijgt de slug van de hoofdpagina en vervangt zo het
+		// duplicaat dat add_menu_page() zelf aanmaakt.
+		// get_admin_page_title() pakt het eerste submenu-item waarvan de slug
+		// gelijk is aan ?page=, en dat is voor élke tab het eerste item. Daar
+		// dus de paginatitel meegeven, anders staat op elke tab "Modules" boven.
+		$first = true;
+		foreach ( $this->get_tabs() as $slug => $label ) {
+			add_submenu_page(
+				self::PAGE_SLUG,
+				$first ? __( 'PDK Theme Options', 'pdk-theme-options' ) : $label,
+				$label,
+				'manage_options',
+				$first ? self::PAGE_SLUG : self::PAGE_SLUG . '&tab=' . $slug,
+				[ $this, 'render_settings_page' ]
+			);
+			$first = false;
+		}
+	}
+
+	/**
+	 * WordPress bepaalt het actieve submenu-item op ?page=, en dat is voor elke
+	 * tab hetzelfde — zonder dit staat altijd het eerste item actief.
+	 */
+	public function highlight_submenu( $submenu_file ) {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended
+		if ( ! isset( $_GET['page'] ) || self::PAGE_SLUG !== sanitize_key( $_GET['page'] ) ) {
+			return $submenu_file;
+		}
+
+		$tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : '';
+		// phpcs:enable
+
+		$tabs = $this->get_tabs();
+
+		return array_key_exists( $tab, $tabs ) && array_key_first( $tabs ) !== $tab
+			? self::PAGE_SLUG . '&tab=' . $tab
+			: self::PAGE_SLUG;
 	}
 
 	public function enqueue_assets( string $hook ): void {
@@ -641,10 +681,10 @@ class PDK_Admin {
 	}
 
 	/**
-	 * Rendert de tab-navigatie.
-	 * Module-specifieke tabs verschijnen ALLEEN als de betreffende module actief is.
+	 * De zichtbare tabs als slug => label, voor zowel de tab-navigatie als het
+	 * submenu. Module-specifieke tabs zitten er ALLEEN in als de module actief is.
 	 */
-	private function render_tabs( string $current ): void {
+	private function get_tabs(): array {
 		// Altijd zichtbare tabs.
 		$tabs = [
 			'modules'       => __( 'Modules', 'pdk-theme-options' ),
@@ -671,7 +711,12 @@ class PDK_Admin {
 			}
 		}
 
-		foreach ( $tabs as $slug => $label ) {
+		return $tabs;
+	}
+
+	/** Rendert de tab-navigatie. */
+	private function render_tabs( string $current ): void {
+		foreach ( $this->get_tabs() as $slug => $label ) {
 			$class = ( $slug === $current ) ? 'nav-tab nav-tab-active' : 'nav-tab';
 			$url   = add_query_arg( [ 'page' => self::PAGE_SLUG, 'tab' => $slug ], admin_url( 'admin.php' ) );
 			printf(
@@ -1662,7 +1707,7 @@ class PDK_Admin {
 	}
 
 	/**
-	 * Security-tab: aanvinken welke plugins actief moeten blijven.
+	 * Security-tab: verplichte plugins, XML-RPC en de REST-afscherming.
 	 *
 	 * De rest van de security-module (header-firewall, blacklists, MU-integriteit)
 	 * heeft bewust geen instellingen — die staan vast in de code.
@@ -1675,6 +1720,7 @@ class PDK_Admin {
 		$actief    = (array) get_option( 'active_plugins', [] );
 		$ontbreekt = PDK_Security::missing_required_plugins();
 		?>
+		<h2 style="margin-top:0;"><?php esc_html_e( 'Plugins die actief moeten blijven', 'pdk-theme-options' ); ?></h2>
 		<p>
 			<?php esc_html_e( 'Vink de plugins aan die op deze site altijd actief moeten blijven. Zodra er één uit gaat, krijgt de beheerder een mail en verschijnt er een melding in de admin.', 'pdk-theme-options' ); ?>
 		</p>
@@ -1721,13 +1767,116 @@ class PDK_Admin {
 				</td>
 			</tr>
 		</table>
+
+		<h2><?php esc_html_e( 'XML-RPC en REST API', 'pdk-theme-options' ); ?></h2>
+		<p class="description">
+			<?php esc_html_e( 'Beide staan standaard aan. Zet ze alleen uit als een koppeling ze echt nodig heeft.', 'pdk-theme-options' ); ?>
+		</p>
+
+		<table class="form-table">
+			<tr>
+				<th style="width:220px;"><?php esc_html_e( 'XML-RPC', 'pdk-theme-options' ); ?></th>
+				<td>
+					<label style="display:flex;align-items:center;gap:8px;">
+						<input type="checkbox" name="security_xmlrpc_disable" value="1"
+							<?php checked( (bool) PDK_Settings::get_with_default( 'security', 'xmlrpc_disable' ) ); ?>>
+						<span><?php esc_html_e( 'XML-RPC volledig uitzetten', 'pdk-theme-options' ); ?></span>
+					</label>
+					<p class="description">
+						<?php esc_html_e( 'Sluit ook pingback.ping en verwijdert de X-Pingback-header en de RSD-link. Zet dit uit als de Jetpack- of WordPress-app nog via XML-RPC koppelt.', 'pdk-theme-options' ); ?>
+					</p>
+				</td>
+			</tr>
+			<tr>
+				<th><?php esc_html_e( 'REST API', 'pdk-theme-options' ); ?></th>
+				<td>
+					<label style="display:flex;align-items:center;gap:8px;">
+						<input type="checkbox" name="security_rest_require_login" value="1"
+							<?php checked( (bool) PDK_Settings::get_with_default( 'security', 'rest_require_login' ) ); ?>>
+						<span><?php esc_html_e( 'Gevoelige REST-routes achter de login zetten', 'pdk-theme-options' ); ?></span>
+					</label>
+					<p class="description">
+						<?php esc_html_e( 'Sluit niet heel /wp-json af, alleen de routes hieronder. Betaalwebhooks, checkout-blocks en formulieren blijven dus gewoon werken. In PHP en niet in .htaccess: werkt ook op nginx en sluit de beheerder niet buiten zijn eigen editor.', 'pdk-theme-options' ); ?>
+					</p>
+				</td>
+			</tr>
+			<tr>
+				<th><?php esc_html_e( 'Beschermde routes', 'pdk-theme-options' ); ?></th>
+				<td>
+					<textarea name="security_rest_protect_routes" rows="4" class="large-text code"
+						placeholder="/wp/v2/"><?php echo esc_textarea( implode( "\n", (array) PDK_Settings::get_with_default( 'security', 'rest_protect_routes' ) ) ); ?></textarea>
+					<p class="description">
+						<?php esc_html_e( 'Eén route-prefix per regel; alles dat daarmee begint vraagt om inloggen. Standaard /wp/v2/ — daar zit /wp/v2/users, dat zonder afscherming je gebruikersnamen weggeeft voor een brute force. Al het andere blijft open.', 'pdk-theme-options' ); ?>
+					</p>
+					<p class="description">
+						<?php esc_html_e( 'Voeg alleen iets toe als je zeker weet dat de site het niet nodig heeft — een te ruim prefix legt stilletjes een betaalwebhook of formulier plat. Wat er geweigerd is, zie je onderaan deze pagina.', 'pdk-theme-options' ); ?>
+					</p>
+				</td>
+			</tr>
+			<tr>
+				<th><?php esc_html_e( 'IP-whitelist', 'pdk-theme-options' ); ?></th>
+				<td>
+					<textarea name="security_rest_allow_ips" rows="4" class="large-text code"
+						placeholder="203.0.113.7"><?php echo esc_textarea( implode( "\n", (array) PDK_Settings::get_with_default( 'security', 'rest_allow_ips' ) ) ); ?></textarea>
+					<p class="description">
+						<?php
+						printf(
+							/* translators: %s: het IP-adres van de huidige bezoeker */
+							esc_html__( 'Eén IP-adres per regel; deze mogen de beschermde routes zonder inloggen gebruiken. Jouw huidige IP: %s. Werkt niet achter Cloudflare of een reverse proxy — dan ziet WordPress alleen het IP van de proxy.', 'pdk-theme-options' ),
+							'<code>' . esc_html( isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '?' ) . '</code>'
+						);
+						?>
+					</p>
+				</td>
+			</tr>
+		</table>
+
+		<?php $geweigerd = PDK_Security::blocked_routes(); ?>
+		<h2><?php esc_html_e( 'Geweigerde REST-routes', 'pdk-theme-options' ); ?></h2>
+		<p class="description">
+			<?php esc_html_e( 'Wat er de laatste tijd is tegengehouden, hoogstens één keer per uur per route. Veel /wp/v2/users betekent dat iemand gebruikersnamen aan het verzamelen is — dat is dit precies wat het hoort te doen. Staat er iets tussen dat de site zelf nodig heeft, haal dan het bijbehorende prefix weg bij de beschermde routes.', 'pdk-theme-options' ); ?>
+		</p>
+
+		<?php if ( ! $geweigerd ) : ?>
+			<p><em><?php esc_html_e( 'Nog niets geweigerd.', 'pdk-theme-options' ); ?></em></p>
+		<?php else : ?>
+			<table class="widefat striped" style="max-width:640px;">
+				<thead>
+					<tr>
+						<th><?php esc_html_e( 'Route', 'pdk-theme-options' ); ?></th>
+						<th style="width:180px;"><?php esc_html_e( 'Laatst geweigerd', 'pdk-theme-options' ); ?></th>
+					</tr>
+				</thead>
+				<tbody>
+					<?php foreach ( $geweigerd as $route => $tijd ) : ?>
+						<tr>
+							<td><code><?php echo esc_html( $route ); ?></code></td>
+							<td>
+								<?php
+								printf(
+									/* translators: %s: tijdsduur, bijvoorbeeld "3 uur" */
+									esc_html__( '%s geleden', 'pdk-theme-options' ),
+									esc_html( human_time_diff( (int) $tijd ) )
+								);
+								?>
+							</td>
+						</tr>
+					<?php endforeach; ?>
+				</tbody>
+			</table>
+			<p>
+				<label style="display:flex;align-items:center;gap:8px;">
+					<input type="checkbox" name="security_clear_blocked" value="1">
+					<span><?php esc_html_e( 'Deze lijst leegmaken bij opslaan', 'pdk-theme-options' ); ?></span>
+				</label>
+			</p>
+		<?php endif; ?>
 		<?php
 	}
 
 	private function save_security(): void {
 		// phpcs:disable WordPress.Security.NonceVerification.Missing
 		$posted = array_map( 'sanitize_text_field', (array) wp_unslash( $_POST['security_required'] ?? [] ) );
-		// phpcs:enable
 
 		require_once ABSPATH . 'wp-admin/includes/plugin.php';
 
@@ -1735,11 +1884,40 @@ class PDK_Admin {
 		$installed = array_map( static fn( $basename ) => strtok( (string) $basename, '/' ), array_keys( get_plugins() ) );
 		$vereist   = array_values( array_intersect( $installed, $posted ) );
 
+		// Een prefix zonder beginslash matcht nooit — `wp/v2/` staat er dan wel,
+		// maar beschermt niets. Slash erbij in plaats van stilzwijgend niks doen.
+		$routes = array_values( array_unique( array_map(
+			static fn( $route ) => '/' . ltrim( $route, '/' ),
+			self::split_lines( (string) wp_unslash( $_POST['security_rest_protect_routes'] ?? '' ) )
+		) ) );
+		$ips    = array_values( array_filter(
+			self::split_lines( (string) wp_unslash( $_POST['security_rest_allow_ips'] ?? '' ) ),
+			static fn( $ip ) => (bool) filter_var( $ip, FILTER_VALIDATE_IP )
+		) );
+
 		// Niet via PDK_Settings::update(): array_replace_recursive() voegt lijsten
 		// per index samen, waardoor een uitgevinkte plugin zou blijven staan.
-		$options                                  = (array) get_option( PDK_Settings::OPTION_KEY, [] );
-		$options['security']['required_plugins']  = $vereist;
+		$options             = (array) get_option( PDK_Settings::OPTION_KEY, [] );
+		$options['security'] = [
+			'required_plugins'    => $vereist,
+			'xmlrpc_disable'      => ! empty( $_POST['security_xmlrpc_disable'] ),
+			'rest_require_login'  => ! empty( $_POST['security_rest_require_login'] ),
+			'rest_protect_routes' => $routes,
+			'rest_allow_ips'      => $ips,
+		];
 		update_option( PDK_Settings::OPTION_KEY, $options );
+
+		if ( ! empty( $_POST['security_clear_blocked'] ) ) {
+			PDK_Security::clear_blocked_routes();
+		}
+		// phpcs:enable
+	}
+
+	/** Textarea naar een lijst: per regel geschoond, leeg eruit, geen dubbelen. */
+	private static function split_lines( string $tekst ): array {
+		$regels = array_map( 'sanitize_text_field', preg_split( '/\R/', $tekst ) ?: [] );
+
+		return array_values( array_unique( array_filter( array_map( 'trim', $regels ), 'strlen' ) ) );
 	}
 
 	private function render_tab_permissions(): void {

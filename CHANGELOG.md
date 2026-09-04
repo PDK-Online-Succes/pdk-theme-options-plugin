@@ -2,6 +2,32 @@
 
 Alle noemenswaardige wijzigingen in PDK Theme Options worden hier bijgehouden.
 
+## [2.9.0] — 2026-09-04
+
+### Security: XML-RPC uit en `/wp/v2/` achter de login
+
+Beide staan **standaard aan** op elke site, ook op sites die al draaien — instelbaar in de Security-tab als een koppeling ze nodig heeft.
+
+- **XML-RPC volledig uit.** `xmlrpc_enabled=false` alleen is niet genoeg: `pingback.ping` blijft dan werkbaar. De methodelijst wordt nu leeggemaakt, en de `X-Pingback`-header en de RSD-link verdwijnen. Uitzetten als Jetpack of de WordPress-app nog via XML-RPC koppelt
+- **Gevoelige REST-routes vragen om inloggen.** Standaard `/wp/v2/` — daar zit `/wp/v2/users`, dat zonder afscherming je gebruikersnamen weggeeft voor een brute force. Niet ingelogd levert een 401 op
+- **Bewust alleen dichtzetten waar iets te halen valt, niet heel `/wp-json`.** Een allowlist zou élke betaalgateway, formulier-plugin en checkout-block moeten kennen, en betaalwebhooks zijn server-naar-server POSTs zonder cookie: één gemiste route betekent dat een geslaagde betaling nooit binnenkomt en de order op *in afwachting* blijft staan. Mollie verhuisde zijn webhook van `?wc-api=` naar `/wp-json/mollie/v1/webhook` — bij een allowlist zijn dat stilgevallen betalingen tot een klant belt. Nu raakt Mollie, PayPal, Stripe, Buckaroo, MultiSafepay, Adyen, de Store API en Contact Form 7 er niets van, ook als ze morgen van route wisselen
+- **Beschermde routes** (textarea, één prefix per regel) zijn aan te passen. Alleen toevoegen wat de site zeker niet nodig heeft — een te ruim prefix legt stilletjes een webhook plat
+- **IP-whitelist** (textarea, één IP per regel): deze adressen mogen de beschermde routes zonder inloggen gebruiken. Het veld toont je huidige IP. Alleen geldige IP-adressen worden opgeslagen. Werkt niet achter Cloudflare of een reverse proxy — dan ziet WordPress alleen het IP van de proxy
+- **De prefixcheck is hoofdletterongevoelig**, net als de routematching van WordPress zelf: `/wp-json/WP/V2/users` komt ook bij de users-controller uit en glipt er dus niet langs
+- **Een prefix zonder beginslash krijgt er één.** `wp/v2/` opslaan leverde een regel op die er actief uitzag maar nooit matchte — hij beschermde niets
+- **Geweigerde REST-routes staan onderaan de Security-tab**, met hoe lang geleden en een vinkje om de lijst leeg te maken. Hoogstens één regel per route per uur, maximaal 20 routes, ook in de foutlog. Veel `/wp/v2/users` betekent dat iemand gebruikersnamen aan het verzamelen is; iets anders betekent dat een zelf toegevoegd prefix te ruim was
+- **Ook hoogstens één onbekende route per uur erbij.** De route komt van de bezoeker, dus een scan op `/wp/v2/<willekeurig>` zou anders per verzoek een optie wegschrijven en de echte meldingen binnen één burst uit de lijst van 20 duwen. Prijs: loopt er een scan, dan komt een écht nieuwe weigering pas in de lijst nadat je hem leegmaakt
+- **Regeleindes gaan uit de route voordat hij de foutlog in gaat**, zodat niemand met `?rest_route=/wp/v2/%0A…` zijn eigen regels in je log kan schrijven
+- Bij verwijderen van de plugin worden nu ook `pdk_mu_hashes`, `pdk_missing_required_plugins` en `pdk_rest_blocked_routes` opgeruimd
+- De afscherming zit in PHP, niet in `.htaccess`: dat werkt ook op nginx, overleeft een serverwissel, en kan de beheerder niet buitensluiten. Achter Cloudflare of een reverse proxy is de IP-whitelist onbruikbaar — WordPress ziet dan alleen het IP van de proxy
+- Zelftest uitgebreid: `php modules/security/test-security.php`
+
+### Actieve tabs als submenu onder PDK Tools
+
+- **Elke zichtbare tab staat nu ook in het admin-menu** onder *PDK Tools*, dus naar Custom CSS of Security is het één klik in plaats van eerst de plugin openen en dan de tab kiezen. Het submenu volgt de tabs: een module die uit staat, verschijnt er niet in
+- Het juiste submenu-item wordt gemarkeerd zolang je op die tab zit — WordPress kijkt normaal alleen naar `?page=`, en dat is voor alle tabs hetzelfde
+- De kop boven de pagina blijft *PDK Theme Options*; zonder ingreep neemt WordPress de naam van het eerste submenu-item over en stond op elke tab "Modules"
+
 ## [2.8.1] — 2026-08-27
 
 ### Libraries: meerdere bestanden tegelijk en sourcemaps

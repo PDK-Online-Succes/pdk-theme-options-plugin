@@ -77,11 +77,31 @@ class PDK_Settings {
 	public static function get_defaults(): array {
 		return [
 			// ----------------------------------------------------------------
-			// Security — de module zelf is niet uitschakelbaar, alleen de lijst
-			// met plugins die actief moeten blijven is instelbaar.
+			// Security — de module zelf is niet uitschakelbaar; de header-firewall
+			// en de blacklists staan vast in de code. Instelbaar zijn: welke
+			// plugins actief moeten blijven, XML-RPC en de REST-afscherming.
 			// ----------------------------------------------------------------
 			'security' => [
-				'required_plugins' => [],
+				'required_plugins'    => [],
+				'xmlrpc_disable'      => true,
+				'rest_require_login'  => true,
+				/**
+				 * Route-prefixen die inloggen vereisen. Al het andere blijft open.
+				 *
+				 * Bewust een blocklist en geen allowlist. Wat een aanvaller aan de
+				 * REST API heeft is `/wp/v2/users` — gebruikersnamen ophalen voor
+				 * een brute force — en de rest van de core-content. Dat is één
+				 * prefix die nooit verandert.
+				 *
+				 * Andersom zou het een lijst worden die élke betaalgateway,
+				 * formulier-plugin en checkout-block moet kennen. Mollie verhuisde
+				 * zijn webhook van `?wc-api=` naar `/wp-json/mollie/v1/webhook`;
+				 * bij een allowlist zijn dat stilgevallen betalingen tot iemand
+				 * belt. Bij een blocklist gebeurt er niets.
+				 */
+				'rest_protect_routes' => [ '/wp/v2/' ],
+				// IP's die de beschermde routes zonder inloggen mogen gebruiken.
+				'rest_allow_ips'      => [],
 			],
 
 			// ----------------------------------------------------------------

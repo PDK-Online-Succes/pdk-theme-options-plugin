@@ -2,16 +2,18 @@
 /**
  * Module: Security
  *
- * Vijf maatregelen die ALTIJD draaien — alleen de lijst met verplichte plugins
- * is instelbaar, de rest staat vast in de code:
+ * Maatregelen 1 t/m 3 en 5 staan vast in de code; 4, 6 en 7 zijn instelbaar via
+ * de Security-tab, met de standaardwaarden hieronder:
  *
  *  1. Header-firewall — blokkeert requests met verdachte custom headers
  *     (eval-via-header backdoors).
  *  2. MU-plugin blacklist — verwijdert ongewenste bestanden uit mu-plugins/.
  *  3. Plugin-blacklist — deactiveert gevaarlijke plugins op slug.
- *  4. Verplichte plugins — mailt de beheerder zodra er één uit staat. Welke dat
- *     zijn is wél instelbaar, via de Security-tab.
+ *  4. Verplichte plugins — mailt de beheerder zodra er één uit staat.
  *  5. Integriteitscontrole van mu-plugins/ — mailt de beheerder bij afwijking.
+ *  6. XML-RPC uit (standaard aan).
+ *  7. Gevoelige REST-routes achter de login (standaard `/wp/v2/`), met een
+ *     IP-whitelist voor uitzonderingen.
  *
  * 1 en 2 draaien direct bij het laden van de module, dus nog vóór `init`.
  */
@@ -25,6 +27,12 @@ class PDK_Security {
 
 	/** Laatst gemelde lijst met verplichte plugins die uit stonden. */
 	private const MISSING_OPTION = 'pdk_missing_required_plugins';
+
+	/** Geweigerde REST-routes, tijdstip per route. */
+	private const BLOCKED_OPTION = 'pdk_rest_blocked_routes';
+
+	/** Zoveel geweigerde routes onthouden we; oudste valt eruit. */
+	private const BLOCKED_MAX = 20;
 
 	/**
 	 * MU-plugins die altijd verwijderd worden. Exacte bestandsnamen.
@@ -67,7 +75,18 @@ class PDK_Security {
 		add_action( 'admin_init', [ $this, 'deactivate_dangerous_plugins' ] );
 		add_action( 'init', [ $this, 'check_mu_integrity' ], 0 );
 		add_action( 'init', [ $this, 'check_required_plugins' ], 0 );
+		add_action( 'init', [ $this, 'harden_xmlrpc' ], 0 );
 		add_action( 'admin_notices', [ $this, 'show_required_plugins_notice' ] );
+		add_filter( 'rest_authentication_errors', [ $this, 'restrict_rest_api' ] );
+	}
+
+	/**
+	 * Instelling uit de Security-tab, met terugval op de standaardwaarde.
+	 *
+	 * @return mixed
+	 */
+	private static function option( string $key ) {
+		return PDK_Settings::get_with_default( 'security', $key );
 	}
 
 	// -------------------------------------------------------------------------
@@ -338,6 +357,160 @@ class PDK_Security {
 			),
 			$bericht
 		);
+	}
+
+	// -------------------------------------------------------------------------
+	// 6. XML-RPC uit
+	// -------------------------------------------------------------------------
+
+	/**
+	 * XML-RPC wordt niet gebruikt. `xmlrpc_enabled=false` alleen is niet genoeg:
+	 * pingback.ping blijft dan werkbaar. Een lege methodelijst zet alles dicht.
+	 */
+	public function harden_xmlrpc(): void {
+		if ( ! self::option( 'xmlrpc_disable' ) ) {
+			return;
+		}
+
+		add_filter( 'xmlrpc_enabled', '__return_false' );
+		add_filter( 'xmlrpc_methods', '__return_empty_array' );
+		add_filter(
+			'wp_headers',
+			static function ( $headers ) {
+				unset( $headers['X-Pingback'] );
+				return $headers;
+			}
+		);
+		remove_action( 'wp_head', 'rsd_link' );
+	}
+
+	// -------------------------------------------------------------------------
+	// 7. REST API alleen voor ingelogde gebruikers
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Vraagt om inloggen op de REST-routes waar iets te halen valt.
+	 *
+	 * Dit is wat de `<FilesMatch "wp-json">`-truc in .htaccess probeert, maar dan
+	 * gericht: niet /wp-json in z'n geheel dicht, alleen `rest_protect_routes` —
+	 * standaard `/wp/v2/`, waar `users` de gebruikersnamen weggeeft. Al het
+	 * andere blijft open, dus betaalwebhooks, checkout-blocks en formulieren
+	 * merken hier niets van. In PHP en niet in .htaccess, want dat werkt ook op
+	 * nginx en sluit de beheerder niet buiten z'n eigen block-editor.
+	 *
+	 * @param  mixed $result Uitkomst van een eerdere authenticatiecheck.
+	 * @return mixed
+	 */
+	public function restrict_rest_api( $result ) {
+		// Eerdere authenticatiecheck heeft al besloten: niet overrulen.
+		if ( true === $result || is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		if ( ! self::option( 'rest_require_login' ) || is_user_logged_in() ) {
+			return $result;
+		}
+
+		$route = isset( $GLOBALS['wp']->query_vars['rest_route'] )
+			? (string) $GLOBALS['wp']->query_vars['rest_route']
+			: '';
+
+		if ( ! self::is_protected( $route ) ) {
+			return $result;
+		}
+
+		if ( in_array( self::client_ip(), (array) self::option( 'rest_allow_ips' ), true ) ) {
+			return $result;
+		}
+
+		self::log_blocked( $route );
+
+		return new WP_Error(
+			'rest_not_logged_in',
+			__( 'You are not currently logged in.' ), // phpcs:ignore WordPress.WP.I18n.MissingArgDomain -- kernmelding, bewust zonder eigen domein.
+			[ 'status' => 401 ]
+		);
+	}
+
+	/**
+	 * Valt deze route onder een beschermd prefix?
+	 *
+	 * Hoofdletterongevoelig, want WordPress matcht zijn routes ook zo:
+	 * `/wp-json/WP/V2/users` komt gewoon bij de users-controller uit en zou
+	 * er anders langs glippen.
+	 */
+	private static function is_protected( string $route ): bool {
+		foreach ( (array) self::option( 'rest_protect_routes' ) as $prefix ) {
+			if ( '' !== (string) $prefix && 0 === stripos( $route, (string) $prefix ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Onthoudt welke routes geweigerd zijn, hoogstens één keer per uur per route.
+	 *
+	 * Twee dingen zichtbaar: dat iemand aan het scannen is op `/wp/v2/users`, en
+	 * dat je met een zelf toegevoegd prefix iets hebt dichtgezet dat de site
+	 * nodig had. Zonder dit merk je het tweede pas als een klant belt.
+	 */
+	private static function log_blocked( string $route ): void {
+		// De route komt van de bezoeker: regeleindes eruit, anders schrijft een
+		// verzoek op `?rest_route=/wp/v2/%0A…` zijn eigen regels in de foutlog.
+		$route  = str_replace( [ "\r", "\n" ], ' ', substr( '' !== $route ? $route : '/', 0, 100 ) );
+		$bekend = (array) get_option( self::BLOCKED_OPTION, [] );
+		$nu     = time();
+
+		if ( isset( $bekend[ $route ] ) ) {
+			if ( (int) $bekend[ $route ] > $nu - HOUR_IN_SECONDS ) {
+				return;
+			}
+		} elseif ( $bekend && max( array_map( 'intval', $bekend ) ) > $nu - HOUR_IN_SECONDS ) {
+			// Onbekende route, en er is dit uur al iets gelogd. Zonder deze rem
+			// kost een scan op `/wp/v2/<willekeurig>` per verzoek een schrijfactie
+			// en drukt hij binnen één burst de echte meldingen uit de lijst.
+			// ponytail: prijs hiervan is dat tijdens een lopende scan een échte
+			// nieuwe weigering niet in de lijst komt. Wil je die zien, wis de
+			// lijst; de scan is dan zelf ook meteen het signaal.
+			return;
+		}
+
+		$bekend[ $route ] = $nu;
+		arsort( $bekend );
+
+		update_option( self::BLOCKED_OPTION, array_slice( $bekend, 0, self::BLOCKED_MAX, true ), false );
+		error_log( '[PDK Security] REST geweigerd: ' . $route ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+	}
+
+	/**
+	 * Geweigerde REST-routes, nieuwste eerst.
+	 *
+	 * @return array<string,int> Route => unix-tijd van de laatste weigering.
+	 */
+	public static function blocked_routes(): array {
+		$bekend = (array) get_option( self::BLOCKED_OPTION, [] );
+		arsort( $bekend );
+
+		return $bekend;
+	}
+
+	/** Wist de lijst, zodat je na een aanpassing ziet wat er nog misgaat. */
+	public static function clear_blocked_routes(): void {
+		delete_option( self::BLOCKED_OPTION );
+	}
+
+	/**
+	 * IP van de bezoeker.
+	 *
+	 * ponytail: leest alleen REMOTE_ADDR. Achter Cloudflare of een reverse proxy
+	 * is dat het IP van de proxy — dan is de whitelist onbruikbaar en moet hier
+	 * een vertrouwde header (CF-Connecting-IP / X-Forwarded-For) bij, mét een
+	 * lijst vertrouwde proxy-IP's. Zonder die lijst is zo'n header te spoofen.
+	 */
+	private static function client_ip(): string {
+		return isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';
 	}
 
 	/** Pad naar mu-plugins/ met slash, of '' als de map niet bestaat. */

@@ -30,6 +30,14 @@ function add_action( string $hook, $cb, int $prio = 10, int $args = 1 ): bool {
 	$GLOBALS['hooks'][ $hook ][] = $cb;
 	return true;
 }
+function add_filter( string $hook, $cb, int $prio = 10, int $args = 1 ): bool {
+	$GLOBALS['hooks'][ $hook ][] = $cb;
+	return true;
+}
+function remove_action( string $hook, $cb, int $prio = 10 ): bool {
+	$GLOBALS['removed'][] = $hook . ':' . $cb;
+	return true;
+}
 function did_action( string $hook ): int {
 	return (int) ( $GLOBALS['did'][ $hook ] ?? 0 );
 }
@@ -38,6 +46,10 @@ function get_option( string $key, $default = false ) {
 }
 function update_option( string $key, $value, $autoload = null ): bool {
 	$GLOBALS['options'][ $key ] = $value;
+	return true;
+}
+function delete_option( string $key ): bool {
+	unset( $GLOBALS['options'][ $key ] );
 	return true;
 }
 function get_transient( string $key ) {
@@ -76,13 +88,43 @@ function is_multisite(): bool {
 function current_user_can( string $cap ): bool {
 	return true;
 }
+function is_user_logged_in(): bool {
+	return (bool) ( $GLOBALS['logged_in'] ?? false );
+}
+function sanitize_text_field( string $waarde ): string {
+	return trim( $waarde );
+}
+function wp_unslash( $waarde ) {
+	return $waarde;
+}
+function is_wp_error( $ding ): bool {
+	return $ding instanceof WP_Error;
+}
+
+class WP_Error {
+	public function __construct( public string $code = '', public string $message = '', public array $data = [] ) {}
+}
 
 class PDK_Loader {}
 
 /** Alleen wat de security-module gebruikt. */
 class PDK_Settings {
+
+	/** Spiegelt de 'security'-defaults uit class-pdk-settings.php. */
+	private const DEFAULTS = [
+		'required_plugins'    => [],
+		'xmlrpc_disable'      => true,
+		'rest_require_login'  => true,
+		'rest_protect_routes' => [ '/wp/v2/' ],
+		'rest_allow_ips'      => [],
+	];
+
 	public static function get( string $module = '', string $key = '' ) {
 		return $GLOBALS['settings'][ $module ][ $key ] ?? null;
+	}
+
+	public static function get_with_default( string $module, string $key ) {
+		return $GLOBALS['settings'][ $module ][ $key ] ?? self::DEFAULTS[ $key ] ?? null;
 	}
 }
 
@@ -279,6 +321,154 @@ $GLOBALS['transients'] = [];
 $GLOBALS['mails']      = [];
 $security->check_mu_integrity();
 check( 'geen wijziging: geen tweede mail', [] === $GLOBALS['mails'] );
+
+echo "\nREST API afschermen\n";
+
+$security            = new PDK_Security_Test( new PDK_Loader() );
+$GLOBALS['settings'] = [];
+$GLOBALS['logged_in'] = false;
+$_SERVER              = [ 'REMOTE_ADDR' => '198.51.100.5' ];
+
+/** @return mixed Uitkomst van de filter. */
+function rest_check( $result = null, string $route = '/wp/v2/users' ) {
+	global $security;
+	$GLOBALS['wp']                        = new stdClass();
+	$GLOBALS['wp']->query_vars            = [ 'rest_route' => $route ];
+	return $security->restrict_rest_api( $result );
+}
+
+// Waar het om begonnen is: gebruikersnamen zijn niet op te halen.
+check( 'gebruikerslijst wordt geweigerd', is_wp_error( rest_check() ) );
+check( 'weigering is een 401', 401 === ( rest_check()->data['status'] ?? 0 ) );
+check( 'ook de rest van core is dicht', is_wp_error( rest_check( null, '/wp/v2/posts' ) ) );
+
+/**
+ * De hele reden voor een blocklist in plaats van een allowlist: een
+ * betaalwebhook is een POST zonder cookie. Blokkeer je die, dan komt een
+ * geslaagde betaling nooit binnen en blijft de order op 'in afwachting'.
+ * Geen van deze routes hoeft ergens aangemeld te worden — ze zijn simpelweg
+ * niet beschermd.
+ */
+foreach (
+	[
+		'Mollie'       => '/mollie/v1/webhook',
+		'PayPal'       => '/paypal/v1/incoming',
+		'Stripe'       => '/wc-stripe/v1/webhook',
+		'MultiSafepay' => '/multisafepay/v1/notification',
+		'Adyen'        => '/pronamic-pay/adyen/v1/notifications',
+		'Store API'    => '/wc/store/v1/cart',
+		'Contact Form' => '/contact-form-7/v1/contact-forms/12/feedback',
+		'oEmbed'       => '/oembed/1.0/embed',
+		'Onbekend'     => '/gateway-die-in-2027-bestaat/v3/webhook',
+	] as $naam => $route
+) {
+	check( "{$naam} komt erdoor ({$route})", null === rest_check( null, $route ) );
+}
+
+$GLOBALS['logged_in'] = true;
+check( 'ingelogd komt overal doorheen', null === rest_check() );
+$GLOBALS['logged_in'] = false;
+
+// Prefix-match mag niet te ruim zijn.
+check( 'route die er net op lijkt blijft open', null === rest_check( null, '/wp/v3/users' ) );
+
+// WordPress matcht zijn routes hoofdletterongevoelig; de afscherming ook.
+check( 'hoofdletters glippen er niet langs', is_wp_error( rest_check( null, '/WP/V2/users' ) ) );
+check( 'gemengde schrijfwijze ook niet', is_wp_error( rest_check( null, '/Wp/v2/Users' ) ) );
+
+$GLOBALS['settings'] = [ 'security' => [ 'rest_protect_routes' => [ '/wc/store/' ] ] ];
+check( 'zelf toegevoegd prefix wordt beschermd', is_wp_error( rest_check( null, '/wc/store/cart' ) ) );
+check( 'core is dan niet meer beschermd', null === rest_check( null, '/wp/v2/users' ) );
+
+$GLOBALS['settings'] = [ 'security' => [ 'rest_protect_routes' => [] ] ];
+check( 'lege lijst: niets beschermd', null === rest_check() );
+
+$_SERVER             = [ 'REMOTE_ADDR' => '198.51.100.5' ];
+$GLOBALS['settings'] = [ 'security' => [ 'rest_allow_ips' => [ '198.51.100.5' ] ] ];
+check( 'IP op de whitelist komt bij core', null === rest_check() );
+
+$_SERVER = [ 'REMOTE_ADDR' => '203.0.113.9' ];
+check( 'ander IP wordt geweigerd', is_wp_error( rest_check() ) );
+
+$GLOBALS['settings'] = [ 'security' => [ 'rest_require_login' => false ] ];
+check( 'afscherming uit: alles komt erdoor', null === rest_check() );
+
+$GLOBALS['settings'] = [];
+check( 'eerdere authenticatie (true) wordt niet overruled', true === rest_check( true ) );
+$eerdere = new WP_Error( 'anders', 'x' );
+check( 'eerdere fout wordt niet overruled', $eerdere === rest_check( $eerdere ) );
+
+echo "\nGeweigerde routes onthouden\n";
+
+$GLOBALS['options']['pdk_rest_blocked_routes'] = [];
+$GLOBALS['settings']                           = [];
+$_SERVER                                       = [ 'REMOTE_ADDR' => '203.0.113.9' ];
+
+rest_check( null, '/wp/v2/users' );
+check( 'geweigerde route wordt onthouden', isset( PDK_Security::blocked_routes()['/wp/v2/users'] ) );
+
+// Een bot die dezelfde route blijft proberen mag de optie niet stukschrijven.
+$voor = PDK_Security::blocked_routes();
+rest_check( null, '/wp/v2/users' );
+check( 'zelfde route binnen het uur wordt niet opnieuw geschreven', $voor === PDK_Security::blocked_routes() );
+
+// Een scan op steeds nieuwe routes kost anders per verzoek een schrijfactie en
+// drukt de echte melding uit de lijst.
+for ( $i = 0; $i < 30; $i++ ) {
+	rest_check( null, "/wp/v2/scan{$i}" );
+}
+$na = PDK_Security::blocked_routes();
+check( 'scan levert geen 30 schrijfacties op', 1 === count( $na ) );
+check( 'scan drukt de echte melding niet weg', isset( $na['/wp/v2/users'] ) );
+
+// Regeleindes uit de route: die komt van de bezoeker en gaat de foutlog in.
+$GLOBALS['options']['pdk_rest_blocked_routes'] = [];
+rest_check( null, "/wp/v2/users\n[PDK Security] nep" );
+check( 'regeleinde in de route wordt eruit gehaald', ! str_contains( implode( '', array_keys( PDK_Security::blocked_routes() ) ), "\n" ) );
+
+// Niet meer dan BLOCKED_MAX onthouden, anders groeit de optie ongelimiteerd.
+$oud = [];
+for ( $i = 0; $i < 25; $i++ ) {
+	$oud[ "/wp/v2/oud{$i}" ] = time() - 2 * HOUR_IN_SECONDS;
+}
+$GLOBALS['options']['pdk_rest_blocked_routes'] = $oud;
+rest_check( null, '/wp/v2/users' );
+check( 'lijst blijft begrensd op 20', 20 === count( PDK_Security::blocked_routes() ) );
+
+// Doorgelaten routes horen er niet in te komen — anders vult een webshop de
+// lijst binnen een minuut met checkout-verkeer.
+$GLOBALS['options']['pdk_rest_blocked_routes'] = [];
+rest_check( null, '/mollie/v1/webhook' );
+check( 'doorgelaten route wordt niet gelogd', [] === PDK_Security::blocked_routes() );
+
+rest_check( null, '/wp/v2/users' );
+PDK_Security::clear_blocked_routes();
+check( 'lijst leegmaken werkt', [] === PDK_Security::blocked_routes() );
+
+echo "\nXML-RPC uit\n";
+
+$GLOBALS['hooks']   = [];
+$GLOBALS['removed'] = [];
+$security->harden_xmlrpc();
+
+check( 'xmlrpc_enabled wordt afgevangen', [ '__return_false' ] === ( $GLOBALS['hooks']['xmlrpc_enabled'] ?? [] ) );
+check( 'methodelijst wordt leeggemaakt', [ '__return_empty_array' ] === ( $GLOBALS['hooks']['xmlrpc_methods'] ?? [] ) );
+check( 'RSD-link wordt verwijderd', in_array( 'wp_head:rsd_link', $GLOBALS['removed'], true ) );
+
+$header_filter = $GLOBALS['hooks']['wp_headers'][0] ?? null;
+check(
+	'X-Pingback-header verdwijnt',
+	is_callable( $header_filter )
+	&& [ 'Content-Type' => 'text/html' ] === $header_filter( [ 'X-Pingback' => '/xmlrpc.php', 'Content-Type' => 'text/html' ] )
+);
+
+$GLOBALS['hooks']    = [];
+$GLOBALS['removed']  = [];
+$GLOBALS['settings'] = [ 'security' => [ 'xmlrpc_disable' => false ] ];
+$security->harden_xmlrpc();
+check( 'uitgezet: XML-RPC blijft ongemoeid', [] === $GLOBALS['hooks'] && [] === $GLOBALS['removed'] );
+
+$GLOBALS['settings'] = [];
 
 array_map( 'unlink', glob( $mu_dir . '/*' ) ?: [] );
 rmdir( $mu_dir );

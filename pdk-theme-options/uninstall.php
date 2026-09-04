@@ -17,6 +17,11 @@ delete_option( 'pdk_theme_options' );
 delete_option( 'pdk_file_hashes' );
 delete_site_option( 'pdk_theme_options' ); // Multisite.
 
+// Boekhouding van de security-module.
+delete_option( 'pdk_mu_hashes' );
+delete_option( 'pdk_missing_required_plugins' );
+delete_option( 'pdk_rest_blocked_routes' );
+
 // Verwijder gecachte GitHub-release-transients.
 global $wpdb;
 $wpdb->query(
