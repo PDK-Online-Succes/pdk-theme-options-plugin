@@ -4,7 +4,7 @@ Site Instellingen vervangt de oude Carbon Fields-integratie en beheert alles wat
 
 ## Aan- en uitzetten
 
-Geen modulesleutel en geen toggle — de module wordt onvoorwaardelijk ingeladen in `PDK_Plugin::init()` (`pdk-theme-options/includes/class-pdk-plugin.php:55-56`), dus vóór en los van `$module_map`. De Modules-tab meldt dit ook expliciet als "altijd ingeschakeld" (`pdk-theme-options/includes/class-pdk-admin.php:836-839`). De tab **Site Instellingen** staat altijd in de tabbalk (`class-pdk-admin.php:729-734`) met vijf sub-secties in één formulier: Basis, Klantgegevens, Openingstijden, Afwijkende dagen, Social Media (`class-pdk-admin.php:892-898`). Eén keer opslaan bewaart alle secties. Geen WooCommerce-afhankelijkheid.
+Geen modulesleutel en geen toggle — de module wordt onvoorwaardelijk ingeladen in `PDK_Plugin::init()` (`pdk-theme-options/includes/class-pdk-plugin.php:55-56`), dus vóór en los van `$module_map`. Op de Modules-tab staat hij wél in de lijst, met een vaste, uitgeschakelde toggle (`pdk-theme-options/includes/class-pdk-admin.php:851-875`); de sleutel staat in `PDK_Settings::ALWAYS_ON_MODULES` (`includes/class-pdk-settings.php:23`). De tab **Site Instellingen** staat altijd in de tabbalk (`class-pdk-admin.php:729-734`) met vijf sub-secties in één formulier: Basis, Klantgegevens, Openingstijden, Afwijkende dagen, Social Media (`class-pdk-admin.php:892-898`). Eén keer opslaan bewaart alle secties. Geen WooCommerce-afhankelijkheid.
 
 De constructor roept `migrate_periods()` direct aan, niet op een hook, omdat Vakantiemodus en Levertijden de periodes al vóór `init` uitlezen (`modules/site-settings/class-pdk-site-settings.php:20-22`).
 

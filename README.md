@@ -1,6 +1,6 @@
 # PDK Theme Options
 
-Centrale WordPress-beheerplug-in voor PDK Online Succes klanten. Vervangt acht afzonderlijke plugins door één modulaire oplossing. De meeste modules zijn in- of uitschakelbaar via PDK Tools → Modules; drie zijn altijd actief.
+Centrale WordPress-beheerplug-in voor PDK Online Succes klanten. Vervangt een reeks afzonderlijke plugins door één modulaire oplossing. De meeste modules zijn in- of uitschakelbaar via PDK Tools → Modules; drie zijn altijd actief.
 
 **Vereisten:** WordPress 6.0+, PHP 8.0+  
 **Optioneel:** WooCommerce 7.0+ (voor Vakantiemodus, Levertijden en SKU Beperken & Valideren)
@@ -150,6 +150,8 @@ pdk_register_frontend_output( 'mijn_blok', [ $this, 'render' ] );
 // levert [mijn_blok] én do_action( 'pdk_mijn_blok' )
 ```
 
+Wat elke module precies uitserveert en welke attributen hij kent, staat per module in [docs/modules/](docs/modules/).
+
 ---
 
 ## Afwijkende dagen
@@ -164,15 +166,7 @@ Kerst, oud en nieuw, een zomerperiode of een bedrijfsvakantie vul je op één pl
 
 De openingstijden-tabel kijkt zeven dagen vooruit: elke weekdag krijgt de eerstvolgende concrete datum, dus een periode landt op de juiste rij. Loopt er een periode, dan komt er een regel boven de tabel: *"Let op: afwijkende openingstijden i.v.m. Kerst"*.
 
-Voor thema's:
-
-```php
-PDK_Site_Settings::active_period();              // periode van vandaag, of null
-PDK_Site_Settings::active_period( '2026-12-25' ); // periode op een datum
-PDK_Site_Settings::is_closed_on( '2026-12-25' );  // gesloten? periode wint van de weekdag
-```
-
-> **Vakantiemodus:** staat de module aan zonder dat er ergens "Webshop sluiten" is aangevinkt, dan is de webshop meteen dicht — zo blijft de toggle bruikbaar om handmatig te sluiten. Zodra er wél een sluitingsperiode staat, geldt alleen die periode.
+De datastructuur achter deze lijst, de thema-helpers (`active_period()`, `is_closed_on()`) en wat er gebeurt bij overlappende periodes staan in [docs/modules/site-settings.md](docs/modules/site-settings.md). Voor het sluiten van de webshop — inclusief het gedrag wanneer er géén sluitingsperiode is ingepland — zie [docs/modules/vacation-mode.md](docs/modules/vacation-mode.md).
 
 ---
 
@@ -228,6 +222,8 @@ Bij elke opslag via de editor legt de plugin een SHA-256-vingerafdruk vast en be
 - Beheerders zien een melding met *Herstel back-up* of *Wijziging vertrouwen*
 
 Wijzig je bewust via SFTP of WP-CLI, kies dan *Wijziging vertrouwen* — dan wordt de nieuwe inhoud de baseline.
+
+Het mechanisme zelf — welke bestanden bewaakt worden, wanneer een vingerafdruk wordt vastgelegd en wat er gebeurt bij een ontbrekende hash — staat in [docs/modules/custom-functions.md](docs/modules/custom-functions.md).
 
 > Bij het bijwerken vanaf een oudere versie wordt de huidige inhoud éénmalig als vertrouwd vastgelegd. Controleer die bestanden dus één keer na de update.
 

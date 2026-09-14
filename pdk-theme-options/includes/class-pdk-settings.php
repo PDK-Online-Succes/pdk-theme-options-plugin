@@ -16,8 +16,18 @@ class PDK_Settings {
 	 */
 	const WC_MODULES = [ 'vacation_mode', 'delivery_time', 'sku_restriction' ];
 
+	/**
+	 * Modules die altijd draaien, buiten $module_map om geladen
+	 * (zie PDK_Plugin::init()) en dus niet uit te schakelen.
+	 */
+	const ALWAYS_ON_MODULES = [ 'security', 'critical_error_status', 'site_settings' ];
+
 	public static function module_requires_wc( string $module ): bool {
 		return in_array( $module, self::WC_MODULES, true );
+	}
+
+	public static function module_always_on( string $module ): bool {
+		return in_array( $module, self::ALWAYS_ON_MODULES, true );
 	}
 
 	/** Module is ingeschakeld maar kan niet draaien (ontbrekende afhankelijkheid). */
@@ -44,6 +54,10 @@ class PDK_Settings {
 
 	/** Controleert of een module actief is, met terugval op de standaardwaarde. */
 	public static function is_module_enabled( string $module ): bool {
+		if ( self::module_always_on( $module ) ) {
+			return true;
+		}
+
 		// Afhankelijkheid ontbreekt → module telt als uit, ongeacht de instelling.
 		if ( self::module_unavailable( $module ) ) {
 			return false;
@@ -219,42 +233,48 @@ class PDK_Settings {
 	}
 
 	/**
-	 * Modules die een toggle hebben in de admin.
-	 * Critical Error Status wordt hier NIET opgenomen — altijd actief.
+	 * Alle modules die op de Modules-tab getoond worden — inclusief de drie
+	 * altijd-actieve (zie ALWAYS_ON_MODULES), met een vaste, disabled toggle.
 	 */
 	public static function module_labels(): array {
 		return [
-			'custom_functions' => __( 'Custom PHP Functions', 'pdk-theme-options' ),
-			'custom_css'       => __( 'Custom CSS', 'pdk-theme-options' ),
-			'custom_js'        => __( 'Custom JavaScript', 'pdk-theme-options' ),
-			'custom_fonts'     => __( 'Custom Fonts', 'pdk-theme-options' ),
-			'libraries'        => __( 'Libraries (JS/CSS)', 'pdk-theme-options' ),
-			'login_page'       => __( 'Login Pagina (PDK-stijl)', 'pdk-theme-options' ),
-			'vacation_mode'    => __( 'Vakantiemodus', 'pdk-theme-options' ),
-			'delivery_time'    => __( 'Levertijden', 'pdk-theme-options' ),
-			'sku_restriction'  => __( 'SKU Beperken & Valideren', 'pdk-theme-options' ),
-			'language_checker' => __( 'Language Cleaner', 'pdk-theme-options' ),
-			'agent_abilities'  => __( 'AI-agent toegang (MCP)', 'pdk-theme-options' ),
-			'imgx'             => __( 'IMGX — WebP/AVIF afbeeldingen', 'pdk-theme-options' ),
-			'image_sizes'      => __( 'Afbeeldingsmaten', 'pdk-theme-options' ),
+			'security'                => __( 'Security', 'pdk-theme-options' ),
+			'critical_error_status'   => __( 'Critical Error Status', 'pdk-theme-options' ),
+			'site_settings'           => __( 'Site Instellingen', 'pdk-theme-options' ),
+			'custom_functions'        => __( 'Custom PHP Functions', 'pdk-theme-options' ),
+			'custom_css'              => __( 'Custom CSS', 'pdk-theme-options' ),
+			'custom_js'               => __( 'Custom JavaScript', 'pdk-theme-options' ),
+			'custom_fonts'            => __( 'Custom Fonts', 'pdk-theme-options' ),
+			'libraries'               => __( 'Libraries (JS/CSS)', 'pdk-theme-options' ),
+			'login_page'              => __( 'Login Pagina (PDK-stijl)', 'pdk-theme-options' ),
+			'vacation_mode'           => __( 'Vakantiemodus', 'pdk-theme-options' ),
+			'delivery_time'           => __( 'Levertijden', 'pdk-theme-options' ),
+			'sku_restriction'         => __( 'SKU Beperken & Valideren', 'pdk-theme-options' ),
+			'language_checker'        => __( 'Language Cleaner', 'pdk-theme-options' ),
+			'agent_abilities'         => __( 'AI-agent toegang (MCP)', 'pdk-theme-options' ),
+			'imgx'                    => __( 'IMGX — WebP/AVIF afbeeldingen', 'pdk-theme-options' ),
+			'image_sizes'             => __( 'Afbeeldingsmaten', 'pdk-theme-options' ),
 		];
 	}
 
 	public static function module_descriptions(): array {
 		return [
-			'custom_functions' => __( 'Eigen PHP-functies toevoegen zonder het thema te bewerken.', 'pdk-theme-options' ),
-			'custom_css'       => __( 'Eigen CSS-stijlen laden op de frontend.', 'pdk-theme-options' ),
-			'custom_js'        => __( 'Eigen JavaScript-code laden op de frontend.', 'pdk-theme-options' ),
-			'custom_fonts'     => __( 'Lettertypen beheren vanuit de uploads/fonts/ map.', 'pdk-theme-options' ),
-			'libraries'        => __( 'Kant-en-klare JS- en CSS-bestanden uploaden en op de frontend laden — bijvoorbeeld Glide.js, Swiper of Splide.', 'pdk-theme-options' ),
-			'login_page'       => __( 'Vaste PDK-huisstijl toepassen op de WordPress-loginpagina. Geen aanpasbare instellingen.', 'pdk-theme-options' ),
-			'vacation_mode'    => __( 'Webshop sluiten met een aangepaste melding, gepland via Afwijkende dagen (vereist WooCommerce).', 'pdk-theme-options' ),
-			'delivery_time'    => __( 'Levertijd per weekdag met cutoff-tijd, shortcode [levertijd] (vereist WooCommerce).', 'pdk-theme-options' ),
-			'sku_restriction'  => __( 'SKU\'s beperken tot a-z, A-Z, 0-9, punt en koppelteken; automatisch opschonen en duplicaten blokkeren (vereist WooCommerce).', 'pdk-theme-options' ),
-			'language_checker' => __( 'Taalbestanden beheren en verweesde vertalingen opschonen.', 'pdk-theme-options' ),
-			'agent_abilities'  => __( 'Eigen PHP, CSS en JS lees- en schrijfbaar maken voor een AI-agent via de Abilities API (WordPress 6.9+, bijvoorbeeld met de Agent Connector-plugin). De agent moet inloggen als gebruiker met code-editor rechten — zie de Rechten-tab.', 'pdk-theme-options' ),
-			'imgx'             => __( 'WebP- en AVIF-versies naast je bestaande JPEG- en PNG-bestanden zetten en uitserveren via <picture>. De originelen worden nooit gewijzigd.', 'pdk-theme-options' ),
-			'image_sizes'      => __( 'Geregistreerde afbeeldingsmaten bekijken, aan/uit zetten en eigen maten aanmaken. Uitzetten stopt alleen nieuwe generatie — bestaande bestanden blijven staan.', 'pdk-theme-options' ),
+			'security'                => __( 'Header-firewall, XML-RPC- en REST-afscherming. Altijd actief, niet uit te schakelen — instelbaar op de Security-tab.', 'pdk-theme-options' ),
+			'critical_error_status'   => __( 'Geeft HTTP 500 terug bij een fatale fout, in plaats van een witte pagina. Altijd actief, niet uit te schakelen.', 'pdk-theme-options' ),
+			'site_settings'           => __( 'Favicon, klantgegevens en openingstijden. Altijd actief, niet uit te schakelen — instelbaar op de Site Instellingen-tab.', 'pdk-theme-options' ),
+			'custom_functions'        => __( 'Eigen PHP-functies toevoegen zonder het thema te bewerken.', 'pdk-theme-options' ),
+			'custom_css'              => __( 'Eigen CSS-stijlen laden op de frontend.', 'pdk-theme-options' ),
+			'custom_js'               => __( 'Eigen JavaScript-code laden op de frontend.', 'pdk-theme-options' ),
+			'custom_fonts'            => __( 'Lettertypen beheren vanuit de uploads/fonts/ map.', 'pdk-theme-options' ),
+			'libraries'               => __( 'Kant-en-klare JS- en CSS-bestanden uploaden en op de frontend laden — bijvoorbeeld Glide.js, Swiper of Splide.', 'pdk-theme-options' ),
+			'login_page'              => __( 'Vaste PDK-huisstijl toepassen op de WordPress-loginpagina. Geen aanpasbare instellingen.', 'pdk-theme-options' ),
+			'vacation_mode'           => __( 'Webshop sluiten met een aangepaste melding, gepland via Afwijkende dagen (vereist WooCommerce).', 'pdk-theme-options' ),
+			'delivery_time'           => __( 'Levertijd per weekdag met cutoff-tijd, shortcode [levertijd] (vereist WooCommerce).', 'pdk-theme-options' ),
+			'sku_restriction'         => __( 'SKU\'s beperken tot a-z, A-Z, 0-9, punt en koppelteken; automatisch opschonen en duplicaten blokkeren (vereist WooCommerce).', 'pdk-theme-options' ),
+			'language_checker'        => __( 'Taalbestanden beheren en verweesde vertalingen opschonen.', 'pdk-theme-options' ),
+			'agent_abilities'         => __( 'Eigen PHP, CSS en JS lees- en schrijfbaar maken voor een AI-agent via de Abilities API (WordPress 6.9+, bijvoorbeeld met de Agent Connector-plugin). De agent moet inloggen als gebruiker met code-editor rechten — zie de Rechten-tab.', 'pdk-theme-options' ),
+			'imgx'                    => __( 'WebP- en AVIF-versies naast je bestaande JPEG- en PNG-bestanden zetten en uitserveren via <picture>. De originelen worden nooit gewijzigd.', 'pdk-theme-options' ),
+			'image_sizes'             => __( 'Geregistreerde afbeeldingsmaten bekijken, aan/uit zetten en eigen maten aanmaken. Uitzetten stopt alleen nieuwe generatie — bestaande bestanden blijven staan.', 'pdk-theme-options' ),
 		];
 	}
 }

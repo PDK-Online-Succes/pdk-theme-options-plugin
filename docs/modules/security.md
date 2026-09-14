@@ -8,7 +8,7 @@ weggeven. Alles zit in één klasse, `pdk-theme-options/modules/security/class-p
 
 ## Aan- en uitzetten
 
-De module heeft **geen modulesleutel en is niet uit te zetten**. Hij staat niet in `$module_map`
+De module is **niet uit te zetten**. Hij heeft wel een instellingensleutel `security` in de defaults, maar geen `enabled`-schakelaar. Hij staat niet in `$module_map`
 maar wordt als eerste, vóór elke andere module, hard ingeladen door de plugin-orchestrator —
 juist omdat de header-firewall vóór al het andere moet lopen
 (`includes/class-pdk-plugin.php:46-48`). Wel bestaat er een eigen tab "Security"

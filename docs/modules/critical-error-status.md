@@ -4,7 +4,7 @@ Zorgt dat een pagina die door een fatale PHP-fout afbreekt, een HTTP 500 terugst
 
 ## Aan- en uitzetten
 
-**Niet uit te zetten — met opzet.** De module staat niet in `$module_map` (`includes/class-pdk-plugin.php:14-31`), heeft geen sleutel in de defaults (`includes/class-pdk-settings.php:199`) en geen label in `module_labels()` (`includes/class-pdk-settings.php:221-241`). Hij wordt onvoorwaardelijk geladen in `PDK_Plugin::init()`, direct na de Security-module en vóór de optionele modules (`includes/class-pdk-plugin.php:50-52`). Er is dus geen toggle in de Modules-tab en geen eigen tab.
+**Niet uit te zetten — met opzet.** De module staat niet in `$module_map` (`includes/class-pdk-plugin.php:14-31`), en heeft geen sleutel in de defaults (`includes/class-pdk-settings.php:199`). Hij stáát wel in de Modules-lijst — met een label (`includes/class-pdk-settings.php:242`), een omschrijving (`:263`) en een vaste, uitgeschakelde toggle — zodat in één oogopslag zichtbaar is wat er draait. Hij wordt onvoorwaardelijk geladen in `PDK_Plugin::init()`, direct na de Security-module en vóór de optionele modules (`includes/class-pdk-plugin.php:50-52`). De toggle is dus zichtbaar maar niet te bedienen, en er is geen eigen tab.
 
 Waarom zo:
 

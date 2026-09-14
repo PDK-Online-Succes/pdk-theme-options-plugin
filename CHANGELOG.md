@@ -2,6 +2,21 @@
 
 Alle noemenswaardige wijzigingen in PDK Theme Options worden hier bijgehouden.
 
+## [2.10.1] — 2026-09-14
+
+### Documentatie per module
+
+- **Zestien referentiedocumenten in `docs/modules/`**, één per module, met per module: hoe je hem aan- en uitzet, de instellingen met standaardwaarden, hoe hij werkt inclusief hooks en prioriteiten, wat er op schijf en in de database belandt, wat er bij verwijderen gebeurt, wat themaontwikkelaars kunnen aanroepen, de valkuilen, en welke zelftest hem dekt. Elke bewering verwijst naar `bestand:regel`
+- **De README is weer de index.** De moduletabel stond op elf modules terwijl er zestien zijn — Security, Libraries, AI-agent toegang, IMGX en Afbeeldingsmaten ontbraken. Elke rij verwijst nu naar zijn referentiedocument; de diepgang staat daar en wordt in de README niet herhaald
+- Drie verouderde beweringen in de README gecorrigeerd: "elke module is in- of uitschakelbaar" klopte niet (drie zijn altijd actief), de WooCommerce-afhankelijkheid werd aan de verkeerde module toegeschreven, en er stond nog een testpad van vóór de verhuizing naar `tests/`
+- **`[bloginfo key="..."]` in de README moest `[bloginfo name="..."]` zijn.** De shortcode accepteert alleen `name` (`shortcode_atts`); een onbekende sleutel wordt stilzwijgend genegeerd, dus `key="admin_email"` gaf gewoon de sitenaam terug zonder enige foutmelding
+
+### Modulelijst
+
+- **De drie altijd-actieve modules (Security, Critical Error Status, Site Instellingen) staan nu gewoon in de modulelijst**, met een vaste, uitgegrijsde toggle, in plaats van in een los tekstblok boven de tabel — dat blok noemde Security er trouwens ook niet bij. Eén lijst laat in één oogopslag zien wat er allemaal draait
+- Een uitgeschakelde checkbox verstuurt niets, dus zonder uitzondering zou het opslaan `enabled = false` wegschrijven voor precies die drie modules. `save_modules()` slaat ze nu over, net als het al deed voor modules waarvan WooCommerce ontbreekt
+- `is_module_enabled()` geeft voor die drie altijd `true`. Dat is de effectieve toestand: ze draaien, ongeacht wat er in de optie staat. Ook de modulestatus die de Abilities API aan een AI-agent rapporteert klopt daarmee weer
+
 ## [2.10.0] — 2026-09-13
 
 ### Nieuwe module: Afbeeldingsmaten
@@ -43,6 +58,7 @@ De losse IMGX-plugin is als module opgenomen. Hij zet WebP- en AVIF-versies ná�
 - **Tweede, onafhankelijke grens tegen het verwijderen van sidecars bij hergeneratie.** De call-stack-detectie uit D-3 (`is_intermediate_metadata_save()`) faalt open: weet hij het niet zeker, dan mag `prune_stale_sizes()` opruimen. Die functie verwijdert nu nooit meer een `.webp`/`.avif`-bestand zolang het bronbestand waar het uit gegenereerd is nog op schijf staat, ongeacht wat de metadata zegt — controleert de bestandsnaam terug naar de bron in plaats van op de call stack te vertrouwen. Alleen de registratie-entry vervalt als de bron nog bestaat; het bestand blijft staan, wat ook geldt zodra een beheerder een maat uitzet en daarna hergenereert
 - **De verplaatsknoppen van de duallistbox (Afbeeldingsmaten) hebben nu een `aria-label`** ("Naar Uitgeschakeld", "Naar Actief", "Alles naar Uitgeschakeld", "Alles naar Actief"); een schermlezer las eerder alleen "dubbel rechts aanhalingsteken" voor alle vier de knoppen. De pijltekens zelf zijn `aria-hidden`
 - **De handlers van Afbeeldingsmaten gaven een fatale fout** als de module uitstond terwijl het tabblad nog open was gebleven (vereist `manage_options` en een geldige nonce, dus lage ernst). Ze controleren nu op `class_exists( 'PDK_Image_Sizes' )` en sturen bij een uitgeschakelde module terug naar de Modules-tab met een melding, net als elders in de plugin
+
 ## [2.9.0] — 2026-09-04
 
 ### Security: XML-RPC uit en `/wp/v2/` achter de login

@@ -11,7 +11,7 @@
  *  - PHP Functions, Custom CSS, Custom JS, Fonts, Vakantiemodus, Taalcontrole
  *
  * Login Pagina heeft geen instellingentab — vaste PDK-stijl.
- * Critical Error Status heeft geen toggle — altijd actief.
+ * Critical Error Status staat in de lijst met een vaste toggle — altijd actief.
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -358,6 +358,12 @@ class PDK_Admin {
 		$data   = [];
 
 		foreach ( array_keys( $labels ) as $module ) {
+			// Altijd-actieve modules hebben geen checkbox in de POST (disabled
+			// checkboxen posten niets) — niet overschrijven met "uit".
+			if ( PDK_Settings::module_always_on( $module ) ) {
+				continue;
+			}
+
 			// Toggle is uitgeschakeld zolang de afhankelijkheid ontbreekt —
 			// de opgeslagen voorkeur niet overschrijven met "uit".
 			if ( PDK_Settings::module_unavailable( $module ) ) {
@@ -833,11 +839,6 @@ class PDK_Admin {
 			<?php esc_html_e( 'Schakel modules in of uit. Ingeschakelde modules krijgen een eigen tabblad voor verdere instellingen.', 'pdk-theme-options' ); ?>
 		</p>
 
-		<div class="pdk-always-on-notice">
-			<strong><?php esc_html_e( 'Altijd actief:', 'pdk-theme-options' ); ?></strong>
-			<?php esc_html_e( 'Critical Error Status (HTTP 500 bij fatale fouten) en Site Instellingen zijn altijd ingeschakeld.', 'pdk-theme-options' ); ?>
-		</div>
-
 		<table class="form-table pdk-modules-table">
 			<thead>
 				<tr>
@@ -848,6 +849,7 @@ class PDK_Admin {
 			</thead>
 			<tbody>
 			<?php foreach ( $labels as $module => $label ) :
+				$always_on   = PDK_Settings::module_always_on( $module );
 				$unavailable = PDK_Settings::module_unavailable( $module );
 			?>
 				<tr<?php echo $unavailable ? ' style="opacity:.6;"' : ''; ?>>
@@ -865,7 +867,7 @@ class PDK_Admin {
 								name="modules[<?php echo esc_attr( $module ); ?>][enabled]"
 								value="1"
 								<?php checked( PDK_Settings::is_module_enabled( $module ) ); ?>
-								<?php disabled( $unavailable ); ?>
+								<?php disabled( $always_on || $unavailable ); ?>
 							>
 							<span class="pdk-toggle-slider"></span>
 						</label>
