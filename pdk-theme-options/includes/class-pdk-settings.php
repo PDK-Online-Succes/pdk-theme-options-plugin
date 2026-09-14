@@ -203,6 +203,18 @@ class PDK_Settings {
 			'agent_abilities' => [
 				'enabled' => false,
 			],
+			// IMGX slaat zijn eigen instellingen op in de option `imgx_settings`
+			// (Settings API). Hier staat alleen de aan/uit-schakelaar.
+			'imgx' => [
+				'enabled' => false,
+			],
+			// Uitgeschakelde maten (blocklist, zie PDK_Image_Sizes::disabled()) en
+			// eigen maten (sleutel => breedte/hoogte/crop, altijd voorvoegsel `pdk_`).
+			'image_sizes' => [
+				'enabled'  => false,
+				'disabled' => [],
+				'custom'   => [],
+			],
 		];
 	}
 
@@ -223,6 +235,8 @@ class PDK_Settings {
 			'sku_restriction'  => __( 'SKU Beperken & Valideren', 'pdk-theme-options' ),
 			'language_checker' => __( 'Language Cleaner', 'pdk-theme-options' ),
 			'agent_abilities'  => __( 'AI-agent toegang (MCP)', 'pdk-theme-options' ),
+			'imgx'             => __( 'IMGX — WebP/AVIF afbeeldingen', 'pdk-theme-options' ),
+			'image_sizes'      => __( 'Afbeeldingsmaten', 'pdk-theme-options' ),
 		];
 	}
 
@@ -239,6 +253,8 @@ class PDK_Settings {
 			'sku_restriction'  => __( 'SKU\'s beperken tot a-z, A-Z, 0-9, punt en koppelteken; automatisch opschonen en duplicaten blokkeren (vereist WooCommerce).', 'pdk-theme-options' ),
 			'language_checker' => __( 'Taalbestanden beheren en verweesde vertalingen opschonen.', 'pdk-theme-options' ),
 			'agent_abilities'  => __( 'Eigen PHP, CSS en JS lees- en schrijfbaar maken voor een AI-agent via de Abilities API (WordPress 6.9+, bijvoorbeeld met de Agent Connector-plugin). De agent moet inloggen als gebruiker met code-editor rechten — zie de Rechten-tab.', 'pdk-theme-options' ),
+			'imgx'             => __( 'WebP- en AVIF-versies naast je bestaande JPEG- en PNG-bestanden zetten en uitserveren via <picture>. De originelen worden nooit gewijzigd.', 'pdk-theme-options' ),
+			'image_sizes'      => __( 'Geregistreerde afbeeldingsmaten bekijken, aan/uit zetten en eigen maten aanmaken. Uitzetten stopt alleen nieuwe generatie — bestaande bestanden blijven staan.', 'pdk-theme-options' ),
 		];
 	}
 }

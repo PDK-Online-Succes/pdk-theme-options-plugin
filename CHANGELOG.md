@@ -2,6 +2,47 @@
 
 Alle noemenswaardige wijzigingen in PDK Theme Options worden hier bijgehouden.
 
+## [2.10.0] — 2026-09-13
+
+### Nieuwe module: Afbeeldingsmaten
+
+Opsomming van de geregistreerde WordPress-afbeeldingsmaten (`thumbnail`, `medium`, `medium_large`, `large`, `1536x1536`, `2048x2048`, plus eigen en thema-maten), met een handgebouwde duallistbox (geen JS-library) om maten aan/uit te zetten, en eigen maten aanmaken/verwijderen. Standaard uit, aan te zetten op de Modules-tab.
+
+- **Aan/uit is een blocklist**, net als `PDK_Libraries::disabled()`: een maat die nergens in `image_sizes.disabled` voorkomt is actief, ook als een thema hem pas later registreert. `thumbnail` is vergrendeld en kan niet worden uitgeschakeld, ook niet via een geprepareerde POST — de server verwijdert hem server-side uit de blocklist
+- **Eigen maten** krijgen het voorvoegsel `pdk_`, verschijnen in de opsomming met een "eigen"-badge en in de maatkiezer van de blok-editor (`image_size_names_choose`). Ze zijn niet te bewerken: verwijderen en opnieuw aanmaken. Verwijderen van een niet-`pdk_`-sleutel wordt geweigerd — core- en thema-maten zijn niet aan te raken via deze module
+- **Uitzetten verwijdert niets van schijf.** Alleen de generatie voor NIEUWE uploads stopt, via het filter `intermediate_image_sizes_advanced`; bestaande bestanden en metadata blijven ongewijzigd
+- **WordPress-defaults blijven ongewijzigd.** Een andere afmeting wil je? Zet de default uit en maak een eigen maat aan
+- **Hergeneratie van de mediabibliotheek in batches**, zelfde patroon als IMGX' batchrunner: stappen van 3 bijlagen, maximaal 15 seconden per AJAX-stap, voortgangsbalk met percentage, een stopknop die de al gegenereerde bestanden laat staan, en hervatten vanaf de laatste offset na het sluiten en heropenen van de tab. Twee modi: *ontbrekende maten* (alleen bijlagen waar een actieve, toepasbare maat ontbreekt) en *alle maten* (forceert de volledige maatset opnieuw per bijlage). Faalt een bijlage — bronbestand ontbreekt of onleesbaar — dan wordt dat gelogd en getoond en loopt de run door met de volgende. De status staat in een eigen optie `pdk_image_sizes_batch`; een tweede gelijktijdige start wordt geweigerd zonder de lopende run te verstoren
+- **Werkt samen met IMGX zonder er ook maar iets van te weten.** Hergeneratie slaat metadata op via de normale WordPress-weg (`wp_update_attachment_metadata()`), waar IMGX's eigen sidecar-generatie al aan hangt zodra die module actief is — nul aanroepen naar IMGX-code. Staat IMGX uit, dan toont de tab één regel uitleg dat nieuwe maten geen WebP/AVIF krijgen tot IMGX weer aan staat
+- Eén defect uit de eerste slice hersteld: een eigen maat met een naam die botst met een core-maatnaam (bijvoorbeeld `large`) werd ten onrechte geaccepteerd — de botsingscontrole vergeleek alleen de voorvoegde sleutel `pdk_large`, en die botst nooit. Nu wordt ook de kale ingevoerde naam getoetst
+- **De maatkiezer van de blok-editor krijgt er alleen eigen maten bij.** Het filter is bewust additief: wat andere plugins aan `image_size_names_choose` toevoegen blijft staan. Staat er `medium_large`, `1536x1536` of `2048x2048` in, dan komt dat van een andere plugin — Oxygen doet dit bijvoorbeeld — en niet van deze module
+
+### Nieuwe module: IMGX — WebP- en AVIF-afbeeldingen
+
+De losse IMGX-plugin is als module opgenomen. Hij zet WebP- en AVIF-versies náást je bestaande JPEG- en PNG-bestanden en serveert die uit via `<picture>`; de originelen worden nooit gewijzigd, hercomprimeerd of verwijderd. Standaard uit, aan te zetten op de Modules-tab.
+
+- **Eigen tab onder PDK Tools** zodra de module aan staat: formaatkeuze (AVIF+WebP, alleen AVIF, alleen WebP), kwaliteit per formaat, `<picture>`-vervanging aan/uit, gedrag bij nieuwe uploads (achtergrondtaak of direct) en debug-logging
+- **Servercontrole is een echte encodeertest, geen gok.** De tabel *Server support* laat per formaat zien of de server het kan, met de reden erbij als het niet kan. Kan de server geen AVIF, dan blijft die `<source>` gewoon weg en werkt de rest
+- **Bestaande mediabibliotheek bijwerken** met een voortgangsbalk die per batch bijwerkt en te stoppen is: *ontbrekende afbeeldingen genereren*, *alles opnieuw genereren* of *alle gegenereerde bestanden verwijderen*. Grote bibliotheken gaan sneller via WP-CLI: `wp imgx generate`, `--force`, `--ids=…`, en `wp imgx status`
+- **Kolom NextGen in de mediabibliotheek** toont per afbeelding of er een AVIF- en WebP-variant is
+- **Site Health** krijgt een test *Modern image format support* en een IMGX-sectie met het encoderrapport, met een link naar de IMGX-tab
+- **Bij verwijderen van een bijlage** gaan de bijbehorende `.webp`/`.avif`-bestanden mee; andere bestanden in dezelfde map worden niet aangeraakt
+- **De IMGX-instellingen staan in hun eigen optie** `imgx_settings`, niet in `pdk_theme_options`. Dat scheelde het herschrijven van de complete Settings API-registratie, en de rest van de module is ongewijzigd overgenomen — makkelijker terug te halen wat er sinds de import in de losse plugin is veranderd. Bij het verwijderen van de plugin worden `imgx_settings`, `imgx_capabilities`, `imgx_batch_state`, `imgx_recent_errors`, de generatie-locks en de `_imgx_variants`-postmeta opgeruimd. De gegenereerde bestanden blijven bewust staan: honderdduizenden bestanden verwijderen in een uninstall-hook loopt in een timeout — gebruik daarvoor eerst de knop *Delete all generated files* of `wp imgx delete`
+- **De teksten zijn vertaald naar het Nederlands** en staan onder het textdomain `pdk-theme-options`, zoals de rest van de plugin. Ook de WP-CLI-uitvoer. Geen `.po`/`.mo`-bestanden nodig: de Nederlandse tekst staat in de code. In de tekst bij *Mediabibliotheek* stond `wp imgx generate --missing`; die vlag bestaat niet, dat is nu `wp imgx generate`
+- **Draait de losse IMGX-plugin nog?** Zet die uit voordat je de module aanzet — anders worden de IMGX-constanten dubbel gedefinieerd en vuurt elke hook twee keer
+- **Oxygen, Oxygen Classic en Breakdance worden herkend, zonder instelling.** Geen van drieën roept `the_content` aan — met een probe nagemeten: de callback stond geregistreerd en werd nul keer aangeroepen. Oxygen 6 en Breakdance delen één render-engine en vuren `breakdance_render_rendered_html` voor elk document dat ze opbouwen (pagina, header, footer); Oxygen Classic 4.x is een andere codebase die zijn pagina in de globale `$template_content` zet en die vlak na `ct_before_builder` uitprint. Op beide punten wordt nu ingehaakt. De builder-canvas zelf blijft ongemoeid, anders zie je in de editor iets anders dan je bewerkt
+- **De `<picture>` neemt de classes van de afbeelding over.** Door het inpakken zakt de `<img>` een niveau in de DOM, en Oxygen positioneert via die class — `.ct-image` in Classic, `.oxy-image-2-100` per element in 6. Zonder overname stond de CSS op een element dat niet meer op die plek zit. Het `id` gaat bewust níet mee: twee elementen met hetzelfde id is ongeldige HTML en breekt `getElementById`. Een class die marges of padding zet geldt nu voor wrapper én afbeelding en telt op; met het filter `imgx_picture_class` haal je zo'n class van de wrapper af
+- **Bijlage-ID's worden in één query opgezocht** als de `wp-image-<id>`-class ontbreekt, wat bij builder-markup altijd zo is. Een Oxygen-pagina met dertig afbeeldingen kost zo één query in plaats van dertig. URL's op een ander domein worden meteen afgewezen — anders kan een afbeelding van een vreemde host op een lokale bijlage uitkomen en krijg je `<source>`-URL's die daar 404 geven. Uitkomsten worden per verzoek gecachet, ook de missers
+- **De optie *Markup → Paginabuilders* blijft als terugval** voor builders zonder eigen koppeling, standaard uit. Voor Oxygen, Oxygen Classic en Breakdance is hij niet meer nodig
+- **Alle zelftests staan nu in `tests/` in de repo-root**, buiten `pdk-theme-options/`. De installer pakt alleen die map uit de zipball, dus er komt geen testcode meer op een klantsite terecht. `php tests/run.php` draait ze allemaal (elk in een eigen proces, want ze definiëren allemaal hun eigen `ABSPATH` en stubs); losse bestanden blijven werken met `php tests/test-<naam>.php`
+- **Let op de opmaak van je thema.** Een afbeelding in een `<picture>` staat een niveau dieper in de DOM: een selector als `.card > img` matcht niet meer, `.card picture > img` of `.card img` wel. Breekt er iets, dan kan `<picture>`-vervanging uit — de gegenereerde bestanden blijven staan, er hoeft niets opnieuw gegenereerd te worden
+- **Vier punten uit de code-review meteen meegenomen.** Het zelftestbestand had als enige in het project geen `PHP_SAPI !== 'cli'`-guard en draaide dus op een gewoon HTTP-verzoek naar zijn eigen pad — inclusief schrijven in de tijdelijke map en serverpaden in de uitvoer. `prune_stale_sizes()` las een lege doellijst als "elke maat is verouderd" en wiste dan de complete variantenregistratie, waardoor de `<picture>`-uitvoer stilviel terwijl de bestanden gewoon op schijf stonden; een lege lijst betekent nu "bron onbereikbaar" en er wordt niets opgeruimd. De statische caches van `Files`, `Variants`, `Settings` en de renderer worden op `switch_blog` geleegd — ze staan op bijlage-ID en bestandsnaam, en die botsen tussen sites in een multisite. En `Generator::clear_scheduled_events()` bestond wel maar werd nergens aangeroepen; dat gebeurt nu bij deactiveren en bij verwijderen
+- **Hergeneratie verwijderde tijdelijk bestaande sidecars.** WordPress bouwt submaten sinds 5.3 incrementeel op en slaat de metadata na élke submaat tussentijds op (om een time-out te overleven); bij die tussenopslagen is `$metadata['sizes']` nog leeg of onvolledig. `on_update_metadata()` behandelde zo'n tussenopslag als gezaghebbend en `prune_stale_sizes()` ruimde dan alles op wat niet in die onvolledige lijst stond — registratie én bestanden op schijf — terwijl de bronbestanden gewoon bestonden. Een tussenopslag wordt nu herkend aan de call stack: staat `wp_create_image_subsizes()` er nog op, dan wordt er niets opgeruimd. Een maat die écht verdwijnt (uitgezet, verwijderd, bronbestand weg) wordt nog steeds opgeruimd bij de definitieve opslag
+- **Kwaliteit verlagen laat overgeslagen varianten opnieuw proberen.** Een variant die groter uitviel dan het origineel werd als "klaar" geboekt, en *Ontbrekende afbeeldingen genereren* deed daarna niets meer — alleen een volledige hergeneratie pikte de nieuwe kwaliteit op. De registratie bewaart nu de vingerafdruk van modus en kwaliteiten waaronder ze is opgebouwd; wijkt die af, dan gaat een `larger-than-source` opnieuw door de encoder. Een door een filter geweigerde variant blijft overgeslagen, want die keuze staat los van de instellingen
+- Zelftest: `php tests/test-imgx.php` (77 controles op bestandsnaamgeving, verwijdergaranties, formaatherkenning, srcset-mapping en het opschonen van instellingen)
+- **Tweede, onafhankelijke grens tegen het verwijderen van sidecars bij hergeneratie.** De call-stack-detectie uit D-3 (`is_intermediate_metadata_save()`) faalt open: weet hij het niet zeker, dan mag `prune_stale_sizes()` opruimen. Die functie verwijdert nu nooit meer een `.webp`/`.avif`-bestand zolang het bronbestand waar het uit gegenereerd is nog op schijf staat, ongeacht wat de metadata zegt — controleert de bestandsnaam terug naar de bron in plaats van op de call stack te vertrouwen. Alleen de registratie-entry vervalt als de bron nog bestaat; het bestand blijft staan, wat ook geldt zodra een beheerder een maat uitzet en daarna hergenereert
+- **De verplaatsknoppen van de duallistbox (Afbeeldingsmaten) hebben nu een `aria-label`** ("Naar Uitgeschakeld", "Naar Actief", "Alles naar Uitgeschakeld", "Alles naar Actief"); een schermlezer las eerder alleen "dubbel rechts aanhalingsteken" voor alle vier de knoppen. De pijltekens zelf zijn `aria-hidden`
+- **De handlers van Afbeeldingsmaten gaven een fatale fout** als de module uitstond terwijl het tabblad nog open was gebleven (vereist `manage_options` en een geldige nonce, dus lage ernst). Ze controleren nu op `class_exists( 'PDK_Image_Sizes' )` en sturen bij een uitgeschakelde module terug naar de Modules-tab met een melding, net als elders in de plugin
 ## [2.9.0] — 2026-09-04
 
 ### Security: XML-RPC uit en `/wp/v2/` achter de login
@@ -49,7 +90,7 @@ Voor kant-en-klare bibliotheken als Glide.js, Swiper of Splide, zonder ze in het
 - Uitzetten laat het bestand staan (alleen niet laden); alleen wat expliciet uit staat wordt overgeslagen, zodat een nieuwe upload meteen werkt
 - **Uploaden en verwijderen vraagt code-editor rechten** (`PDK_CAP_EDIT_CODE`), niet alleen `manage_options` — een JS-bestand uploaden is code op de site zetten. Beheerders zonder die rechten zien de lijst read-only
 - Alleen `.js` en `.css` worden geaccepteerd, bestandsnamen worden geschoond en namen die met een punt beginnen geweigerd
-- Zelftest: `php modules/libraries/test-libraries.php`
+- Zelftest: `php tests/test-libraries.php`
 
 ### Library-bestanden bewerken, met dezelfde beveiliging als de custom code
 
@@ -92,7 +133,7 @@ Handig voor bestanden als `glide.theme.css` — de optionele opmaak die je per s
 **4. Integriteitscontrole van `mu-plugins/`.** Maximaal één keer per uur worden de SHA-256-vingerafdrukken van alle `.php` in `mu-plugins/` vergeleken; bij een nieuw, gewijzigd of verwijderd bestand gaat er een mail naar `admin_email` en een regel naar `debug.log`. De baseline staat in de optie `pdk_mu_hashes`, niet in `mu-plugins/` zelf — een backdoor kan hem daar niet bijwerken. Eerste run legt de baseline vast zonder te mailen (trust-on-first-use), en na een melding wordt de baseline direct bijgewerkt zodat dezelfde afwijking niet elk uur opnieuw mailt.
 
 - Alle meldingen loggen naar `debug.log` met de prefix `[PDK Security]`
-- Zelftest: `php modules/security/test-security.php`
+- Zelftest: `php tests/test-security.php`
 - Let op: netwerk-geactiveerde plugins op multisite worden bij punt 3 nog niet gecontroleerd
 
 ### MU Installer 1.1.0 — loader draait nu als eerste MU-plugin
@@ -137,7 +178,7 @@ Handig voor bestanden als `glide.theme.css` — de optionele opmaak die je per s
 - Beheerders krijgen een melding met *Herstel back-up* of *Wijziging vertrouwen* (voor bewuste wijzigingen via SFTP of WP-CLI)
 - Bestaande installaties: de huidige inhoud wordt éénmalig als vertrouwd vastgelegd — controleer de bestanden één keer na deze update
 - `.htaccess` in de storage-map blokkeert nu ook `.bak`-bestanden (voorheen alleen `.php`) en gebruikt `Require all denied` voor Apache 2.4. Wordt bij deze update automatisch herschreven
-- Zelftest: `php includes/test-file-integrity.php`
+- Zelftest: `php tests/test-file-integrity.php`
 
 ### Documentatie
 
@@ -166,7 +207,7 @@ Handig voor bestanden als `glide.theme.css` — de optionele opmaak die je per s
 - Een MCP-server publiceert die automatisch als tools, via `meta.mcp.public = true` zoals Agent Connector en de WordPress MCP Adapter verwachten. De plugin spreekt zelf geen MCP-protocol
 - Ook bereikbaar over REST onder `wp-abilities/v1` (`meta.show_in_rest = true`)
 - Toegang loopt via de bestaande capability `pdk_edit_custom_code`: de gebruiker waarmee de agent inlogt moet code-editor rechten hebben (Rechten-tab). Beheerder zijn is niet genoeg
-- Zelftest: `php modules/agent-abilities/test-agent-abilities.php`
+- Zelftest: `php tests/test-agent-abilities.php`
 
 ### Gewijzigd
 

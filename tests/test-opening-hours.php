@@ -8,6 +8,9 @@ if ( PHP_SAPI !== 'cli' ) {
 	exit;
 }
 
+// Pad naar de plugin; de tests staan bewust buiten de map die uitgeleverd wordt.
+$pdk = dirname( __DIR__ ) . '/pdk-theme-options';
+
 define( 'ABSPATH', __DIR__ );
 
 $GLOBALS['test_hours']   = [];
@@ -64,7 +67,7 @@ class PDK_Settings {
 	}
 }
 
-require_once __DIR__ . '/class-pdk-site-settings.php';
+require_once $pdk . '/modules/site-settings/class-pdk-site-settings.php';
 
 // 1. Standaardwaarden: maandag open, zondag gesloten.
 $html = PDK_Site_Settings::opening_hours_html();

@@ -1,12 +1,15 @@
 <?php
 /**
  * Zelftest voor de SKU-opschoonregel. Draaien met:
- *   php modules/sku-restriction/test-sku-restriction.php
+ *   php tests/test-sku-restriction.php
  */
 
 if ( PHP_SAPI !== 'cli' ) {
 	exit;
 }
+
+// Pad naar de plugin; de tests staan bewust buiten de map die uitgeleverd wordt.
+$pdk = dirname( __DIR__ ) . '/pdk-theme-options';
 
 define( 'ABSPATH', __DIR__ );
 
@@ -20,7 +23,7 @@ function esc_html( string $text ): string {
 
 class PDK_Loader {}
 
-require_once __DIR__ . '/class-pdk-sku-restriction.php';
+require_once $pdk . '/modules/sku-restriction/class-pdk-sku-restriction.php';
 
 $s = [ PDK_SKU_Restriction::class, 'sanitize' ];
 

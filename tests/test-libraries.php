@@ -9,6 +9,9 @@ if ( PHP_SAPI !== 'cli' ) {
 	exit;
 }
 
+// Pad naar de plugin; de tests staan bewust buiten de map die uitgeleverd wordt.
+$pdk = dirname( __DIR__ ) . '/pdk-theme-options';
+
 define( 'ABSPATH', __DIR__ . '/' );
 define( 'PDK_STORAGE_DIR', sys_get_temp_dir() . '/pdk-lib-test-' . getmypid() . '/' );
 define( 'PDK_STORAGE_URL', 'https://example.test/uploads/pdk-theme-options/' );
@@ -53,7 +56,7 @@ function update_option( string $key, $value, $autoload = null ): bool {
 	return true;
 }
 
-require_once __DIR__ . '/class-pdk-libraries.php';
+require_once $pdk . '/modules/libraries/class-pdk-libraries.php';
 
 $fouten = 0;
 function check( string $naam, bool $ok ): void {

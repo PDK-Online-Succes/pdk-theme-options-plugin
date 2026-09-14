@@ -9,6 +9,9 @@ if ( PHP_SAPI !== 'cli' ) {
 	exit;
 }
 
+// Pad naar de plugin; de tests staan bewust buiten de map die uitgeleverd wordt.
+$pdk = dirname( __DIR__ ) . '/pdk-theme-options';
+
 define( 'ABSPATH', __DIR__ );
 define( 'PDK_CAP_EDIT_CODE', 'pdk_edit_custom_code' );
 define( 'PDK_STORAGE_DIR', sys_get_temp_dir() . '/pdk-test-' . getmypid() . '/' );
@@ -91,10 +94,10 @@ class PDK_Loader {
 	public function add_action( $hook, $obj, $method, $prio = 10, $args = 1 ): void {}
 }
 
-require_once __DIR__ . '/../../includes/helpers.php';
-require_once __DIR__ . '/../../includes/class-pdk-settings.php';
-require_once __DIR__ . '/../../modules/site-settings/class-pdk-site-settings.php';
-require_once __DIR__ . '/class-pdk-agent-abilities.php';
+require_once $pdk . '/includes/helpers.php';
+require_once $pdk . '/includes/class-pdk-settings.php';
+require_once $pdk . '/modules/site-settings/class-pdk-site-settings.php';
+require_once $pdk . '/modules/agent-abilities/class-pdk-agent-abilities.php';
 
 $GLOBALS['options'] = [
 	'site_settings'   => [

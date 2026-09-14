@@ -26,6 +26,8 @@ class PDK_Plugin {
 		'sku_restriction'  => [ 'file' => 'modules/sku-restriction/class-pdk-sku-restriction.php',   'class' => 'PDK_SKU_Restriction' ],
 		'language_checker' => [ 'file' => 'modules/language-checker/class-pdk-language-checker.php', 'class' => 'PDK_Language_Checker' ],
 		'agent_abilities'  => [ 'file' => 'modules/agent-abilities/class-pdk-agent-abilities.php',   'class' => 'PDK_Agent_Abilities' ],
+		'imgx'             => [ 'file' => 'modules/imgx/class-pdk-imgx.php',                         'class' => 'PDK_ImgX' ],
+		'image_sizes'      => [ 'file' => 'modules/image-sizes/class-pdk-image-sizes.php',           'class' => 'PDK_Image_Sizes' ],
 	];
 
 	private function __construct() {
@@ -148,6 +150,12 @@ class PDK_Plugin {
 	}
 
 	public static function deactivate(): void {
+		// Geplande IMGX-generatietaken opruimen: die blijven anders in de
+		// cron-tabel staan en vuren op een hook die niemand meer afhandelt.
+		// Het bestand declareert alleen de klasse, dus inladen is veilig.
+		require_once PDK_PLUGIN_DIR . 'modules/imgx/includes/class-generator.php';
+		IMGX\Generator::clear_scheduled_events();
+
 		flush_rewrite_rules();
 	}
 

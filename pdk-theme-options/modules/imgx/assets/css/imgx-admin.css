@@ -1,0 +1,78 @@
+/*
+ * IMGX admin styles.
+ *
+ * Admin only. IMGX deliberately enqueues no frontend CSS: adding a global rule such as
+ * "picture { display: block }" would change the layout of every site running the plugin
+ * in order to fix a problem most of them do not have.
+ */
+
+.imgx-support,
+.imgx-stats {
+	max-width: 640px;
+	margin-bottom: 16px;
+}
+
+.imgx-support th,
+.imgx-stats th {
+	width: 200px;
+}
+
+.imgx-yes {
+	color: #007017;
+	font-weight: 600;
+}
+
+.imgx-no {
+	color: #8a2424;
+	font-weight: 600;
+}
+
+.imgx-muted {
+	color: #767676;
+}
+
+.imgx-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	align-items: center;
+}
+
+.imgx-progress {
+	max-width: 640px;
+	margin: 16px 0;
+}
+
+.imgx-progress-bar {
+	background: #dcdcde;
+	border-radius: 3px;
+	height: 12px;
+	overflow: hidden;
+}
+
+.imgx-progress-bar span {
+	background: #2271b1;
+	display: block;
+	height: 100%;
+	transition: width 200ms linear;
+	width: 0;
+}
+
+.imgx-progress-text {
+	margin: 8px 0 0;
+	font-weight: 600;
+}
+
+.imgx-progress-errors {
+	margin: 8px 0 0;
+	color: #8a2424;
+	font-size: 12px;
+}
+
+.imgx-progress-errors li {
+	margin: 0 0 2px;
+}
+
+.column-imgx {
+	width: 90px;
+}

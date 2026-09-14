@@ -9,6 +9,9 @@ if ( PHP_SAPI !== 'cli' ) {
 	exit;
 }
 
+// Pad naar de plugin; de tests staan bewust buiten de map die uitgeleverd wordt.
+$pdk = dirname( __DIR__ ) . '/pdk-theme-options';
+
 define( 'ABSPATH', __DIR__ . '/' );
 define( 'HOUR_IN_SECONDS', 3600 );
 
@@ -128,7 +131,7 @@ class PDK_Settings {
 	}
 }
 
-require_once __DIR__ . '/class-pdk-security.php';
+require_once $pdk . '/modules/security/class-pdk-security.php';
 
 /** Blokkeert niet echt, maar gooit — zo is de firewall testbaar. */
 class PDK_Security_Test extends PDK_Security {

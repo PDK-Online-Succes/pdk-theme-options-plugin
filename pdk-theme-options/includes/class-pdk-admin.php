@@ -31,6 +31,8 @@ class PDK_Admin {
 		'vacation_mode'    => 'Vakantiemodus',
 		'delivery_time'    => 'Levertijden',
 		'language_checker' => 'Taalcontrole',
+		'imgx'             => 'IMGX',
+		'image_sizes'      => 'Afbeeldingsmaten',
 	];
 
 	/** Tabs met een code-editor → het bestand in de storage-map. */
@@ -55,6 +57,9 @@ class PDK_Admin {
 		$this->loader->add_action( 'admin_post_pdk_font_delete',         $this, 'handle_font_delete' );
 		$this->loader->add_action( 'admin_notices',                      $this, 'show_integrity_notice' );
 		$this->loader->add_action( 'admin_post_pdk_file_integrity',      $this, 'handle_integrity_action' );
+		$this->loader->add_action( 'admin_post_pdk_image_sizes_save',    $this, 'handle_image_sizes_save' );
+		$this->loader->add_action( 'admin_post_pdk_image_size_create',   $this, 'handle_image_size_create' );
+		$this->loader->add_action( 'admin_post_pdk_image_size_delete',   $this, 'handle_image_size_delete' );
 	}
 
 	// -------------------------------------------------------------------------
@@ -246,6 +251,41 @@ class PDK_Admin {
 				PDK_PLUGIN_VERSION,
 				true
 			);
+		}
+
+		// class_exists(): de module (en dus PDK_Image_Sizes_Batch) is alleen
+		// geladen als hij aan staat — net als class_exists('PDK_Delivery_Time')
+		// elders in dit bestand. Zonder die check zou een handmatige
+		// ?tab=image_sizes op een uitgeschakelde module een fatale fout geven.
+		if ( 'image_sizes' === $huidige_tab && class_exists( 'PDK_Image_Sizes_Batch' ) ) {
+			wp_enqueue_style(
+				'pdk-image-sizes-admin',
+				PDK_PLUGIN_URL . 'modules/image-sizes/assets/css/image-sizes-admin.css',
+				[],
+				PDK_PLUGIN_VERSION
+			);
+			wp_enqueue_script(
+				'pdk-image-sizes-admin',
+				PDK_PLUGIN_URL . 'modules/image-sizes/assets/js/image-sizes-admin.js',
+				[],
+				PDK_PLUGIN_VERSION,
+				true
+			);
+			// AC-003 eist dat dit het ENIGE niet-core scripthandle op deze tab is —
+			// de batch-UI zit daarom in hetzelfde bestand, niet in een tweede handle.
+			$batch_state = PDK_Image_Sizes_Batch::current_state();
+			wp_localize_script( 'pdk-image-sizes-admin', 'pdkImageSizesBatch', [
+				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+				'nonce'   => wp_create_nonce( PDK_Image_Sizes_Batch::NONCE_ACTION ),
+				'state'   => $batch_state ? PDK_Image_Sizes_Batch::shape_for_browser( $batch_state ) : null,
+				'i18n'    => [
+					'running'      => __( 'Bezig…', 'pdk-theme-options' ),
+					'done'         => __( 'Klaar.', 'pdk-theme-options' ),
+					'cancelled'    => __( 'Gestopt.', 'pdk-theme-options' ),
+					'failed'       => __( 'Het verzoek is mislukt. Kijk in je serverfoutlog.', 'pdk-theme-options' ),
+					'alreadyBusy'  => __( 'Er loopt al een hergeneratie.', 'pdk-theme-options' ),
+				],
+			] );
 		}
 
 		wp_localize_script( 'pdk-admin', 'pdkAdmin', [
@@ -636,7 +676,7 @@ class PDK_Admin {
 		}
 
 		// Tabs met eigen forms (geen wrapper-form nodig — anders geneste forms).
-		$standalone_tabs = [ 'language_checker', 'custom_fonts', 'libraries' ];
+		$standalone_tabs = [ 'language_checker', 'custom_fonts', 'libraries', 'imgx', 'image_sizes' ];
 		$use_form        = ! in_array( $tab, $standalone_tabs, true );
 		?>
 		<div class="wrap pdk-wrap">
@@ -703,6 +743,8 @@ class PDK_Admin {
 			'vacation_mode'    => __( 'Vakantiemodus', 'pdk-theme-options' ),
 			'delivery_time'    => __( 'Levertijden', 'pdk-theme-options' ),
 			'language_checker' => __( 'Language Cleaner', 'pdk-theme-options' ),
+			'imgx'             => __( 'IMGX', 'pdk-theme-options' ),
+			'image_sizes'      => __( 'Afbeeldingsmaten', 'pdk-theme-options' ),
 		];
 
 		foreach ( $module_tab_labels as $module => $label ) {
@@ -767,6 +809,14 @@ class PDK_Admin {
 				break;
 			case 'language_checker':
 				$this->render_tab_language_checker();
+				break;
+			case 'imgx':
+				if ( class_exists( 'PDK_ImgX' ) ) {
+					PDK_ImgX::render_inline();
+				}
+				break;
+			case 'image_sizes':
+				$this->render_tab_image_sizes();
 				break;
 		}
 	}
@@ -1703,6 +1753,302 @@ class PDK_Admin {
 	/** Terug naar de tab met een foutmelding. Beëindigt het request. */
 	private function redirect_with_error( string $melding, string $redirect ): void {
 		wp_safe_redirect( add_query_arg( 'error', rawurlencode( $melding ), $redirect ) );
+		exit;
+	}
+
+	// -------------------------------------------------------------------------
+	// Tab: Afbeeldingsmaten
+	// -------------------------------------------------------------------------
+
+	/** URL van de tab, met optionele extra query-args. */
+	private function image_sizes_tab_url( array $args = [] ): string {
+		return add_query_arg(
+			array_merge( [ 'page' => self::PAGE_SLUG, 'tab' => 'image_sizes' ], $args ),
+			admin_url( 'admin.php' )
+		);
+	}
+
+	private function render_tab_image_sizes(): void {
+		$registered = PDK_Image_Sizes::registered();
+		$custom     = PDK_Image_Sizes::custom();
+		$ap_url     = esc_url( admin_url( 'admin-post.php' ) );
+		?>
+		<h2><?php esc_html_e( 'Geregistreerde maten', 'pdk-theme-options' ); ?></h2>
+		<table class="widefat" style="max-width:900px;margin-bottom:24px;">
+			<thead>
+				<tr>
+					<th><?php esc_html_e( 'Sleutel', 'pdk-theme-options' ); ?></th>
+					<th><?php esc_html_e( 'Breedte', 'pdk-theme-options' ); ?></th>
+					<th><?php esc_html_e( 'Hoogte', 'pdk-theme-options' ); ?></th>
+					<th><?php esc_html_e( 'Bijsnijden', 'pdk-theme-options' ); ?></th>
+					<th><?php esc_html_e( 'Status', 'pdk-theme-options' ); ?></th>
+					<th></th>
+				</tr>
+			</thead>
+			<tbody>
+			<?php foreach ( $registered as $key => $def ) :
+				$is_custom = PDK_Image_Sizes::is_custom( $key );
+				$is_locked = PDK_Image_Sizes::is_locked( $key );
+			?>
+				<tr>
+					<td>
+						<code><?php echo esc_html( $key ); ?></code>
+						<?php if ( $is_custom ) : ?>
+							<span class="pdk-sizes-badge"><?php esc_html_e( 'eigen', 'pdk-theme-options' ); ?></span>
+						<?php endif; ?>
+					</td>
+					<td><?php echo esc_html( (string) ( $def['width'] ?? 0 ) ); ?></td>
+					<td><?php echo esc_html( (string) ( $def['height'] ?? 0 ) ); ?></td>
+					<td><?php echo ! empty( $def['crop'] ) ? esc_html__( 'Ja', 'pdk-theme-options' ) : esc_html__( 'Nee', 'pdk-theme-options' ); ?></td>
+					<td>
+						<?php if ( $is_locked ) : ?>
+							<?php esc_html_e( 'Actief (vergrendeld)', 'pdk-theme-options' ); ?>
+						<?php elseif ( PDK_Image_Sizes::is_enabled( $key ) ) : ?>
+							<?php esc_html_e( 'Actief', 'pdk-theme-options' ); ?>
+						<?php else : ?>
+							<?php esc_html_e( 'Uitgeschakeld', 'pdk-theme-options' ); ?>
+						<?php endif; ?>
+					</td>
+					<td>
+						<?php if ( $is_custom ) : ?>
+							<form method="post" action="<?php echo $ap_url; ?>" onsubmit="return confirm('<?php echo esc_js( __( 'Deze eigen maat verwijderen? Bestaande bestanden blijven staan.', 'pdk-theme-options' ) ); ?>');">
+								<?php wp_nonce_field( 'pdk_image_size_delete' ); ?>
+								<input type="hidden" name="action" value="pdk_image_size_delete">
+								<input type="hidden" name="key" value="<?php echo esc_attr( $key ); ?>">
+								<button type="submit" class="button button-small"><?php esc_html_e( 'Verwijderen', 'pdk-theme-options' ); ?></button>
+							</form>
+						<?php endif; ?>
+					</td>
+				</tr>
+			<?php endforeach; ?>
+			</tbody>
+		</table>
+
+		<h2><?php esc_html_e( 'Actief / Uitgeschakeld', 'pdk-theme-options' ); ?></h2>
+		<p class="pdk-sizes-locked-note">
+			<?php esc_html_e( '"thumbnail" is vergrendeld: wp-admin en vrijwel elk thema leunen op deze maat, daarom kan hij niet worden uitgeschakeld.', 'pdk-theme-options' ); ?>
+		</p>
+		<form method="post" action="<?php echo $ap_url; ?>">
+			<?php wp_nonce_field( 'pdk_image_sizes_save' ); ?>
+			<input type="hidden" name="action" value="pdk_image_sizes_save">
+
+			<div class="pdk-sizes-duallist">
+				<div>
+					<label for="pdk-sizes-active"><strong><?php esc_html_e( 'Actief', 'pdk-theme-options' ); ?></strong></label><br>
+					<select id="pdk-sizes-active" multiple size="10">
+						<?php foreach ( $registered as $key => $def ) :
+							if ( ! PDK_Image_Sizes::is_enabled( $key ) ) {
+								continue;
+							}
+							$locked = PDK_Image_Sizes::is_locked( $key );
+						?>
+							<option value="<?php echo esc_attr( $key ); ?>" <?php disabled( $locked ); ?>>
+								<?php echo esc_html( $key ); ?><?php echo $locked ? ' (' . esc_html__( 'vergrendeld', 'pdk-theme-options' ) . ')' : ''; ?>
+							</option>
+						<?php endforeach; ?>
+					</select>
+				</div>
+				<div class="pdk-sizes-duallist-buttons">
+					<button type="button" id="pdk-sizes-to-disabled" class="button" aria-label="<?php esc_attr_e( 'Naar Uitgeschakeld', 'pdk-theme-options' ); ?>"><span aria-hidden="true">&raquo;</span></button>
+					<button type="button" id="pdk-sizes-to-active" class="button" aria-label="<?php esc_attr_e( 'Naar Actief', 'pdk-theme-options' ); ?>"><span aria-hidden="true">&laquo;</span></button>
+					<button type="button" id="pdk-sizes-all-to-disabled" class="button" aria-label="<?php esc_attr_e( 'Alles naar Uitgeschakeld', 'pdk-theme-options' ); ?>"><span aria-hidden="true">&raquo;&raquo;</span></button>
+					<button type="button" id="pdk-sizes-all-to-active" class="button" aria-label="<?php esc_attr_e( 'Alles naar Actief', 'pdk-theme-options' ); ?>"><span aria-hidden="true">&laquo;&laquo;</span></button>
+				</div>
+				<div>
+					<label for="pdk-sizes-disabled"><strong><?php esc_html_e( 'Uitgeschakeld', 'pdk-theme-options' ); ?></strong></label><br>
+					<select id="pdk-sizes-disabled" name="image_sizes_disabled[]" multiple size="10">
+						<?php foreach ( $registered as $key => $def ) :
+							if ( PDK_Image_Sizes::is_enabled( $key ) ) {
+								continue;
+							}
+						?>
+							<option value="<?php echo esc_attr( $key ); ?>"><?php echo esc_html( $key ); ?></option>
+						<?php endforeach; ?>
+					</select>
+				</div>
+			</div>
+
+			<?php submit_button( __( 'Instellingen opslaan', 'pdk-theme-options' ) ); ?>
+		</form>
+
+		<h2><?php esc_html_e( 'Eigen maat aanmaken', 'pdk-theme-options' ); ?></h2>
+		<p class="description">
+			<?php esc_html_e( 'Krijgt de sleutel pdk_<naam>. Een eigen maat is niet te bewerken: verwijder hem en maak een nieuwe aan.', 'pdk-theme-options' ); ?>
+		</p>
+		<form method="post" action="<?php echo $ap_url; ?>" style="max-width:500px;">
+			<?php wp_nonce_field( 'pdk_image_size_create' ); ?>
+			<input type="hidden" name="action" value="pdk_image_size_create">
+			<table class="form-table">
+				<tr>
+					<th><label for="pdk-size-name"><?php esc_html_e( 'Naam', 'pdk-theme-options' ); ?></label></th>
+					<td><input type="text" id="pdk-size-name" name="name" class="regular-text" required></td>
+				</tr>
+				<tr>
+					<th><label for="pdk-size-width"><?php esc_html_e( 'Breedte (px)', 'pdk-theme-options' ); ?></label></th>
+					<td><input type="number" id="pdk-size-width" name="width" min="0" step="1"></td>
+				</tr>
+				<tr>
+					<th><label for="pdk-size-height"><?php esc_html_e( 'Hoogte (px)', 'pdk-theme-options' ); ?></label></th>
+					<td><input type="number" id="pdk-size-height" name="height" min="0" step="1"></td>
+				</tr>
+				<tr>
+					<th><?php esc_html_e( 'Bijsnijden', 'pdk-theme-options' ); ?></th>
+					<td><label><input type="checkbox" name="crop" value="1"> <?php esc_html_e( 'Ja, bijsnijden naar exacte afmeting', 'pdk-theme-options' ); ?></label></td>
+				</tr>
+			</table>
+			<?php submit_button( __( 'Maat aanmaken', 'pdk-theme-options' ) ); ?>
+		</form>
+
+		<h2><?php esc_html_e( 'Bibliotheek hergenereren', 'pdk-theme-options' ); ?></h2>
+		<p class="description">
+			<?php esc_html_e( '"Ontbrekende maten" verwerkt alleen bijlagen waar een actieve maat nog ontbreekt. "Alle maten" bouwt bij elke bijlage de volledige maatset opnieuw op. Beide gebruiken batches van 3 bijlagen; je kunt tussentijds stoppen en later hervatten.', 'pdk-theme-options' ); ?>
+		</p>
+		<?php if ( ! PDK_Settings::is_module_enabled( 'imgx' ) ) : ?>
+			<p class="description">
+				<?php esc_html_e( 'IMGX staat uit: nieuwe maten krijgen geen WebP/AVIF. Zet IMGX aan en draai daar "Ontbrekende afbeeldingen genereren" om dat alsnog te doen.', 'pdk-theme-options' ); ?>
+			</p>
+		<?php endif; ?>
+		<p class="pdk-sizes-batch-actions">
+			<button type="button" class="button button-primary" data-pdk-sizes-run="missing">
+				<?php esc_html_e( 'Ontbrekende maten genereren', 'pdk-theme-options' ); ?>
+			</button>
+			<button type="button" class="button" data-pdk-sizes-run="all">
+				<?php esc_html_e( 'Alle maten opnieuw genereren', 'pdk-theme-options' ); ?>
+			</button>
+			<button type="button" class="button pdk-sizes-batch-cancel" hidden>
+				<?php esc_html_e( 'Stoppen', 'pdk-theme-options' ); ?>
+			</button>
+		</p>
+		<div class="pdk-sizes-batch-progress" hidden>
+			<div class="pdk-sizes-batch-bar"><span style="width:0%"></span></div>
+			<p class="pdk-sizes-batch-text" role="status" aria-live="polite"></p>
+			<ul class="pdk-sizes-batch-errors"></ul>
+		</div>
+		<?php
+	}
+
+	public function handle_image_sizes_save(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Geen toegang.', 'pdk-theme-options' ), 403 );
+		}
+
+		check_admin_referer( 'pdk_image_sizes_save' );
+
+		if ( ! class_exists( 'PDK_Image_Sizes' ) ) {
+			$this->redirect_with_error(
+				__( 'De module Afbeeldingsmaten staat uit.', 'pdk-theme-options' ),
+				add_query_arg( [ 'page' => self::PAGE_SLUG, 'tab' => 'modules' ], admin_url( 'admin.php' ) )
+			);
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$posted   = array_map( 'sanitize_text_field', (array) wp_unslash( $_POST['image_sizes_disabled'] ?? [] ) );
+		$disabled = PDK_Image_Sizes::sanitize_disabled_list( $posted ); // AC-007: thumbnail kan hier nooit in blijven staan.
+
+		// Niet via PDK_Settings::update(): array_replace_recursive() voegt lijsten
+		// per index samen, waardoor een weer geactiveerde maat uit zou blijven
+		// staan. Zelfde reden als save_libraries() hierboven.
+		$options                            = (array) get_option( PDK_Settings::OPTION_KEY, [] );
+		$options['image_sizes']['disabled'] = $disabled;
+		update_option( PDK_Settings::OPTION_KEY, $options );
+
+		wp_safe_redirect( $this->image_sizes_tab_url( [ 'saved' => '1' ] ) );
+		exit;
+	}
+
+	public function handle_image_size_create(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Geen toegang.', 'pdk-theme-options' ), 403 );
+		}
+
+		check_admin_referer( 'pdk_image_size_create' );
+
+		if ( ! class_exists( 'PDK_Image_Sizes' ) ) {
+			$this->redirect_with_error(
+				__( 'De module Afbeeldingsmaten staat uit.', 'pdk-theme-options' ),
+				add_query_arg( [ 'page' => self::PAGE_SLUG, 'tab' => 'modules' ], admin_url( 'admin.php' ) )
+			);
+		}
+
+		$redirect = $this->image_sizes_tab_url();
+
+		// phpcs:disable WordPress.Security.NonceVerification.Missing
+		$name   = sanitize_text_field( wp_unslash( $_POST['name'] ?? '' ) );
+		$width  = isset( $_POST['width'] ) ? (int) wp_unslash( $_POST['width'] ) : 0;
+		$height = isset( $_POST['height'] ) ? (int) wp_unslash( $_POST['height'] ) : 0;
+		$crop   = ! empty( $_POST['crop'] );
+		// phpcs:enable
+
+		$key = PDK_Image_Sizes::generate_key( $name );
+
+		if ( '' === $key ) {
+			$this->redirect_with_error( __( 'Geef een geldige naam op.', 'pdk-theme-options' ), $redirect );
+		}
+
+		if ( ! PDK_Image_Sizes::has_valid_dimensions( $width, $height ) ) {
+			$this->redirect_with_error( __( 'Vul een breedte of hoogte groter dan 0 in.', 'pdk-theme-options' ), $redirect );
+		}
+
+		// D-1-fix: zowel de kale naam als de voorvoegde sleutel controleren —
+		// anders botst een eigen maat genaamd "large" nooit met de core-maat.
+		$collision = PDK_Image_Sizes::colliding_key( sanitize_key( $name ), $key );
+
+		if ( '' !== $collision ) {
+			$this->redirect_with_error(
+				sprintf(
+					/* translators: %s: de botsende maatsleutel. */
+					__( 'De sleutel "%s" bestaat al — kies een andere naam. Een bestaande maat is niet te bewerken; verwijder hem eerst.', 'pdk-theme-options' ),
+					$collision
+				),
+				$redirect
+			);
+		}
+
+		PDK_Settings::update( [
+			'image_sizes' => [
+				'custom' => [
+					$key => [
+						'width'  => max( 0, $width ),
+						'height' => max( 0, $height ),
+						'crop'   => $crop,
+					],
+				],
+			],
+		] );
+
+		wp_safe_redirect( add_query_arg( 'saved', '1', $redirect ) );
+		exit;
+	}
+
+	public function handle_image_size_delete(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Geen toegang.', 'pdk-theme-options' ), 403 );
+		}
+
+		check_admin_referer( 'pdk_image_size_delete' );
+
+		if ( ! class_exists( 'PDK_Image_Sizes' ) ) {
+			$this->redirect_with_error(
+				__( 'De module Afbeeldingsmaten staat uit.', 'pdk-theme-options' ),
+				add_query_arg( [ 'page' => self::PAGE_SLUG, 'tab' => 'modules' ], admin_url( 'admin.php' ) )
+			);
+		}
+
+		$redirect = $this->image_sizes_tab_url();
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$key = sanitize_key( wp_unslash( $_POST['key'] ?? '' ) );
+
+		// Alleen eigen maten zijn verwijderbaar — core- en thema-maten weigeren (AC-012).
+		if ( ! PDK_Image_Sizes::is_custom( $key ) ) {
+			$this->redirect_with_error( __( 'Alleen eigen maten (voorvoegsel pdk_) kunnen verwijderd worden.', 'pdk-theme-options' ), $redirect );
+		}
+
+		$options = (array) get_option( PDK_Settings::OPTION_KEY, [] );
+		unset( $options['image_sizes']['custom'][ $key ] );
+		update_option( PDK_Settings::OPTION_KEY, $options );
+
+		wp_safe_redirect( add_query_arg( 'saved', '1', $redirect ) );
 		exit;
 	}
 

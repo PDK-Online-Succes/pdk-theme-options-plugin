@@ -9,6 +9,9 @@ if ( PHP_SAPI !== 'cli' ) {
 	exit;
 }
 
+// Pad naar de plugin; de tests staan bewust buiten de map die uitgeleverd wordt.
+$pdk = dirname( __DIR__ ) . '/pdk-theme-options';
+
 define( 'ABSPATH', __DIR__ );
 define( 'PDK_CAP_EDIT_CODE', 'pdk_edit_custom_code' );
 define( 'PDK_STORAGE_DIR', sys_get_temp_dir() . '/pdk-test-' . getmypid() . '/' );
@@ -69,7 +72,7 @@ class WP_Error {
 	}
 }
 
-require_once __DIR__ . '/helpers.php';
+require_once $pdk . '/includes/helpers.php';
 
 // Niet assert(): die worden met zend.assertions=-1 wegcompileerd, waardoor deze
 // test altijd zou slagen zonder iets te controleren.

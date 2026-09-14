@@ -1,0 +1,66 @@
+.pdk-sizes-duallist {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin: 12px 0 20px;
+}
+
+.pdk-sizes-duallist select {
+	min-width: 220px;
+	min-height: 220px;
+}
+
+.pdk-sizes-duallist-buttons {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.pdk-sizes-badge {
+	display: inline-block;
+	margin-left: 6px;
+	padding: 1px 6px;
+	font-size: 11px;
+	font-weight: 600;
+	color: #fff;
+	background: #2271b1;
+	border-radius: 3px;
+}
+
+.pdk-sizes-locked-note {
+	margin-top: -8px;
+	margin-bottom: 16px;
+	color: #646970;
+	font-style: italic;
+}
+
+.pdk-sizes-batch-actions {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+}
+
+.pdk-sizes-batch-progress {
+	max-width: 600px;
+	margin-top: 12px;
+}
+
+.pdk-sizes-batch-bar {
+	background: #dcdcde;
+	border-radius: 3px;
+	height: 12px;
+	overflow: hidden;
+}
+
+.pdk-sizes-batch-bar span {
+	display: block;
+	height: 100%;
+	background: #2271b1;
+	transition: width 0.2s ease;
+}
+
+.pdk-sizes-batch-errors {
+	max-height: 160px;
+	overflow-y: auto;
+	color: #d63638;
+}

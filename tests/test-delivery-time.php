@@ -10,6 +10,9 @@ if ( PHP_SAPI !== 'cli' ) {
 	exit;
 }
 
+// Pad naar de plugin; de tests staan bewust buiten de map die uitgeleverd wordt.
+$pdk = dirname( __DIR__ ) . '/pdk-theme-options';
+
 define( 'ABSPATH', __DIR__ );
 
 $GLOBALS['test_now']      = '2026-08-14 10:00'; // vrijdag
@@ -84,7 +87,7 @@ class PDK_Site_Settings {
 	}
 }
 
-require_once __DIR__ . '/class-pdk-delivery-time.php';
+require_once $pdk . '/modules/delivery-time/class-pdk-delivery-time.php';
 
 // 1. Vrijdag 10:00, ruim voor de cutoff → vandaag verzonden.
 assert( PDK_Delivery_Time::general_text() === 'Voor 22.00 uur besteld, vandaag verzonden (indien op voorraad)' );

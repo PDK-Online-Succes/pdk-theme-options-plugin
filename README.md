@@ -1,9 +1,9 @@
 # PDK Theme Options
 
-Centrale WordPress-beheerplug-in voor PDK Online Succes klanten. Vervangt acht afzonderlijke plugins door één modulaire oplossing. Elke module is in- of uitschakelbaar via PDK Tools → Modules.
+Centrale WordPress-beheerplug-in voor PDK Online Succes klanten. Vervangt acht afzonderlijke plugins door één modulaire oplossing. De meeste modules zijn in- of uitschakelbaar via PDK Tools → Modules; drie zijn altijd actief.
 
 **Vereisten:** WordPress 6.0+, PHP 8.0+  
-**Optioneel:** WooCommerce 7.0+ (voor functies in Custom Functions)
+**Optioneel:** WooCommerce 7.0+ (voor Vakantiemodus, Levertijden en SKU Beperken & Valideren)
 
 ---
 
@@ -47,26 +47,37 @@ Op Kinsta staat de mu-plugins map op: `/app/mu-plugins/`
 
 ## Modules
 
+Per module staat er een referentiedocument in [`docs/modules/`](docs/modules/) — instellingen, hooks, randgevallen en gemaakte keuzes, bedoeld voor PDK-ontwikkelaars. Deze tabel is de index; klik de modulenaam door voor de details.
+
 ### Altijd actief
+
+Niet uitschakelbaar; deze drie worden onvoorwaardelijk geladen.
 
 | Module | Omschrijving |
 |---|---|
-| **Critical Error Status** | Stuurt HTTP 500 terug bij fatale PHP-fouten (SEO-vriendelijk) |
-| **Site Instellingen** | Favicon, klantgegevens, logo, social media, openingstijden en afwijkende dagen — opvraagbaar in thema's |
+| [**Security**](docs/modules/security.md) | Header-firewall, MU- en plugin-blacklist, integriteitscontrole op `mu-plugins/`, bewaking van verplichte plugins, XML-RPC dichtzetten en REST-routes afschermen |
+| [**Critical Error Status**](docs/modules/critical-error-status.md) | Stuurt HTTP 500 terug bij fatale PHP-fouten (SEO-vriendelijk) |
+| [**Site Instellingen**](docs/modules/site-settings.md) | Favicon, klantgegevens, logo, social media, openingstijden en afwijkende dagen — opvraagbaar in thema's |
 
 ### Optioneel (per module in-/uitschakelbaar)
 
 | Module | Omschrijving |
 |---|---|
-| **Custom Functions** | Eigen PHP-functies laden vanuit `uploads/pdk-theme-options/custom-functions.php`; WordPress-hulpprogramma's; WooCommerce productcategorie-uitbreidingen |
-| **Custom CSS** | Eigen CSS laden vanuit `uploads/pdk-theme-options/custom-style.css` |
-| **Custom JS** | Eigen JavaScript laden vanuit `uploads/pdk-theme-options/custom-script.js` |
-| **Custom Fonts** | `@font-face` CSS genereren vanuit `uploads/fonts/`; upload en beheer via admin |
-| **Login Page** | Aangepaste loginpagina met PDK-logo en achtergrond |
-| **Vakantiemodus** | Winkelwagen en/of checkout blokkeren tijdens een periode met "Webshop sluiten" (WooCommerce) |
-| **Levertijden** | Levertijdtekst per weekdag met cutoff-tijd en product-uitzondering; shortcode `[levertijd]` (WooCommerce) |
-| **SKU Beperken & Valideren** | SKU's beperkt tot `a-z A-Z 0-9 . -`; automatisch opschonen, duplicaten geblokkeerd, WP-CLI-conversie (WooCommerce) |
-| **Language Cleaner** | Geïnstalleerde kerntalen verwijderen; verweesde vertaalbestanden opsporen |
+| [**Custom Functions**](docs/modules/custom-functions.md) | Eigen PHP-functies laden vanuit `uploads/pdk-theme-options/custom-functions.php`; WordPress-hulpprogramma's; WooCommerce productcategorie-uitbreidingen |
+| [**Custom CSS**](docs/modules/custom-css.md) | Eigen CSS laden vanuit `uploads/pdk-theme-options/custom-style.css` |
+| [**Custom JS**](docs/modules/custom-js.md) | Eigen JavaScript laden vanuit `uploads/pdk-theme-options/custom-script.js` |
+| [**Custom Fonts**](docs/modules/custom-fonts.md) | `@font-face` CSS genereren vanuit `uploads/fonts/`; upload en beheer via admin |
+| [**Libraries (JS/CSS)**](docs/modules/libraries.md) | Kant-en-klare JS- en CSS-bestanden uit `uploads/pdk-theme-options/libraries/` op de frontend laden — Glide.js, Swiper, Splide |
+| [**Login Page**](docs/modules/login-page.md) | Aangepaste loginpagina met PDK-logo en achtergrond |
+| [**Vakantiemodus**](docs/modules/vacation-mode.md) | Winkelwagen en/of checkout blokkeren tijdens een periode met "Webshop sluiten" (WooCommerce) |
+| [**Levertijden**](docs/modules/delivery-time.md) | Levertijdtekst per weekdag met cutoff-tijd en product-uitzondering; shortcode `[levertijd]` (WooCommerce) |
+| [**SKU Beperken & Valideren**](docs/modules/sku-restriction.md) | SKU's beperkt tot `a-z A-Z 0-9 . -`; automatisch opschonen, duplicaten geblokkeerd, WP-CLI-conversie (WooCommerce) |
+| [**Language Cleaner**](docs/modules/language-checker.md) | Geïnstalleerde kerntalen verwijderen; verweesde vertaalbestanden opsporen |
+| [**AI-agent toegang (MCP)**](docs/modules/agent-abilities.md) | Eigen PHP, CSS en JS lees- en schrijfbaar maken voor een AI-agent via de Abilities API; vereist een gebruiker met code-editor-rechten |
+| [**IMGX**](docs/modules/imgx.md) | WebP- en AVIF-versies naast bestaande JPEG's en PNG's zetten en uitserveren via `<picture>`; originelen blijven ongewijzigd |
+| [**Afbeeldingsmaten**](docs/modules/image-sizes.md) | Geregistreerde afbeeldingsmaten bekijken, aan/uit zetten, eigen maten aanmaken en de mediabibliotheek in batches opnieuw genereren |
+
+Modules met (WooCommerce) worden niet geladen zolang WooCommerce niet actief is, ook niet als de toggle aan staat.
 
 ---
 
@@ -79,6 +90,7 @@ Clientbestanden staan in `wp-content/uploads/pdk-theme-options/` en worden **nie
 | `custom-functions.php` | Eigen PHP-functies |
 | `custom-style.css` | Eigen CSS |
 | `custom-script.js` | Eigen JavaScript |
+| `libraries/` | Geüploade JS/CSS-bibliotheken |
 
 Fontbestanden staan in `wp-content/uploads/fonts/`:  
 Bestandsnaamconventie: `FamilyName-Weight.woff2` (bijv. `Raleway-Bold.woff2`)
@@ -111,7 +123,7 @@ Shortcodes (actief als **Custom Functions** ingeschakeld is):
 
 ```
 [pdk_year]        → huidig jaar (voor © in de footer)
-[bloginfo key=""] → WordPress bloginfo-waarden
+[bloginfo name=""] → WordPress bloginfo-waarden
 ```
 
 ### Frontend-uitvoer: shortcode of template-hook
@@ -228,7 +240,7 @@ define( 'DISALLOW_FILE_MODS', true );  // blokkeert ook plugin-/thema-installati
 
 `DISALLOW_FILE_MODS` schakelt ook de GitHub-updater van deze plugin uit; gebruik die alleen op sites die je handmatig of via deploys bijwerkt.
 
-Zelftest: `php includes/test-file-integrity.php`
+Zelftests staan in `tests/` in de repo-root en draaien met `php tests/run.php`; los draaien kan met `php tests/test-file-integrity.php`.
 
 ### Font-upload-rechten
 
