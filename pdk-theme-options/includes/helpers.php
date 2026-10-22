@@ -282,9 +282,13 @@ function pdk_config_code_editors(): ?array {
  * Via `map_meta_cap` (niet `user_has_cap`) zodat ook multisite-superbeheerders
  * geblokkeerd worden — die passeren de user_has_cap-filter namelijk niet.
  * Zonder de constante verandert er niets en blijft de Rechten-tab bepalend.
+ *
+ * Dezelfde lijst sluit ook de thema-/plugin-editors van WordPress af. Wie erop
+ * staat houdt daar de normale WordPress-controle (incl. DISALLOW_FILE_EDIT).
  */
 function pdk_map_code_cap( array $caps, string $cap, int $user_id ): array {
-	if ( PDK_CAP_EDIT_CODE !== $cap ) {
+	$core = in_array( $cap, [ 'edit_themes', 'edit_plugins', 'edit_files' ], true );
+	if ( PDK_CAP_EDIT_CODE !== $cap && ! $core ) {
 		return $caps;
 	}
 
@@ -293,7 +297,11 @@ function pdk_map_code_cap( array $caps, string $cap, int $user_id ): array {
 		return $caps;
 	}
 
-	return in_array( $user_id, $allowed, true ) ? [ 'exist' ] : [ 'do_not_allow' ];
+	if ( ! in_array( $user_id, $allowed, true ) ) {
+		return [ 'do_not_allow' ];
+	}
+
+	return $core ? $caps : [ 'exist' ];
 }
 add_filter( 'map_meta_cap', 'pdk_map_code_cap', 10, 3 );
 

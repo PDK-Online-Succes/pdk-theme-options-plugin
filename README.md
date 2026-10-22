@@ -215,6 +215,8 @@ define( 'PDK_CODE_EDITORS', 'luuk,beheer' );  // of logins / e-mailadressen
 
 Staat deze constante gedefinieerd, dan bepaalt **alleen wp-config.php** wie code mag bewerken. De Rechten-tab wordt read-only en capabilities in de database — ook een `pdk_edit_custom_code` die een aanvaller aan de administrator-rol toevoegt — worden genegeerd. Ook multisite-superbeheerders vallen hieronder.
 
+Dezelfde lijst sluit ook de thema- en plugin-editor van WordPress af (`edit_themes`, `edit_plugins`, `edit_files`): alleen de gebruikers uit `PDK_CODE_EDITORS` komen erin. Een losse mu-plugin die dat op een vaste gebruikersnaam doet is dan overbodig.
+
 ### Integriteitscontrole van de code-bestanden
 
 Bij elke opslag via de editor legt de plugin een SHA-256-vingerafdruk vast en bewaart hij de vorige versie als `.bak`. Wijkt de inhoud daarna af, dan is het bestand buiten de editor om gewijzigd:
