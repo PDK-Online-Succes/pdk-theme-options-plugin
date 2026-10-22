@@ -113,6 +113,9 @@ namespace {
 	check( 'preset toegestaan', 'oxygen-elements/presets/Spacing.php' === PDK_Oxygen_Elements::file_rel_path( 'presets/Spacing.php' ) );
 	check( 'macro met .php geweigerd', null === PDK_Oxygen_Elements::file_rel_path( 'macros/buttons.php' ) );
 
+	check( 'parse() geeft type, naam en bestand zonder bestaanscheck', [ 'type' => 'element', 'name' => 'Nieuw', 'file' => 'html.twig', 'rel' => 'oxygen-elements/elements/Nieuw/html.twig' ] === PDK_Oxygen_Elements::parse( 'elements/Nieuw/html.twig' ) && 'macro' === PDK_Oxygen_Elements::parse( 'macros/x.twig' )['type'] );
+	check( 'parse() weigert onbekend bestand en ..', null === PDK_Oxygen_Elements::parse( 'elements/Nieuw/evil.php' ) && null === PDK_Oxygen_Elements::parse( 'elements/../x/html.twig' ) );
+
 	echo "
 Padherstel (prio 11)
 ";

@@ -407,39 +407,36 @@ class PDK_Agent_Abilities {
 		}
 
 		$edit = str_replace( '\\', '/', $edit );
-		$rel  = PDK_Oxygen_Elements::file_rel_path( $edit );
+		$p    = PDK_Oxygen_Elements::parse( $edit );
 
-		if ( null !== $rel ) {
-			return $rel;
+		if ( null === $p ) {
+			return new WP_Error( 'pdk_invalid_path', __( 'Ongeldig pad. Gebruik elements/<Naam>/<bestand>, macros/<naam>.twig of presets/<Naam>.php, of element + file.', 'pdk-theme-options' ) );
 		}
 
-		// Geen bestaand, geldig bestand: bepaal waarom, zonder het pad te vertrouwen.
-		$is_element = preg_match( '#^elements/([A-Za-z0-9_-]+)/([a-z.]+)$#D', $edit, $m );
-		$is_other   = preg_match( '#^(?:macros/[A-Za-z0-9_-]+\.twig|presets/[A-Za-z0-9_-]+\.php)$#D', $edit );
+		if ( is_file( PDK_Oxygen_Elements::dir() . $edit ) ) {
+			return $p['rel'];
+		}
 
-		if ( ( $is_element && in_array( $m[2], PDK_Oxygen_Elements::ELEMENT_FILES, true ) && ! is_dir( PDK_Oxygen_Elements::dir() . 'elements/' . $m[1] ) ) || $is_other ) {
+		// Geldig, maar niet aanwezig: bepaal waarom.
+		if ( 'element' !== $p['type'] || ! is_dir( PDK_Oxygen_Elements::dir() . 'elements/' . $p['name'] ) ) {
 			return new WP_Error(
 				'element_not_found',
 				sprintf(
 					/* translators: %s: element-, macro- of presetnaam */
 					__( "Element '%s' bestaat nog niet. Maak het eerst aan in de Oxygen-builder: Element Studio → New element → opslaglocatie 'PDK Elementen'. Roep daarna list-oxygen-elements opnieuw aan en ga dan verder met bewerken.", 'pdk-theme-options' ),
-					$is_element ? $m[1] : pathinfo( $edit, PATHINFO_FILENAME )
+					$p['name']
 				)
 			);
 		}
 
-		if ( $is_element && in_array( $m[2], PDK_Oxygen_Elements::ELEMENT_FILES, true ) ) {
-			return new WP_Error(
-				'file_not_found',
-				sprintf(
-					/* translators: %s: bestandspad */
-					__( "Bestand '%s' bestaat niet. Bestanden worden hier alleen bewerkt, niet aangemaakt: maak ze aan in Element Studio.", 'pdk-theme-options' ),
-					$edit
-				)
-			);
-		}
-
-		return new WP_Error( 'pdk_invalid_path', __( 'Ongeldig pad. Gebruik elements/<Naam>/<bestand>, macros/<naam>.twig of presets/<Naam>.php, of element + file.', 'pdk-theme-options' ) );
+		return new WP_Error(
+			'file_not_found',
+			sprintf(
+				/* translators: %s: bestandspad */
+				__( "Bestand '%s' bestaat niet. Bestanden worden hier alleen bewerkt, niet aangemaakt: maak ze aan in Element Studio.", 'pdk-theme-options' ),
+				$edit
+			)
+		);
 	}
 
 	/** @return string|WP_Error */

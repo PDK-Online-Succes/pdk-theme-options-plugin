@@ -140,7 +140,14 @@ class PDK_Oxygen_Elements {
 	}
 }
 check( 'oxygen-elements/elements/X/html.twig' === pdk_storage_rel_path( 'oxygen-elements/elements/X/html.twig' ), 'element-pad blijft intact' );
-check( 'custom-functions.php' === pdk_storage_rel_path( 'oxygen-elements/../custom-functions.php' ), '.. wordt platgeslagen' );
+check( '' === pdk_storage_rel_path( 'oxygen-elements/../custom-functions.php' ), '.. onder oxygen-elements/ wordt geweigerd' );
+check( '' === pdk_storage_rel_path( 'oxygen-elements/elements/Weg/html.twig' ), 'geweigerd oxygen-pad geeft een lege string' );
+$res = pdk_write_storage_file( 'oxygen-elements/elements/Weg/html.twig', 'x' );
+check( $res instanceof WP_Error && 'invalid_path' === $res->get_error_code(), 'schrijven naar niet-bestaand element geeft invalid_path' );
+check( [] === array_values( array_diff( scandir( PDK_STORAGE_DIR ), [ '.', '..', '.htaccess', 'index.php' ] ) ), 'geen bestand in de opslagmap aangemaakt' );
+foreach ( array_diff( scandir( PDK_STORAGE_DIR ), [ '.', '..' ] ) as $f ) {
+	unlink( PDK_STORAGE_DIR . $f );
+}
 rmdir( PDK_STORAGE_DIR );
 
 echo $fouten ? "{$fouten} controle(s) gefaald\n" : "OK — alle controles geslaagd\n";

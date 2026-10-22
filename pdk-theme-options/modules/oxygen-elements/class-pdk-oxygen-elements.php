@@ -63,19 +63,27 @@ class PDK_Oxygen_Elements {
 	}
 
 	/**
-	 * Pad zoals Oxygen het wil: relatief aan realpath(WP_PLUGIN_DIR), met `/`,
-	 * zonder voorloopslash (bijv. ../uploads/pdk-theme-options/oxygen-elements/elements).
-	 * Null als er geen gemeenschappelijk begin is (andere schijf).
+	 * Basis van het pad zoals Oxygen het wil: relatief aan realpath(WP_PLUGIN_DIR),
+	 * met `/`, zonder voorloopslash en zonder submap (bijv. ../uploads/pdk-theme-options/oxygen-elements),
+	 * plus het echte pad van de map. Eén keer per request berekend: dit loopt ook op de frontend.
+	 * Null als er geen gemeenschappelijk begin is (andere schijf) of het pad niet klopt.
+	 *
+	 * @return array{rel:string,target:string}|null
 	 */
-	public static function relative_path( string $type ): ?string {
-		// Eén keer per request: ensure_dirs() herschrijft .htaccess, en dit loopt per tabelrij.
-		static $ensured = false;
-		$ensured || $ensured = self::ensure_dirs();
+	private static function base(): ?array {
+		static $base = false;
+		if ( false !== $base ) {
+			return $base;
+		}
+		$base = null;
+
+		// Alleen bij de eerste keer of als er mappen ontbreken (schrijft ook .htaccess).
+		is_dir( self::dir() . 'presets' ) || self::ensure_dirs();
 
 		$plugins = realpath( WP_PLUGIN_DIR );
-		$target  = realpath( self::dir() . self::TYPES[ $type ] );
-		if ( false === $plugins || false === $target ) {
-			$missing     = false === $plugins ? WP_PLUGIN_DIR : self::dir() . self::TYPES[ $type ];
+		$target  = realpath( self::dir() );
+		if ( false === $plugins || false === $target || ! is_dir( self::dir() . 'presets' ) ) {
+			$missing     = false === $plugins ? WP_PLUGIN_DIR : self::dir();
 			self::$error = sprintf( __( 'De map %s bestaat niet of kon niet worden aangemaakt.', 'pdk-theme-options' ), $missing );
 			return null;
 		}
@@ -87,6 +95,7 @@ class PDK_Oxygen_Elements {
 			$common++;
 		}
 		if ( 0 === $common ) {
+			self::$error = __( 'Er is geen relatief pad van de pluginmap naar de uploads-map (andere schijf?). De Element Studio-locatie is niet geregistreerd.', 'pdk-theme-options' );
 			return null;
 		}
 
@@ -99,19 +108,20 @@ class PDK_Oxygen_Elements {
 			return null;
 		}
 
-		return $rel;
+		return $base = [ 'rel' => $rel, 'target' => self::norm( $target ) ];
+	}
+
+	/** Pad zoals Oxygen het wil voor één type (bijv. ../uploads/pdk-theme-options/oxygen-elements/elements), of null. */
+	public static function relative_path( string $type ): ?string {
+		$base = self::base();
+		return null === $base ? null : $base['rel'] . '/' . self::TYPES[ $type ];
 	}
 
 	public function register_save_locations(): void {
-		if ( ! self::builder_active() ) {
-			return;
-		}
-
 		foreach ( self::TYPES as $type => $_ ) {
 			$path = self::relative_path( $type );
 			if ( null === $path ) {
-				self::$error ??= __( 'Er is geen relatief pad van de pluginmap naar de uploads-map (andere schijf?). De Element Studio-locatie is niet geregistreerd.', 'pdk-theme-options' );
-				return;
+				return; // self::$error is door base() gezet.
 			}
 
 			\Breakdance\ElementStudio\registerSaveLocation( $path, self::NAMESPACE_, $type, 'PDK Elementen', false );
@@ -127,12 +137,13 @@ class PDK_Oxygen_Elements {
 	 */
 	public function fix_element_paths(): void {
 		$class = '\Breakdance\ElementStudio\ElementStudioController';
-		$rel   = self::relative_path( 'element' );
-		if ( ! class_exists( $class ) || null === $rel ) {
+		$base  = self::base();
+		if ( ! class_exists( $class ) || null === $base ) {
 			return;
 		}
 
-		$root = self::norm( (string) realpath( self::dir() . 'elements' ) ) . DIRECTORY_SEPARATOR;
+		$rel  = $base['rel'] . '/elements';
+		$root = $base['target'] . DIRECTORY_SEPARATOR . 'elements' . DIRECTORY_SEPARATOR;
 
 		foreach ( $class::getInstance()->elements as &$element ) {
 			$path = self::norm( $element['directoryPath'] ?? '' );
@@ -146,16 +157,31 @@ class PDK_Oxygen_Elements {
 	const ELEMENT_FILES = [ 'element.php', 'html.twig', 'css.twig', 'default.css' ];
 
 	/**
-	 * Valideert een ?edit=-waarde en geeft het pad relatief aan PDK_STORAGE_DIR
-	 * (`oxygen-elements/...`), of null. Beveiligingsgrens: alleen deze vaste
-	 * vormen, een naam van [A-Za-z0-9_-] en een bestaand bestand.
+	 * Ontleedt een ?edit=-waarde op syntax, zonder te kijken of het bestand bestaat.
+	 * Beveiligingsgrens: alleen deze vaste vormen en een naam van [A-Za-z0-9_-].
+	 *
+	 * @return array{type:string,name:string,file:?string,rel:string}|null
 	 */
-	public static function file_rel_path( string $edit ): ?string {
-		$ok = preg_match( '#^elements/[A-Za-z0-9_-]+/([a-z.]+)$#D', $edit, $m )
-			? in_array( $m[1], self::ELEMENT_FILES, true )
-			: (bool) preg_match( '#^(?:macros/[A-Za-z0-9_-]+\.twig|presets/[A-Za-z0-9_-]+\.php)$#D', $edit );
+	public static function parse( string $edit ): ?array {
+		$rel = 'oxygen-elements/' . $edit;
+		if ( preg_match( '#^elements/([A-Za-z0-9_-]+)/([a-z.]+)$#D', $edit, $m ) ) {
+			return in_array( $m[2], self::ELEMENT_FILES, true )
+				? [ 'type' => 'element', 'name' => $m[1], 'file' => $m[2], 'rel' => $rel ]
+				: null;
+		}
+		if ( preg_match( '#^macros/([A-Za-z0-9_-]+)\.twig$#D', $edit, $m ) ) {
+			return [ 'type' => 'macro', 'name' => $m[1], 'file' => null, 'rel' => $rel ];
+		}
+		if ( preg_match( '#^presets/([A-Za-z0-9_-]+)\.php$#D', $edit, $m ) ) {
+			return [ 'type' => 'preset', 'name' => $m[1], 'file' => null, 'rel' => $rel ];
+		}
+		return null;
+	}
 
-		return $ok && is_file( self::dir() . $edit ) ? 'oxygen-elements/' . $edit : null;
+	/** Pad relatief aan PDK_STORAGE_DIR (`oxygen-elements/...`) van een geldig én bestaand bestand, of null. */
+	public static function file_rel_path( string $edit ): ?string {
+		$p = self::parse( $edit );
+		return $p && is_file( self::dir() . $edit ) ? $p['rel'] : null;
 	}
 
 	/** Maakt de drie submappen aan; Element Studio doet dat anders pas bij de eerste save. */

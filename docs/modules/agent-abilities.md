@@ -51,7 +51,7 @@ Wat een agent **niet** kan:
 - Andere bestanden benaderen. Alleen de drie sleutels uit `self::FILES` worden geaccepteerd; alles anders geeft `pdk_unknown_file` terug vóór enige bestandsoperatie (`:21-25`, `:265-280`). Padtraversal is bovendien afgevangen in `pdk_storage_rel_path()`, dat alles tot `basename()` reduceert (`includes/helpers.php:283-288`). Getest met `../wp-config` (`tests/test-agent-abilities.php:123`).
 - Bestanden verwijderen of hernoemen — er is geen delete-ability.
 - Kapotte PHP opslaan: `pdk_write_storage_file()` draait `token_get_all( $content, TOKEN_PARSE )` en weigert bij een `ParseError`, zonder het bestaande bestand aan te raken (`includes/helpers.php:87-101`; getest in `tests/test-agent-abilities.php:134-136`).
-- De vorige versie onherstelbaar wissen: vóór het schrijven wordt een `.bak`-kopie gemaakt (`includes/helpers.php:104-106`). Let op: één niveau diep, elke nieuwe write overschrijft de back-up.
+- De vorige versie onherstelbaar wissen: vóór het schrijven wordt een `.bak`-kopie gemaakt (`includes/helpers.php`), behalve voor bestanden in `oxygen-elements/`. Let op: één niveau diep, elke nieuwe write overschrijft de back-up.
 - Instellingen wijzigen, plugins installeren of gebruikers aanmaken — daar is geen ability voor.
 
 ## Bestanden en gegevens
@@ -72,7 +72,7 @@ Alleen beschikbaar als de module Oxygen Element Studio aan staat en Oxygen 6 act
 | `read-oxygen-element-file` | `{ path, content }` van een bestaand bestand |
 | `write-oxygen-element-file` | Overschrijft een bestaand bestand; geeft `{ saved, path, bytes }` |
 
-Adressering: `path` (`elements/<Naam>/<bestand>`, `macros/<naam>.twig`, `presets/<Naam>.php`) of `element` + `file` (`element.php`, `html.twig`, `css.twig`, `default.css`). Validatie loopt via `PDK_Oxygen_Elements::file_rel_path()`; schrijven via `pdk_write_storage_file()`, dus PHP-syntaxcontrole voor `element.php`, een `.bak` en geen controle op Twig.
+Adressering: `path` (`elements/<Naam>/<bestand>`, `macros/<naam>.twig`, `presets/<Naam>.php`) of `element` + `file` (`element.php`, `html.twig`, `css.twig`, `default.css`). Validatie: `oxygen_rel()` laat `PDK_Oxygen_Elements::parse()` de syntax controleren en bepaalt daarna zelf de fout — `pdk_invalid_path` (parse faalt), `element_not_found` (elementmap of macro-/presetbestand ontbreekt), `file_not_found` (element bestaat, bestand niet); schrijven via `pdk_write_storage_file()`, dus PHP-syntaxcontrole voor `element.php`, geen `.bak` (Element Studio beheert deze bestanden; gebruik git) en geen controle op Twig.
 
 **De poort: eerst aanmaken, dan bewerken.** Deze abilities maken nooit een map of bestand aan. Bestaat het element (of de macro/preset) nog niet, dan geeft lezen én schrijven de fout `element_not_found`: "Maak het eerst aan in de Oxygen-builder: Element Studio → New element → opslaglocatie 'PDK Elementen'. Roep daarna list-oxygen-elements opnieuw aan." Bestaat het element wel maar ontbreekt het bestand, dan `file_not_found`; een ongeldig of `..`-pad geeft `pdk_invalid_path`. Na het schrijven moet het element opnieuw geopend worden in Element Studio om het resultaat te zien.
 

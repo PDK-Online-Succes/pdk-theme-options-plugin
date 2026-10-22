@@ -37,7 +37,7 @@ Een element "Docs Demo Card" komt in `elements/Docs_Demo_Card/` met `element.php
 
 ### Waarom dit in uploads werkt
 
-De bestanden staan in `wp-content/uploads/pdk-theme-options/oxygen-elements/`, naast `custom-functions.php`. Alles wat Oxygen met een opslaglocatie doet begint met `WP_PLUGIN_DIR . DIRECTORY_SEPARATOR . $directoryPath` — opslaan (`save.php`), laden (`load.php`), verwijderen (`delete.php`), macro's en presets — zonder te controleren of het resultaat binnen de plugins-map blijft. Een relatief pad als `../uploads/pdk-theme-options/oxygen-elements/elements` werkt dus overal. `relative_path()` berekent het generiek: het splitst `realpath( WP_PLUGIN_DIR )` en `realpath( dir() . 'elements' )`, haalt het gemeenschappelijke begin eraf en zet een `..` per overgebleven pluginmap-segment ervoor (hoofdletterongevoelig op Windows). Zo klopt het ook bij een aangepaste `UPLOADS` of `WP_PLUGIN_DIR`.
+De bestanden staan in `wp-content/uploads/pdk-theme-options/oxygen-elements/`, naast `custom-functions.php`. Alles wat Oxygen met een opslaglocatie doet begint met `WP_PLUGIN_DIR . DIRECTORY_SEPARATOR . $directoryPath` — opslaan (`save.php`), laden (`load.php`), verwijderen (`delete.php`), macro's en presets — zonder te controleren of het resultaat binnen de plugins-map blijft. Een relatief pad als `../uploads/pdk-theme-options/oxygen-elements/elements` werkt dus overal. `base()` berekent het generiek, één keer per request: het splitst `realpath( WP_PLUGIN_DIR )` en `realpath( dir() )`, haalt het gemeenschappelijke begin eraf en zet een `..` per overgebleven pluginmap-segment ervoor (hoofdletterongevoelig op Windows). Daarna een rondreis: `realpath( WP_PLUGIN_DIR . '/' . $rel )` moet weer op de opslagmap uitkomen, anders (symlink op de plugins-map) zet `base()` `$error` en registreert de module niets. `relative_path( $type )` plakt er `/elements`, `/macros` of `/presets` achter. Zo klopt het ook bij een aangepaste `UPLOADS` of `WP_PLUGIN_DIR`.
 
 Eén obstakel: de gegenereerde `element.php` roept zelf `registerElementForEditing( "PdkElements\X", getDirectoryPathRelativeToPluginFolder( __DIR__ ) )` aan, en die hulpfunctie haalt alleen `realpath( WP_PLUGIN_DIR ) . '/'` van het pad af. Buiten de plugins-map blijft het volledige absolute pad over; "Open element" stuurt dat terug naar `save_element`/`delete_element`, die er `WP_PLUGIN_DIR` voor plakken, en opslaan faalt. Daarom haakt `fix_element_paths()` op `breakdance_loaded` prioriteit **11** (na Oxygens scan op 10): voor elke entry in `ElementStudioController::getInstance()->elements` waarvan het pad met onze `elements/`-map begint, wordt dat absolute begin vervangen door het relatieve pad (met `/` als scheiding, zoals Oxygen zelf). Dat is de `ponytail:`-notitie bij `fix_element_paths()`.
 
@@ -58,16 +58,17 @@ Bij verwijderen van de plugin blijft de map staan (`uninstall.php` raakt hem nie
 
 `render_tab_oxygen_elements()` (`includes/class-pdk-admin.php`) toont:
 
-1. een waarschuwing als `builder_active()` `false` geeft (Oxygen 6 niet geladen) of als de map niet schrijfbaar is;
+1. een waarschuwing als de map niet schrijfbaar is;
 2. hoe je Element Studio opent: in de builder `Ctrl+Alt+E` (macOS `Cmd+Alt+E`) of via het instellingenmenu, dan "New element" en locatie "PDK Elementen";
 3. per type een tabel van wat `scan()` op schijf vindt — elementen met hun slug (gelezen uit `element.php`, zodat hij ook klopt na een hernoemde map), macro's en presets met hun relatieve pad.
 
-Er is niets op te slaan; opslaan gebeurt in de builder.
+Aanmaken gebeurt in de builder; bestaande bestanden zijn vanuit de tab te bewerken (zie "Bewerken vanuit de tab").
 
 ## Voor themaontwikkelaars
 
 - `PDK_Oxygen_Elements::dir()` — absolute map (`PDK_STORAGE_DIR . 'oxygen-elements/'`), met afsluitende separator.
 - `PDK_Oxygen_Elements::relative_path( 'element' )` — het pad dat Oxygen kent, relatief aan de plugins-map; `null` zonder gemeenschappelijk begin.
+- `PDK_Oxygen_Elements::parse( 'elements/Naam/html.twig' )` — alleen syntaxcontrole: `[ 'type', 'name', 'file', 'rel' ]` of `null`, zonder te kijken of het bestand bestaat.
 - `PDK_Oxygen_Elements::scan()` — `[ 'element' => [...], 'macro' => [...], 'preset' => [...] ]` met namen zonder pad en extensie.
 - `PDK_Oxygen_Elements::slug( 'Docs_Demo_Card' )` — `PdkElements\DocsDemoCard`, of `''` als het element niet bestaat.
 - `PDK_Oxygen_Elements::builder_active()` — `true` zodra `\Breakdance\ElementStudio\registerSaveLocation()` bestaat.
@@ -80,7 +81,7 @@ Op de tab "Element Studio" toont elk element zijn bestanden (`element.php`, `htm
 
 - **Rechten.** Opslaan vraagt `PDK_CAP_EDIT_CODE`, net als de code-tabs. Zonder die rechten ziet iemand de lijst zonder links.
 - **Pad-validatie.** `PDK_Oxygen_Elements::file_rel_path()` accepteert alleen `elements/<Naam>/<een van de vier bestanden>`, `macros/<naam>.twig` en `presets/<Naam>.php` (naam: `[A-Za-z0-9_-]+`) en alleen als het bestand al bestaat: bewerken, nooit aanmaken. `..`, backslashes en andere extensies geven `null`.
-- **Opslaan** gaat via `pdk_write_storage_file()`: een `.php`-bestand met een syntaxfout wordt geweigerd, en de vorige versie komt in `<bestand>.bak`.
+- **Opslaan** gaat via `pdk_write_storage_file()`: een `.php`-bestand met een syntaxfout wordt geweigerd. Er wordt **geen** `.bak` geschreven: Element Studio beheert deze bestanden en herschrijft ze zonder de back-up bij te werken, dus een vergelijking zou misleiden. Gebruik versiebeheer (git) om terug te gaan.
 - **Geen integriteitshash.** Element Studio schrijft dezelfde bestanden, dus een opgeslagen hash zou later als "gewijzigd buiten de editor" lezen. `pdk_store_file_hash()` slaat `oxygen-elements/` over en de bestanden staan niet in `pdk_watched_files()`.
 - **Valkuil: twee schrijvers.** Element Studio en deze editor schrijven dezelfde bestanden. Open het element na bewerken hier opnieuw in de builder, anders overschrijft de builder je wijziging bij zijn volgende save. Een PHP-syntaxfout in `element.php` wordt geweigerd; een Twig-fout niet en verschijnt pas in de builder.
 
@@ -100,4 +101,4 @@ De module AI-agent toegang kan deze bestanden lezen en bewerken, maar geen eleme
 
 ## Zelftest
 
-`php tests/test-oxygen-elements.php` — 19 controles: hooks en prioriteiten (9 en 11), drie registraties met het juiste pad/namespace/vlag, submappen aangemaakt, het opgegeven pad komt via `WP_PLUGIN_DIR` op dezelfde map uit als `dir()` (precies wat Oxygens glob doet), scannen van elementen/macro's/presets (lege elementmap genegeerd), slug uit `element.php`, `builder_active()`, `relative_path()` en het padherstel van `fix_element_paths()` (eigen element wordt relatief, vreemd element blijft ongemoeid).
+`php tests/test-oxygen-elements.php` — 31 controles: hooks en prioriteiten (9 en 11), drie registraties met het juiste pad/namespace/vlag, submappen aangemaakt, het opgegeven pad komt via `WP_PLUGIN_DIR` op dezelfde map uit als `dir()` (precies wat Oxygens glob doet), scannen van elementen/macro's/presets (lege elementmap genegeerd), slug uit `element.php`, `builder_active()`, `relative_path()`, `parse()`- en `file_rel_path()`-validatie (traversal, newline, onbekende bestandsnaam, macro/preset) en het padherstel van `fix_element_paths()` (eigen element wordt relatief, vreemd element blijft ongemoeid).

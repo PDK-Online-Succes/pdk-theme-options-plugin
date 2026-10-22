@@ -240,12 +240,12 @@ class PDK_Settings {
 			'imgx' => [
 				'enabled' => false,
 			],
-			// Uitgeschakelde maten (blocklist, zie PDK_Image_Sizes::disabled()) en
-			// eigen maten (sleutel => breedte/hoogte/crop, altijd voorvoegsel `pdk_`).
 			// Element Studio: geen instellingen — de locatie staat vast in de code.
 			'oxygen_elements' => [
 				'enabled' => false,
 			],
+			// Uitgeschakelde maten (blocklist, zie PDK_Image_Sizes::disabled()) en
+			// eigen maten (sleutel => breedte/hoogte/crop, altijd voorvoegsel `pdk_`).
 			'image_sizes' => [
 				'enabled'  => false,
 				'disabled' => [],

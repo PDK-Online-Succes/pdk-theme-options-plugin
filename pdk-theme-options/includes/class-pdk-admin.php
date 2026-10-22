@@ -128,8 +128,9 @@ class PDK_Admin {
 		}
 
 		// phpcs:disable WordPress.Security.NonceVerification.Missing
-		// pdk_storage_rel_path() laat alleen de libraries-submap door, de rest
-		// wordt tot een kale bestandsnaam teruggebracht.
+		// pdk_storage_rel_path() laat de libraries-submap en gevalideerde
+		// oxygen-elements/-paden door, de rest wordt tot een kale bestandsnaam
+		// teruggebracht (een ongeldig oxygen-elements/-pad wordt '').
 		$file = pdk_storage_rel_path( (string) wp_unslash( $_POST['file'] ?? '' ) );
 		$op   = sanitize_key( $_POST['op'] ?? '' );
 		// phpcs:enable
@@ -2393,6 +2394,11 @@ class PDK_Admin {
 		$found     = PDK_Oxygen_Elements::scan();
 		$dir       = PDK_Oxygen_Elements::dir();
 		$mag_edit  = pdk_current_user_can_edit_code();
+		// Eerst berekenen: relative_path() zet PDK_Oxygen_Elements::$error, dat hieronder getoond wordt.
+		$paden = [];
+		foreach ( PDK_Oxygen_Elements::TYPES as $t => $_ ) {
+			$paden[ $t ] = PDK_Oxygen_Elements::relative_path( $t );
+		}
 		$edit_link = function ( string $edit ) use ( $mag_edit ): string {
 			if ( ! $mag_edit ) {
 				return '';
@@ -2403,11 +2409,7 @@ class PDK_Admin {
 		?>
 		<h2><?php esc_html_e( 'Element Studio', 'pdk-theme-options' ); ?></h2>
 
-		<?php if ( ! PDK_Oxygen_Elements::builder_active() ) : ?>
-			<div class="notice notice-warning inline"><p>
-				<?php esc_html_e( 'Oxygen 6 (of Breakdance) is niet actief. Element Studio hoort bij Oxygen 6; Oxygen Classic 4.x heeft het niet. De module registreert pas iets zodra Oxygen 6 draait.', 'pdk-theme-options' ); ?>
-			</p></div>
-		<?php elseif ( ! is_writable( $dir ) ) : ?>
+		<?php if ( ! is_writable( $dir ) ) : ?>
 			<div class="notice notice-error inline"><p>
 				<?php printf( esc_html__( 'De map %s is niet schrijfbaar; Element Studio kan er niets opslaan.', 'pdk-theme-options' ), '<code>' . esc_html( $dir ) . '</code>' ); ?>
 			</p></div>
@@ -2455,9 +2457,9 @@ class PDK_Admin {
 							<td><code><?php
 								echo 'element' === $type
 									? esc_html( PDK_Oxygen_Elements::slug( $naam ) )
-									: esc_html( ( PDK_Oxygen_Elements::relative_path( $type ) ?? $dir . $sub ) . '/' . basename( $edit ) );
+									: esc_html( ( $paden[ $type ] ?? $dir . $sub ) . '/' . basename( $edit ) );
 							?></code></td>
-							<td></td>
+							<td><?php echo '' !== $edit ? esc_html( size_format( (int) filesize( $dir . $edit ) ) ) : ''; ?></td>
 							<td><?php echo '' !== $edit ? $edit_link( $edit ) : ''; // phpcs:ignore WordPress.Security.EscapeOutput ?></td>
 						</tr>
 						<?php if ( 'element' === $type ) : ?>
