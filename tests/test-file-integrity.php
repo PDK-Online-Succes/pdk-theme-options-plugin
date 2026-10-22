@@ -92,6 +92,10 @@ $path = PDK_STORAGE_DIR . $file;
 // --- Rechten uit wp-config gaan boven alles wat in de database staat --------
 check( pdk_map_code_cap( [ PDK_CAP_EDIT_CODE ], PDK_CAP_EDIT_CODE, 7 ) === [ 'exist' ] );
 check( pdk_map_code_cap( [ PDK_CAP_EDIT_CODE ], PDK_CAP_EDIT_CODE, 1 ) === [ 'do_not_allow' ] );
+// WordPress' eigen bestandseditors: buiten de lijst dicht, op de lijst normale controle.
+check( pdk_map_code_cap( [ 'edit_themes' ], 'edit_themes', 1 ) === [ 'do_not_allow' ] );
+check( pdk_map_code_cap( [ 'edit_plugins' ], 'edit_plugins', 7 ) === [ 'edit_plugins' ] );
+check( pdk_map_code_cap( [ 'do_not_allow' ], 'edit_files', 7 ) === [ 'do_not_allow' ], 'DISALLOW_FILE_EDIT blijft gelden' );
 // Andere capabilities blijven ongemoeid.
 check( pdk_map_code_cap( [ 'manage_options' ], 'manage_options', 1 ) === [ 'manage_options' ] );
 

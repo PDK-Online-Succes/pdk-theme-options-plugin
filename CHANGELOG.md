@@ -2,6 +2,12 @@
 
 Alle noemenswaardige wijzigingen in PDK Theme Options worden hier bijgehouden.
 
+## [2.11.1] — 2026-10-22
+
+### Gewijzigd
+
+- `PDK_CODE_EDITORS` sluit nu ook de thema- en plugin-editor van WordPress af (`edit_themes`, `edit_plugins`, `edit_files`): gebruikers die niet in de lijst staan krijgen `do_not_allow`, ook multisite-superbeheerders. Wie in de lijst staat houdt de normale WordPress-controle, dus `DISALLOW_FILE_EDIT` blijft gelden. Zonder de constante verandert er niets
+
 ## [2.11.0] — 2026-10-22
 
 ### Nieuwe module: Oxygen Element Studio
