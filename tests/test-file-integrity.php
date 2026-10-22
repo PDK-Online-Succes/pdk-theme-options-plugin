@@ -131,6 +131,16 @@ check( str_contains( file_get_contents( PDK_STORAGE_DIR . '.htaccess' ), '(php|b
 foreach ( array_diff( scandir( PDK_STORAGE_DIR ), [ '.', '..' ] ) as $f ) {
 	unlink( PDK_STORAGE_DIR . $f );
 }
+
+// --- Element Studio-paden ---------------------------------------------------
+// Stub van de module (klassen worden gehoist, dus geldt hij voor het hele bestand).
+class PDK_Oxygen_Elements {
+	public static function file_rel_path( string $edit ): ?string {
+		return 'elements/X/html.twig' === $edit ? 'oxygen-elements/' . $edit : null;
+	}
+}
+check( 'oxygen-elements/elements/X/html.twig' === pdk_storage_rel_path( 'oxygen-elements/elements/X/html.twig' ), 'element-pad blijft intact' );
+check( 'custom-functions.php' === pdk_storage_rel_path( 'oxygen-elements/../custom-functions.php' ), '.. wordt platgeslagen' );
 rmdir( PDK_STORAGE_DIR );
 
 echo $fouten ? "{$fouten} controle(s) gefaald\n" : "OK — alle controles geslaagd\n";

@@ -2,6 +2,21 @@
 
 Alle noemenswaardige wijzigingen in PDK Theme Options worden hier bijgehouden.
 
+## [2.11.0] — 2026-10-22
+
+### Nieuwe module: Oxygen Element Studio
+
+Registreert een eigen opslaglocatie "PDK Elementen" voor Element Studio in Oxygen 6 (en Breakdance), zodat elementen, macro's en presets die een ontwikkelaar in de builder maakt niet in de first-party mappen van Oxygen belanden — die worden bij elke Oxygen-update overschreven. Standaard uit, aan te zetten op de Modules-tab.
+
+- **Eén hook, geen eigen laadcode.** `\Breakdance\ElementStudio\registerSaveLocation()` op `breakdance_loaded` prioriteit 9, driemaal (element, macro, preset), namespace `PdkElements`. Oxygen globt zelf `<locatie>/*/*.php` op prioriteit 10 en include't de element-klassen; een registratie op `oxygen_loaded` zou te laat zijn
+- **De bestanden staan in `wp-content/uploads/pdk-theme-options/oxygen-elements/`**, met submappen `elements/`, `macros/` en `presets/` — net als `custom-functions.php`, dus buiten de plugin en buiten Oxygen en onaangetast door updates van beide. Oxygen zet overal `WP_PLUGIN_DIR` vóór het opgegeven pad zonder te controleren dat het binnen de pluginmap blijft, dus de module registreert een relatief pad (`../uploads/pdk-theme-options/oxygen-elements/elements`, generiek berekend vanaf `realpath( WP_PLUGIN_DIR )`). Alleen `getDirectoryPathRelativeToPluginFolder()` in de gegenereerde `element.php` geeft buiten de pluginmap een absoluut pad terug; `fix_element_paths()` op `breakdance_loaded` prioriteit 11 (na Oxygens scan) schrijft die in `ElementStudioController::$elements` om naar het relatieve pad, zodat "Open element → Save" werkt. Leunt op dat die lijst publiek is in Oxygen 6.2. Staan plugins en uploads op verschillende schijven, dan registreert de module niets en toont de tab een melding
+- **Vereist Oxygen 6.x (of Breakdance).** Zonder actieve Oxygen 6 is de toggle uitgegrijsd met de melding "Oxygen 6 is niet actief", net als bij de WooCommerce-modules, en wordt de klasse niet geladen. Detectie op het hoofdbestand: `oxygen/plugin.php` is Oxygen 6, `oxygen/functions.php` is Classic 4.x. De bestaande "WooCommerce is niet actief"-melding is daarvoor veralgemeend naar de naam van de ontbrekende afhankelijkheid (`PDK_Settings::module_missing_dependency()`)
+- **Eigen tab "Element Studio"** zodra de module aan staat: uitleg hoe je de studio opent (Ctrl+Alt+E) en welke locatie je kiest, plus een overzicht van wat er op schijf staat — elementen met hun slug (uit `element.php` gelezen), macro's en presets
+- **Bij verwijderen van de plugin blijft de map staan** (`uninstall.php` raakt hem niet), net als de andere klantbestanden in uploads. Zet hem in versiebeheer: de Delete-knop in Element Studio verwijdert bestanden zonder prullenbak
+- **Bestanden bekijken en bewerken in de tab.** Per element de vier bestanden (`element.php`, `html.twig`, `css.twig`, `default.css`) met een "Bewerken"-link naar de code-editor van de Libraries-tab, ook voor macro's en presets. Opslaan vraagt de code-editor-rechten, weigert PHP-syntaxfouten, maakt een `.bak` en slaat geen integriteitshash op (Element Studio schrijft dezelfde bestanden). Pad-validatie in `PDK_Oxygen_Elements::file_rel_path()`; `pdk_storage_rel_path()` laat `oxygen-elements/` nu intact
+- **Element Studio-bestanden via MCP.** De module AI-agent toegang krijgt, zodra Oxygen Element Studio aan staat, drie abilities: `list-oxygen-elements`, `read-oxygen-element-file` en `write-oxygen-element-file`. Aanmaken kan bewust niet: een element dat nog niet bestaat levert de fout `element_not_found` met de opdracht het eerst in de Oxygen-builder aan te maken (Element Studio → New element → opslaglocatie "PDK Elementen"); ontbreekt alleen het bestand, dan `file_not_found`. Schrijven loopt via `pdk_write_storage_file()`: dezelfde rechten, PHP-syntaxcontrole voor `element.php` en `.bak`. `get-site-info` meldt de abilities
+- Zelftest: `php tests/test-oxygen-elements.php`
+
 ## [2.10.1] — 2026-09-14
 
 ### Documentatie per module

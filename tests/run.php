@@ -25,7 +25,8 @@ foreach ( $files as $file ) {
 	// in één proces samen. Een subproces per bestand houdt ze uit elkaars vaarwater.
 	$output = [];
 	$code   = 0;
-	exec( escapeshellarg( PHP_BINARY ) . ' ' . escapeshellarg( $file ) . ' 2>&1', $output, $code );
+	// Assertions afdwingen: op een productie-php.ini staan ze uit en zou alles stilletjes slagen.
+	exec( escapeshellarg( PHP_BINARY ) . ' -d zend.assertions=1 -d assert.exception=1 ' . escapeshellarg( $file ) . ' 2>&1', $output, $code );
 
 	$laatste = '';
 	foreach ( array_reverse( $output ) as $regel ) {

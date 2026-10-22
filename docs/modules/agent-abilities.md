@@ -62,6 +62,20 @@ In de database schrijft elke write een SHA-256 vingerafdruk weg in de optie `pdk
 
 Bij uninstall blijven de bestanden in de storage-map bewust staan (`uninstall.php:5-6`); `pdk_theme_options` en `pdk_file_hashes` worden verwijderd (`uninstall.php:16-17`) en de capability wordt van alle rollen en gebruikers afgehaald (`uninstall.php:59-75`).
 
+## Element Studio-bestanden
+
+Alleen beschikbaar als de module Oxygen Element Studio aan staat en Oxygen 6 actief is; anders worden deze abilities niet geregistreerd. Rechten: `pdk_current_user_can_edit_code()`, net als `read-custom-code` en `write-custom-code`.
+
+| Ability | Doet |
+|---|---|
+| `list-oxygen-elements` | Elementen (`name`, `slug`, aanwezige `files`), `macros`, `presets`, `dir` en een `instructions`-tekst voor de agent |
+| `read-oxygen-element-file` | `{ path, content }` van een bestaand bestand |
+| `write-oxygen-element-file` | Overschrijft een bestaand bestand; geeft `{ saved, path, bytes }` |
+
+Adressering: `path` (`elements/<Naam>/<bestand>`, `macros/<naam>.twig`, `presets/<Naam>.php`) of `element` + `file` (`element.php`, `html.twig`, `css.twig`, `default.css`). Validatie loopt via `PDK_Oxygen_Elements::file_rel_path()`; schrijven via `pdk_write_storage_file()`, dus PHP-syntaxcontrole voor `element.php`, een `.bak` en geen controle op Twig.
+
+**De poort: eerst aanmaken, dan bewerken.** Deze abilities maken nooit een map of bestand aan. Bestaat het element (of de macro/preset) nog niet, dan geeft lezen én schrijven de fout `element_not_found`: "Maak het eerst aan in de Oxygen-builder: Element Studio → New element → opslaglocatie 'PDK Elementen'. Roep daarna list-oxygen-elements opnieuw aan." Bestaat het element wel maar ontbreekt het bestand, dan `file_not_found`; een ongeldig of `..`-pad geeft `pdk_invalid_path`. Na het schrijven moet het element opnieuw geopend worden in Element Studio om het resultaat te zien.
+
 ## Voor themaontwikkelaars
 
 - `pdk_register_frontend_output( $name, $render, $markup )` — wat je hiermee registreert, verschijnt automatisch in `get-site-info` onder `frontend_output`, inclusief live gerenderde HTML (`includes/helpers.php:158-168`, `modules/agent-abilities/class-pdk-agent-abilities.php:244-262`).

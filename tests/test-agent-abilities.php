@@ -178,13 +178,74 @@ assert( $info['modules_enabled']['agent_abilities'] === true );
 assert( $info['modules_enabled']['custom_css'] === false );
 assert( isset( $info['php_helpers']['pdk_company_address()'] ) );
 
+// Element Studio-abilities: zonder de module worden ze niet geregistreerd.
+$GLOBALS['registered'] = [];
+function wp_register_ability( string $name, array $args ): void {
+	$GLOBALS['registered'][] = $name;
+}
+$m->register_abilities();
+assert( ! preg_grep( '#oxygen#', $GLOBALS['registered'] ) );
+
+require_once $pdk . '/modules/oxygen-elements/class-pdk-oxygen-elements.php';
+
+$GLOBALS['registered'] = [];
+$m->register_abilities();
+assert( count( preg_grep( '#oxygen-element#', $GLOBALS['registered'] ) ) === 3 );
+
+// Een bestaand element, zoals Element Studio het aanmaakt.
+$el = PDK_Oxygen_Elements::dir() . 'elements/Kaart';
+mkdir( $el, 0777, true );
+mkdir( PDK_Oxygen_Elements::dir() . 'macros', 0777, true );
+file_put_contents( $el . '/element.php', "<?php\nnamespace PdkElements;\nclass Kaart {}\n" );
+file_put_contents( $el . '/html.twig', '<div>kaart</div>' );
+file_put_contents( PDK_Oxygen_Elements::dir() . 'macros/knop.twig', '{# knop #}' );
+
+$list = $m->list_oxygen();
+assert( $list['elements'] === [ [ 'name' => 'Kaart', 'slug' => 'PdkElements\Kaart', 'files' => [ 'element.php', 'html.twig' ] ] ] );
+assert( $list['macros'] === [ 'knop' ] && $list['presets'] === [] );
+assert( str_contains( $list['instructions'], 'Element Studio' ) );
+
+// Lezen: via element + file en via path.
+assert( $m->read_oxygen( [ 'element' => 'Kaart', 'file' => 'html.twig' ] ) === [ 'path' => 'oxygen-elements/elements/Kaart/html.twig', 'content' => '<div>kaart</div>' ] );
+assert( $m->read_oxygen( [ 'path' => 'macros/knop.twig' ] )['content'] === '{# knop #}' );
+
+// Schrijven: geldig, en kapotte PHP wordt geweigerd zonder het bestand te raken.
+assert( $m->write_oxygen( [ 'path' => 'elements/Kaart/html.twig', 'content' => '<p>nieuw</p>' ] ) === [ 'saved' => true, 'path' => 'oxygen-elements/elements/Kaart/html.twig', 'bytes' => 12 ] );
+assert( file_get_contents( $el . '/html.twig' ) === '<p>nieuw</p>' );
+$bad = $m->write_oxygen( [ 'path' => 'elements/Kaart/element.php', 'content' => "<?php\nclass {\n" ] );
+assert( $bad->get_error_code() === 'php_parse_error' );
+assert( str_contains( file_get_contents( $el . '/element.php' ), 'class Kaart' ) );
+
+// De poort: een element dat nog niet bestaat moet eerst in de builder worden aangemaakt.
+foreach ( [
+	$m->read_oxygen( [ 'element' => 'Bestaatniet', 'file' => 'element.php' ] ),
+	$m->write_oxygen( [ 'path' => 'elements/Bestaatniet/element.php', 'content' => '<?php' ] ),
+	$m->write_oxygen( [ 'path' => 'macros/weg.twig', 'content' => 'x' ] ),
+] as $gate ) {
+	assert( $gate->get_error_code() === 'element_not_found' );
+	assert( str_contains( $gate->get_error_message(), 'Element Studio' ) );
+}
+assert( ! file_exists( PDK_Oxygen_Elements::dir() . 'elements/Bestaatniet' ) );
+assert( ! file_exists( PDK_Oxygen_Elements::dir() . 'macros/weg.twig' ) );
+
+// Bestaand element, ontbrekend bestand: niet aanmaken.
+assert( $m->write_oxygen( [ 'path' => 'elements/Kaart/default.css', 'content' => 'a{}' ] )->get_error_code() === 'file_not_found' );
+assert( ! file_exists( $el . '/default.css' ) );
+
+// Padtruc en onbekend bestand.
+assert( $m->read_oxygen( [ 'path' => 'elements/../../custom-functions.php' ] )->get_error_code() === 'pdk_invalid_path' );
+assert( $m->read_oxygen( [ 'element' => '..', 'file' => 'element.php' ] )->get_error_code() === 'pdk_invalid_path' );
+assert( $m->read_oxygen( [ 'path' => 'elements/Kaart/geheim.txt' ] )->get_error_code() === 'pdk_invalid_path' );
+
+assert( isset( $m->site_info()['oxygen_elements'] ) );
+
 // Zonder capability: lezen mag (permission_callback regelt dat), schrijven niet.
 $GLOBALS['can_edit'] = false;
 assert( $m->write( [ 'file' => 'js', 'content' => 'alert(1)' ] )->get_error_code() === 'forbidden' );
 
-// Opruimen — ook .htaccess, die pdk_ensure_storage_dir() aanmaakt.
-foreach ( array_diff( scandir( PDK_STORAGE_DIR ), [ '.', '..' ] ) as $f ) {
-	unlink( PDK_STORAGE_DIR . $f );
+// Opruimen — ook .htaccess, die pdk_ensure_storage_dir() aanmaakt, en de Element Studio-mappen.
+foreach ( new RecursiveIteratorIterator( new RecursiveDirectoryIterator( PDK_STORAGE_DIR, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::CHILD_FIRST ) as $f ) {
+	$f->isDir() ? rmdir( $f->getPathname() ) : unlink( $f->getPathname() );
 }
 rmdir( PDK_STORAGE_DIR );
 

@@ -198,6 +198,28 @@ function pdk_woocommerce_active(): bool {
 	return in_array( 'woocommerce/woocommerce.php', $active, true );
 }
 
+/**
+ * Controleert of Oxygen 6 (of Breakdance — zelfde engine) actief is.
+ *
+ * Oxygen 6 heeft `oxygen/plugin.php` als hoofdbestand, Oxygen Classic 4.x
+ * `oxygen/functions.php`; op de bestandsnaam zijn ze dus uit elkaar te houden.
+ * Via de lijst met actieve plugins, want deze plugin laadt (zeker als MU-plugin)
+ * vóór Oxygen en de constante BREAKDANCE_MODE bestaat dan nog niet.
+ */
+function pdk_oxygen6_active(): bool {
+	if ( defined( 'BREAKDANCE_MODE' ) ) {
+		return true;
+	}
+
+	$active = (array) get_option( 'active_plugins', [] );
+
+	if ( is_multisite() ) {
+		$active = array_merge( $active, array_keys( (array) get_site_option( 'active_sitewide_plugins', [] ) ) );
+	}
+
+	return in_array( 'oxygen/plugin.php', $active, true ) || in_array( 'breakdance/plugin.php', $active, true );
+}
+
 // -----------------------------------------------------------------------------
 // Rechten via wp-config — persistent, niet te wijzigen via database of admin
 // -----------------------------------------------------------------------------
@@ -282,6 +304,15 @@ function pdk_code_files(): array {
  */
 function pdk_storage_rel_path( string $filename ): string {
 	$filename = str_replace( '\\', '/', $filename );
+
+	// Element Studio-bestanden: de gevalideerde submap-structuur blijft intact.
+	if ( str_starts_with( $filename, 'oxygen-elements/' ) && class_exists( 'PDK_Oxygen_Elements' ) ) {
+		$rel = PDK_Oxygen_Elements::file_rel_path( substr( $filename, strlen( 'oxygen-elements/' ) ) );
+		if ( null !== $rel ) {
+			return $rel;
+		}
+	}
+
 	$prefix   = str_starts_with( $filename, PDK_LIBRARY_SUBDIR ) ? PDK_LIBRARY_SUBDIR : '';
 
 	return $prefix . basename( $filename );
@@ -294,6 +325,10 @@ function pdk_is_library_file( string $filename ): bool {
 
 /** Legt de vingerafdruk van een via de editor opgeslagen bestand vast. */
 function pdk_store_file_hash( string $filename, string $content ): void {
+	// Element Studio schrijft deze bestanden zelf ook; een hash zou later als "gewijzigd" lezen.
+	if ( str_starts_with( $filename, 'oxygen-elements/' ) ) {
+		return;
+	}
 	$hashes              = (array) get_option( 'pdk_file_hashes', [] );
 	$hashes[ $filename ] = hash( 'sha256', $content );
 	update_option( 'pdk_file_hashes', $hashes, false );
