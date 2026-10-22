@@ -33,6 +33,7 @@ class PDK_Admin {
 		'language_checker' => 'Taalcontrole',
 		'imgx'             => 'IMGX',
 		'image_sizes'      => 'Afbeeldingsmaten',
+		'oxygen_elements'  => 'Element Studio',
 	];
 
 	/** Tabs met een code-editor → het bestand in de storage-map. */
@@ -127,8 +128,9 @@ class PDK_Admin {
 		}
 
 		// phpcs:disable WordPress.Security.NonceVerification.Missing
-		// pdk_storage_rel_path() laat alleen de libraries-submap door, de rest
-		// wordt tot een kale bestandsnaam teruggebracht.
+		// pdk_storage_rel_path() laat de libraries-submap en gevalideerde
+		// oxygen-elements/-paden door, de rest wordt tot een kale bestandsnaam
+		// teruggebracht (een ongeldig oxygen-elements/-pad wordt '').
 		$file = pdk_storage_rel_path( (string) wp_unslash( $_POST['file'] ?? '' ) );
 		$op   = sanitize_key( $_POST['op'] ?? '' );
 		// phpcs:enable
@@ -240,7 +242,7 @@ class PDK_Admin {
 		$huidige_tab = sanitize_key( $_GET['tab'] ?? '' );
 		$code_editor = isset( self::CODE_TABS[ $huidige_tab ] )
 			// De Libraries-tab heeft alleen een editor als er een bestand open staat.
-			|| ( 'libraries' === $huidige_tab && ! empty( $_GET['edit'] ) );
+			|| ( in_array( $huidige_tab, [ 'libraries', 'oxygen_elements' ], true ) && ! empty( $_GET['edit'] ) );
 		// phpcs:enable
 
 		if ( $code_editor ) {
@@ -330,6 +332,11 @@ class PDK_Admin {
 				break;
 			case 'libraries':
 				$this->save_libraries();
+				break;
+			case 'oxygen_elements':
+				if ( class_exists( 'PDK_Oxygen_Elements' ) ) {
+					$this->save_oxygen_element_file(); // doet zelf altijd een redirect.
+				}
 				break;
 			case 'security':
 				$this->save_security();
@@ -682,7 +689,7 @@ class PDK_Admin {
 		}
 
 		// Tabs met eigen forms (geen wrapper-form nodig — anders geneste forms).
-		$standalone_tabs = [ 'language_checker', 'custom_fonts', 'libraries', 'imgx', 'image_sizes' ];
+		$standalone_tabs = [ 'language_checker', 'custom_fonts', 'libraries', 'imgx', 'image_sizes', 'oxygen_elements' ];
 		$use_form        = ! in_array( $tab, $standalone_tabs, true );
 		?>
 		<div class="wrap pdk-wrap">
@@ -751,6 +758,7 @@ class PDK_Admin {
 			'language_checker' => __( 'Language Cleaner', 'pdk-theme-options' ),
 			'imgx'             => __( 'IMGX', 'pdk-theme-options' ),
 			'image_sizes'      => __( 'Afbeeldingsmaten', 'pdk-theme-options' ),
+			'oxygen_elements'  => __( 'Element Studio', 'pdk-theme-options' ),
 		];
 
 		foreach ( $module_tab_labels as $module => $label ) {
@@ -824,6 +832,9 @@ class PDK_Admin {
 			case 'image_sizes':
 				$this->render_tab_image_sizes();
 				break;
+			case 'oxygen_elements':
+				$this->render_tab_oxygen_elements();
+				break;
 		}
 	}
 
@@ -857,7 +868,7 @@ class PDK_Admin {
 					<td>
 						<?php echo esc_html( $descriptions[ $module ] ?? '' ); ?>
 						<?php if ( $unavailable ) : ?>
-							<br><span style="color:#d63638;font-weight:600;"><?php esc_html_e( 'WooCommerce is niet actief — deze module kan niet worden ingeschakeld.', 'pdk-theme-options' ); ?></span>
+							<br><span style="color:#d63638;font-weight:600;"><?php printf( esc_html__( '%s is niet actief — deze module kan niet worden ingeschakeld.', 'pdk-theme-options' ), esc_html( PDK_Settings::module_missing_dependency( $module ) ) ); ?></span>
 						<?php endif; ?>
 					</td>
 					<td>
@@ -2309,6 +2320,166 @@ class PDK_Admin {
 				</td>
 			</tr>
 		</table>
+		<?php
+	}
+
+	// -------------------------------------------------------------------------
+	// Tab: Element Studio (overzicht en bestanden bewerken; aanmaken gebeurt in de builder)
+	// -------------------------------------------------------------------------
+
+	/** Schrijft de editor-inhoud van een Element Studio-bestand weg en gaat terug naar dat bestand. */
+	private function save_oxygen_element_file(): void {
+		if ( ! current_user_can( PDK_CAP_EDIT_CODE ) ) {
+			wp_die( esc_html__( 'Geen toegang.', 'pdk-theme-options' ), 403 );
+		}
+
+		// phpcs:disable WordPress.Security.NonceVerification.Missing
+		$bewerkt = (string) wp_unslash( $_POST['pdk_edit_file'] ?? '' );
+		$content = (string) wp_unslash( $_POST['file_content'] ?? '' );
+		// phpcs:enable
+
+		$redirect = add_query_arg(
+			[ 'page' => self::PAGE_SLUG, 'tab' => 'oxygen_elements', 'edit' => $bewerkt ],
+			admin_url( 'admin.php' )
+		);
+
+		$rel = PDK_Oxygen_Elements::file_rel_path( $bewerkt );
+		if ( null === $rel ) {
+			$this->redirect_with_error( __( 'Onbekend bestand.', 'pdk-theme-options' ), $redirect );
+		}
+
+		$result = pdk_write_storage_file( $rel, $content );
+
+		if ( is_wp_error( $result ) ) {
+			$this->redirect_with_error( $result->get_error_message(), $redirect );
+		}
+
+		wp_safe_redirect( add_query_arg( 'saved', '1', $redirect ) );
+		exit;
+	}
+
+	/** Eén Element Studio-bestand bewerken; zelfde editor als de Libraries-tab. */
+	private function render_oxygen_element_editor( string $bestand, string $rel ): void {
+		$terug = add_query_arg( [ 'page' => self::PAGE_SLUG, 'tab' => 'oxygen_elements' ], admin_url( 'admin.php' ) );
+		// De bundel kent alleen php, css en javascript; php-modus kleurt ook HTML en Twig-tags redelijk.
+		$lang = str_ends_with( $bestand, 'css' ) || str_ends_with( $bestand, 'css.twig' ) ? 'css' : 'php';
+		?>
+		<p>
+			<a href="<?php echo esc_url( $terug ); ?>">&larr; <?php esc_html_e( 'Terug naar de lijst', 'pdk-theme-options' ); ?></a>
+		</p>
+		<h2 style="margin-top:0;"><code><?php echo esc_html( $bestand ); ?></code></h2>
+
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="pdk-settings-form">
+			<?php wp_nonce_field( self::NONCE_ACTION ); ?>
+			<input type="hidden" name="action"  value="pdk_save_settings">
+			<input type="hidden" name="pdk_tab" value="oxygen_elements">
+			<input type="hidden" name="pdk_edit_file" value="<?php echo esc_attr( $bestand ); ?>">
+
+			<?php $this->render_tab_code_editor( $rel, $lang ); ?>
+
+			<?php submit_button( __( 'Bestand opslaan', 'pdk-theme-options' ) ); ?>
+		</form>
+		<?php
+	}
+
+	private function render_tab_oxygen_elements(): void {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$bewerken = (string) wp_unslash( $_GET['edit'] ?? '' );
+		$rel      = '' !== $bewerken ? PDK_Oxygen_Elements::file_rel_path( $bewerken ) : null;
+		if ( null !== $rel ) {
+			$this->render_oxygen_element_editor( $bewerken, $rel );
+			return;
+		}
+
+		$found     = PDK_Oxygen_Elements::scan();
+		$dir       = PDK_Oxygen_Elements::dir();
+		$mag_edit  = pdk_current_user_can_edit_code();
+		// Eerst berekenen: relative_path() zet PDK_Oxygen_Elements::$error, dat hieronder getoond wordt.
+		$paden = [];
+		foreach ( PDK_Oxygen_Elements::TYPES as $t => $_ ) {
+			$paden[ $t ] = PDK_Oxygen_Elements::relative_path( $t );
+		}
+		$edit_link = function ( string $edit ) use ( $mag_edit ): string {
+			if ( ! $mag_edit ) {
+				return '';
+			}
+			$url = add_query_arg( [ 'page' => self::PAGE_SLUG, 'tab' => 'oxygen_elements', 'edit' => $edit ], admin_url( 'admin.php' ) );
+			return '<a href="' . esc_url( $url ) . '">' . esc_html__( 'Bewerken', 'pdk-theme-options' ) . '</a>';
+		};
+		?>
+		<h2><?php esc_html_e( 'Element Studio', 'pdk-theme-options' ); ?></h2>
+
+		<?php if ( ! is_writable( $dir ) ) : ?>
+			<div class="notice notice-error inline"><p>
+				<?php printf( esc_html__( 'De map %s is niet schrijfbaar; Element Studio kan er niets opslaan.', 'pdk-theme-options' ), '<code>' . esc_html( $dir ) . '</code>' ); ?>
+			</p></div>
+		<?php endif; ?>
+
+		<?php if ( PDK_Oxygen_Elements::$error ) : ?>
+			<div class="notice notice-error inline"><p><?php echo esc_html( PDK_Oxygen_Elements::$error ); ?></p></div>
+		<?php endif; ?>
+
+		<p class="description">
+			<?php esc_html_e( 'Open een pagina in de Oxygen-builder, druk op Ctrl+Alt+E (macOS: Cmd+Alt+E) of kies Element Studio in het instellingenmenu, klik "New element" en kies als opslaglocatie "PDK Elementen". De bestanden komen hier terecht:', 'pdk-theme-options' ); ?>
+			<code><?php echo esc_html( $dir ); ?></code>
+		</p>
+		<p class="description">
+			<?php esc_html_e( 'Deze map staat in uploads/pdk-theme-options/oxygen-elements/, net als de andere klantbestanden: buiten de pluginmap en buiten de Oxygen-mappen, dus plugin- en Oxygen-updates raken hem niet. Zet hem in versiebeheer: de Delete-knop in Element Studio verwijdert bestanden zonder prullenbak.', 'pdk-theme-options' ); ?>
+		</p>
+
+		<?php
+		$titels = [
+			'element' => __( 'Elementen', 'pdk-theme-options' ),
+			'macro'   => __( 'Macro\'s', 'pdk-theme-options' ),
+			'preset'  => __( 'Presets', 'pdk-theme-options' ),
+		];
+		foreach ( $titels as $type => $titel ) :
+		?>
+			<h3><?php echo esc_html( $titel ); ?> <span style="font-weight:normal;color:#646970;">(<?php echo count( $found[ $type ] ); ?>)</span></h3>
+			<?php if ( empty( $found[ $type ] ) ) : ?>
+				<p class="description"><?php esc_html_e( 'Nog niets opgeslagen.', 'pdk-theme-options' ); ?></p>
+			<?php else : ?>
+				<table class="widefat striped" style="max-width:900px;margin-bottom:24px;">
+					<thead><tr>
+						<th><?php esc_html_e( 'Naam', 'pdk-theme-options' ); ?></th>
+						<th><?php echo 'element' === $type ? esc_html__( 'Slug', 'pdk-theme-options' ) : esc_html__( 'Bestand', 'pdk-theme-options' ); ?></th>
+						<th><?php esc_html_e( 'Grootte', 'pdk-theme-options' ); ?></th>
+						<th></th>
+					</tr></thead>
+					<tbody>
+					<?php foreach ( $found[ $type ] as $naam ) : ?>
+						<?php
+						$sub  = PDK_Oxygen_Elements::TYPES[ $type ];
+						$edit = 'element' === $type ? '' : $sub . '/' . $naam . ( 'macro' === $type ? '.twig' : '.php' );
+						?>
+						<tr>
+							<td><strong><?php echo esc_html( str_replace( '_', ' ', $naam ) ); ?></strong></td>
+							<td><code><?php
+								echo 'element' === $type
+									? esc_html( PDK_Oxygen_Elements::slug( $naam ) )
+									: esc_html( ( $paden[ $type ] ?? $dir . $sub ) . '/' . basename( $edit ) );
+							?></code></td>
+							<td><?php echo '' !== $edit ? esc_html( size_format( (int) filesize( $dir . $edit ) ) ) : ''; ?></td>
+							<td><?php echo '' !== $edit ? $edit_link( $edit ) : ''; // phpcs:ignore WordPress.Security.EscapeOutput ?></td>
+						</tr>
+						<?php if ( 'element' === $type ) : ?>
+							<?php foreach ( PDK_Oxygen_Elements::ELEMENT_FILES as $bestand ) : ?>
+								<?php $pad = $dir . 'elements/' . $naam . '/' . $bestand; ?>
+								<?php if ( is_file( $pad ) ) : ?>
+									<tr>
+										<td style="padding-left:32px;"><code><?php echo esc_html( $bestand ); ?></code></td>
+										<td></td>
+										<td><?php echo esc_html( size_format( (int) filesize( $pad ) ) ); ?></td>
+										<td><?php echo $edit_link( 'elements/' . $naam . '/' . $bestand ); // phpcs:ignore WordPress.Security.EscapeOutput ?></td>
+									</tr>
+								<?php endif; ?>
+							<?php endforeach; ?>
+						<?php endif; ?>
+					<?php endforeach; ?>
+					</tbody>
+				</table>
+			<?php endif; ?>
+		<?php endforeach; ?>
 		<?php
 	}
 }

@@ -114,6 +114,77 @@ class PDK_Agent_Abilities {
 				'annotations'  => [ 'readonly' => true, 'destructive' => false, 'idempotent' => true ],
 			],
 		] );
+
+		// Element Studio-bestanden: alleen als de module aan staat en Oxygen actief is.
+		if ( class_exists( 'PDK_Oxygen_Elements' ) ) {
+			$this->register_oxygen_abilities();
+		}
+	}
+
+	/** Lezen en bewerken van bestaande Element Studio-bestanden; aanmaken kan hier bewust niet. */
+	private function register_oxygen_abilities(): void {
+		$address = [
+			'path'    => [
+				'type'        => 'string',
+				'description' => __( 'Pad zoals list-oxygen-elements het toont: elements/<Naam>/<bestand>, macros/<naam>.twig of presets/<Naam>.php.', 'pdk-theme-options' ),
+			],
+			'element' => [
+				'type'        => 'string',
+				'description' => __( 'Alternatief voor path: de mapnaam van het element. Combineer met file.', 'pdk-theme-options' ),
+			],
+			'file'    => [
+				'type'        => 'string',
+				'enum'        => PDK_Oxygen_Elements::ELEMENT_FILES,
+				'description' => __( 'Alternatief voor path: het bestand binnen het element.', 'pdk-theme-options' ),
+			],
+		];
+		$meta = static fn( bool $readonly ): array => [
+			'show_in_rest' => true,
+			'mcp'          => [ 'public' => true ],
+			'annotations'  => [ 'readonly' => $readonly, 'destructive' => ! $readonly, 'idempotent' => true ],
+		];
+
+		wp_register_ability( self::CATEGORY . '/list-oxygen-elements', [
+			'label'               => __( 'Oxygen-elementen tonen', 'pdk-theme-options' ),
+			'description'         => __( "Geeft de Element Studio-elementen, macro's en presets van deze site terug, met per element de aanwezige bestanden. Begin hier. Elementen kunnen niet via deze API worden aangemaakt: de instructies in het resultaat leggen uit hoe dat in de Oxygen-builder gaat.", 'pdk-theme-options' ),
+			'category'            => self::CATEGORY,
+			'input_schema'        => [ 'type' => 'object', 'properties' => [] ],
+			'output_schema'       => [ 'type' => 'object' ],
+			'permission_callback' => 'pdk_current_user_can_edit_code',
+			'execute_callback'    => [ $this, 'list_oxygen' ],
+			'meta'                => $meta( true ),
+		] );
+
+		wp_register_ability( self::CATEGORY . '/read-oxygen-element-file', [
+			'label'               => __( 'Oxygen-elementbestand lezen', 'pdk-theme-options' ),
+			'description'         => __( 'Geeft de inhoud van een bestaand Element Studio-bestand terug. Bestaat het element nog niet, dan volgt een fout: maak het dan eerst aan in de Oxygen-builder.', 'pdk-theme-options' ),
+			'category'            => self::CATEGORY,
+			'input_schema'        => [ 'type' => 'object', 'properties' => $address ],
+			'output_schema'       => [ 'type' => 'object', 'properties' => [ 'path' => [ 'type' => 'string' ], 'content' => [ 'type' => 'string' ] ] ],
+			'permission_callback' => 'pdk_current_user_can_edit_code',
+			'execute_callback'    => [ $this, 'read_oxygen' ],
+			'meta'                => $meta( true ),
+		] );
+
+		wp_register_ability( self::CATEGORY . '/write-oxygen-element-file', [
+			'label'               => __( 'Oxygen-elementbestand opslaan', 'pdk-theme-options' ),
+			'description'         => __( 'Overschrijft een bestaand Element Studio-bestand. element.php wordt geweigerd bij een syntaxfout (Twig wordt niet gecontroleerd). Lees het bestand eerst. Bestaat het element nog niet, dan volgt een fout: maak het eerst aan in de Oxygen-builder. Open het element daarna opnieuw in Element Studio om het resultaat te zien.', 'pdk-theme-options' ),
+			'category'            => self::CATEGORY,
+			'input_schema'        => [
+				'type'       => 'object',
+				'properties' => $address + [
+					'content' => [ 'type' => 'string', 'description' => __( 'De volledige nieuwe inhoud van het bestand.', 'pdk-theme-options' ) ],
+				],
+				'required'   => [ 'content' ],
+			],
+			'output_schema'       => [
+				'type'       => 'object',
+				'properties' => [ 'saved' => [ 'type' => 'boolean' ], 'path' => [ 'type' => 'string' ], 'bytes' => [ 'type' => 'integer' ] ],
+			],
+			'permission_callback' => 'pdk_current_user_can_edit_code',
+			'execute_callback'    => [ $this, 'write_oxygen' ],
+			'meta'                => $meta( false ),
+		] );
 	}
 
 	// -------------------------------------------------------------------------
@@ -149,6 +220,59 @@ class PDK_Agent_Abilities {
 		}
 
 		return [ 'saved' => true, 'bytes' => strlen( $content ) ];
+	}
+
+	public function list_oxygen(): array {
+		$found    = PDK_Oxygen_Elements::scan();
+		$elements = [];
+
+		foreach ( $found['element'] as $name ) {
+			$elements[] = [
+				'name'  => $name,
+				'slug'  => PDK_Oxygen_Elements::slug( $name ),
+				'files' => array_values( array_filter(
+					PDK_Oxygen_Elements::ELEMENT_FILES,
+					static fn( string $f ): bool => is_file( PDK_Oxygen_Elements::dir() . 'elements/' . $name . '/' . $f )
+				) ),
+			];
+		}
+
+		return [
+			'elements'     => $elements,
+			'macros'       => $found['macro'],
+			'presets'      => $found['preset'],
+			'dir'          => PDK_Oxygen_Elements::dir(),
+			'instructions' => __( 'Elementen kunnen niet via deze API worden aangemaakt. Maak een nieuw element aan in de Oxygen-builder: Element Studio (Ctrl+Alt+E of het ⋯-menu → Element Studio) → New element → opslaglocatie "PDK Elementen". Roep daarna deze ability opnieuw aan en bewerk de bestanden hier. Open het element na het opslaan opnieuw in Element Studio om het resultaat te zien. element.php wordt bij het opslaan op PHP-syntaxfouten gecontroleerd, Twig niet.', 'pdk-theme-options' ),
+		];
+	}
+
+	/** @return array|WP_Error */
+	public function read_oxygen( $input ) {
+		$rel = self::oxygen_rel( $input );
+
+		if ( is_wp_error( $rel ) ) {
+			return $rel;
+		}
+
+		return [ 'path' => $rel, 'content' => (string) file_get_contents( PDK_STORAGE_DIR . $rel ) ];
+	}
+
+	/** @return array|WP_Error */
+	public function write_oxygen( $input ) {
+		$rel = self::oxygen_rel( $input );
+
+		if ( is_wp_error( $rel ) ) {
+			return $rel;
+		}
+
+		$content = (string) ( $input['content'] ?? '' );
+		$result  = pdk_write_storage_file( $rel, $content );
+
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		return [ 'saved' => true, 'path' => $rel, 'bytes' => strlen( $content ) ];
 	}
 
 	/**
@@ -193,7 +317,12 @@ class PDK_Agent_Abilities {
 			$modules[ $key ] = PDK_Settings::is_module_enabled( $key );
 		}
 
-		return [
+		// Eén regel, alleen als de Element Studio-module draait.
+		$oxygen = class_exists( 'PDK_Oxygen_Elements' )
+			? [ 'oxygen_elements' => __( 'Module oxygen_elements is aan: list-oxygen-elements, read-oxygen-element-file en write-oxygen-element-file bewerken bestaande Element Studio-elementen; nieuwe maak je in de Oxygen-builder.', 'pdk-theme-options' ) ]
+			: [];
+
+		return $oxygen + [
 			'company'          => $company + [
 				'address_formatted' => wp_specialchars_decode( pdk_company_address() ),
 				'logo_url'          => pdk_client_logo_url(),
@@ -259,6 +388,55 @@ class PDK_Agent_Abilities {
 		}
 
 		return $output;
+	}
+
+	/**
+	 * De poort: vertaalt path of element+file naar een bestaand bestand
+	 * (`oxygen-elements/...`). Bestaat het element nog niet, dan stopt de agent
+	 * hier met de opdracht het eerst in de builder aan te maken; we maken nooit
+	 * zelf mappen of bestanden aan.
+	 *
+	 * @return string|WP_Error
+	 */
+	private static function oxygen_rel( $input ) {
+		$input = is_array( $input ) ? $input : [];
+		$edit  = (string) ( $input['path'] ?? '' );
+
+		if ( '' === $edit && isset( $input['element'], $input['file'] ) ) {
+			$edit = 'elements/' . $input['element'] . '/' . $input['file'];
+		}
+
+		$edit = str_replace( '\\', '/', $edit );
+		$p    = PDK_Oxygen_Elements::parse( $edit );
+
+		if ( null === $p ) {
+			return new WP_Error( 'pdk_invalid_path', __( 'Ongeldig pad. Gebruik elements/<Naam>/<bestand>, macros/<naam>.twig of presets/<Naam>.php, of element + file.', 'pdk-theme-options' ) );
+		}
+
+		if ( is_file( PDK_Oxygen_Elements::dir() . $edit ) ) {
+			return $p['rel'];
+		}
+
+		// Geldig, maar niet aanwezig: bepaal waarom.
+		if ( 'element' !== $p['type'] || ! is_dir( PDK_Oxygen_Elements::dir() . 'elements/' . $p['name'] ) ) {
+			return new WP_Error(
+				'element_not_found',
+				sprintf(
+					/* translators: %s: element-, macro- of presetnaam */
+					__( "Element '%s' bestaat nog niet. Maak het eerst aan in de Oxygen-builder: Element Studio → New element → opslaglocatie 'PDK Elementen'. Roep daarna list-oxygen-elements opnieuw aan en ga dan verder met bewerken.", 'pdk-theme-options' ),
+					$p['name']
+				)
+			);
+		}
+
+		return new WP_Error(
+			'file_not_found',
+			sprintf(
+				/* translators: %s: bestandspad */
+				__( "Bestand '%s' bestaat niet. Bestanden worden hier alleen bewerkt, niet aangemaakt: maak ze aan in Element Studio.", 'pdk-theme-options' ),
+				$edit
+			)
+		);
 	}
 
 	/** @return string|WP_Error */

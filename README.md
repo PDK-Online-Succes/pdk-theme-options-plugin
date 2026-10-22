@@ -73,11 +73,12 @@ Niet uitschakelbaar; deze drie worden onvoorwaardelijk geladen.
 | [**Levertijden**](docs/modules/delivery-time.md) | Levertijdtekst per weekdag met cutoff-tijd en product-uitzondering; shortcode `[levertijd]` (WooCommerce) |
 | [**SKU Beperken & Valideren**](docs/modules/sku-restriction.md) | SKU's beperkt tot `a-z A-Z 0-9 . -`; automatisch opschonen, duplicaten geblokkeerd, WP-CLI-conversie (WooCommerce) |
 | [**Language Cleaner**](docs/modules/language-checker.md) | Geïnstalleerde kerntalen verwijderen; verweesde vertaalbestanden opsporen |
-| [**AI-agent toegang (MCP)**](docs/modules/agent-abilities.md) | Eigen PHP, CSS en JS lees- en schrijfbaar maken voor een AI-agent via de Abilities API; vereist een gebruiker met code-editor-rechten |
+| [**AI-agent toegang (MCP)**](docs/modules/agent-abilities.md) | Eigen PHP, CSS en JS, plus bestaande Element Studio-bestanden, lees- en schrijfbaar maken voor een AI-agent via de Abilities API; vereist een gebruiker met code-editor-rechten |
 | [**IMGX**](docs/modules/imgx.md) | WebP- en AVIF-versies naast bestaande JPEG's en PNG's zetten en uitserveren via `<picture>`; originelen blijven ongewijzigd |
 | [**Afbeeldingsmaten**](docs/modules/image-sizes.md) | Geregistreerde afbeeldingsmaten bekijken, aan/uit zetten, eigen maten aanmaken en de mediabibliotheek in batches opnieuw genereren |
+| [**Oxygen Element Studio**](docs/modules/oxygen-elements.md) | Opslaglocatie "PDK Elementen" voor Element Studio (Oxygen 6): elementen, macro's en presets uit de builder komen in `wp-content/uploads/pdk-theme-options/oxygen-elements/` en overleven updates; de tab toont en bewerkt de bestanden (element.php, twig, css) |
 
-Modules met (WooCommerce) worden niet geladen zolang WooCommerce niet actief is, ook niet als de toggle aan staat.
+Modules met (WooCommerce) worden niet geladen zolang WooCommerce niet actief is, ook niet als de toggle aan staat. Hetzelfde geldt voor Oxygen Element Studio zonder actieve Oxygen 6.x.
 
 ---
 
@@ -91,6 +92,7 @@ Clientbestanden staan in `wp-content/uploads/pdk-theme-options/` en worden **nie
 | `custom-style.css` | Eigen CSS |
 | `custom-script.js` | Eigen JavaScript |
 | `libraries/` | Geüploade JS/CSS-bibliotheken |
+| `oxygen-elements/` | Element Studio-elementen, -macro's en -presets (Oxygen 6) |
 
 Fontbestanden staan in `wp-content/uploads/fonts/`:  
 Bestandsnaamconventie: `FamilyName-Weight.woff2` (bijv. `Raleway-Bold.woff2`)

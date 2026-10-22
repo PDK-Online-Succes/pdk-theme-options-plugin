@@ -28,6 +28,7 @@ class PDK_Plugin {
 		'agent_abilities'  => [ 'file' => 'modules/agent-abilities/class-pdk-agent-abilities.php',   'class' => 'PDK_Agent_Abilities' ],
 		'imgx'             => [ 'file' => 'modules/imgx/class-pdk-imgx.php',                         'class' => 'PDK_ImgX' ],
 		'image_sizes'      => [ 'file' => 'modules/image-sizes/class-pdk-image-sizes.php',           'class' => 'PDK_Image_Sizes' ],
+		'oxygen_elements'  => [ 'file' => 'modules/oxygen-elements/class-pdk-oxygen-elements.php',   'class' => 'PDK_Oxygen_Elements' ],
 	];
 
 	private function __construct() {

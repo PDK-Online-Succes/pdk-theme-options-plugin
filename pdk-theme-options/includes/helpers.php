@@ -80,7 +80,10 @@ function pdk_write_storage_file( string $filename, string $content ) {
 	pdk_ensure_storage_dir();
 
 	$filename = pdk_storage_rel_path( $filename );
-	$path     = PDK_STORAGE_DIR . $filename;
+	if ( '' === $filename ) {
+		return new WP_Error( 'invalid_path', __( 'Ongeldig bestandspad.', 'pdk-theme-options' ) );
+	}
+	$path = PDK_STORAGE_DIR . $filename;
 
 	// Een parse-fout in custom-functions.php haalt de hele site neer — weiger
 	// die vóór het schrijven, ongeacht wie schrijft (editor of AI-agent).
@@ -101,7 +104,8 @@ function pdk_write_storage_file( string $filename, string $content ) {
 	}
 
 	// Back-up van de vorige versie — de terugvalknop bij een gehackt bestand.
-	if ( file_exists( $path ) ) {
+	// Niet in oxygen-elements/: Element Studio herschrijft die bestanden zonder .bak bij te werken.
+	if ( ! pdk_is_oxygen_element_file( $filename ) && file_exists( $path ) ) {
 		copy( $path, $path . '.bak' );
 	}
 
@@ -198,6 +202,35 @@ function pdk_woocommerce_active(): bool {
 	return in_array( 'woocommerce/woocommerce.php', $active, true );
 }
 
+/**
+ * Controleert of Oxygen 6 (of Breakdance — zelfde engine) actief is.
+ *
+ * Oxygen 6 heeft `oxygen/plugin.php` als hoofdbestand, Oxygen Classic 4.x
+ * `oxygen/functions.php`; op de bestandsnaam zijn ze dus uit elkaar te houden.
+ * Via de lijst met actieve plugins, want deze plugin laadt (zeker als MU-plugin)
+ * vóór Oxygen en de constante BREAKDANCE_MODE bestaat dan nog niet.
+ */
+function pdk_oxygen6_active(): bool {
+	if ( defined( 'BREAKDANCE_MODE' ) ) {
+		return true;
+	}
+
+	$active = (array) get_option( 'active_plugins', [] );
+
+	if ( is_multisite() ) {
+		$active = array_merge( $active, array_keys( (array) get_site_option( 'active_sitewide_plugins', [] ) ) );
+	}
+
+	// De maphoogte kan afwijken (oxygen-6/), dus op bestandsnaam plugin.php en een map die met oxygen of breakdance begint.
+	foreach ( $active as $plugin ) {
+		if ( 'plugin.php' === basename( $plugin ) && preg_match( '/^(oxygen|breakdance)/i', dirname( $plugin ) ) ) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
 // -----------------------------------------------------------------------------
 // Rechten via wp-config — persistent, niet te wijzigen via database of admin
 // -----------------------------------------------------------------------------
@@ -278,11 +311,20 @@ function pdk_code_files(): array {
  *
  * De code-bestanden staan in de hoofdmap, de libraries in één submap. Alleen die
  * ene submap is toegestaan; op de rest van het pad blijft basename() staan, dus
- * ../ komt er niet doorheen.
+ * ../ komt er niet doorheen. Een ongeldig oxygen-elements/-pad geeft '' terug.
  */
 function pdk_storage_rel_path( string $filename ): string {
 	$filename = str_replace( '\\', '/', $filename );
-	$prefix   = str_starts_with( $filename, PDK_LIBRARY_SUBDIR ) ? PDK_LIBRARY_SUBDIR : '';
+
+	// Element Studio-bestanden: de gevalideerde submap-structuur blijft intact.
+	// Geen geldig bestand (verwijderd, module niet geladen): '' — nooit terugvallen op basename().
+	if ( pdk_is_oxygen_element_file( $filename ) ) {
+		return class_exists( 'PDK_Oxygen_Elements' )
+			? PDK_Oxygen_Elements::file_rel_path( substr( $filename, strlen( 'oxygen-elements/' ) ) ) ?? ''
+			: '';
+	}
+
+	$prefix = str_starts_with( $filename, PDK_LIBRARY_SUBDIR ) ? PDK_LIBRARY_SUBDIR : '';
 
 	return $prefix . basename( $filename );
 }
@@ -292,8 +334,17 @@ function pdk_is_library_file( string $filename ): bool {
 	return str_starts_with( $filename, PDK_LIBRARY_SUBDIR );
 }
 
+/** True voor een bestand in de door Element Studio beheerde map. */
+function pdk_is_oxygen_element_file( string $filename ): bool {
+	return str_starts_with( $filename, 'oxygen-elements/' );
+}
+
 /** Legt de vingerafdruk van een via de editor opgeslagen bestand vast. */
 function pdk_store_file_hash( string $filename, string $content ): void {
+	// Element Studio schrijft deze bestanden zelf ook; een hash zou later als "gewijzigd" lezen.
+	if ( pdk_is_oxygen_element_file( $filename ) ) {
+		return;
+	}
 	$hashes              = (array) get_option( 'pdk_file_hashes', [] );
 	$hashes[ $filename ] = hash( 'sha256', $content );
 	update_option( 'pdk_file_hashes', $hashes, false );
@@ -310,7 +361,7 @@ function pdk_file_is_tampered( string $filename ): bool {
 	$filename = pdk_storage_rel_path( $filename );
 	$hashes   = (array) get_option( 'pdk_file_hashes', [] );
 
-	if ( empty( $hashes[ $filename ] ) ) {
+	if ( '' === $filename || empty( $hashes[ $filename ] ) ) {
 		return false;
 	}
 

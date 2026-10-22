@@ -30,9 +30,27 @@ class PDK_Settings {
 		return in_array( $module, self::ALWAYS_ON_MODULES, true );
 	}
 
+	/** Modules die Oxygen 6 (of Breakdance) nodig hebben — Oxygen Classic 4.x telt niet. */
+	const OXYGEN6_MODULES = [ 'oxygen_elements' ];
+
+	public static function module_requires_oxygen6( string $module ): bool {
+		return in_array( $module, self::OXYGEN6_MODULES, true );
+	}
+
 	/** Module is ingeschakeld maar kan niet draaien (ontbrekende afhankelijkheid). */
 	public static function module_unavailable( string $module ): bool {
-		return self::module_requires_wc( $module ) && ! pdk_woocommerce_active();
+		return '' !== self::module_missing_dependency( $module );
+	}
+
+	/** Naam van de ontbrekende afhankelijkheid, of '' als alles er is. */
+	public static function module_missing_dependency( string $module ): string {
+		if ( self::module_requires_wc( $module ) && ! pdk_woocommerce_active() ) {
+			return 'WooCommerce';
+		}
+		if ( self::module_requires_oxygen6( $module ) && ! pdk_oxygen6_active() ) {
+			return 'Oxygen 6';
+		}
+		return '';
 	}
 
 	/** @return mixed */
@@ -222,6 +240,10 @@ class PDK_Settings {
 			'imgx' => [
 				'enabled' => false,
 			],
+			// Element Studio: geen instellingen — de locatie staat vast in de code.
+			'oxygen_elements' => [
+				'enabled' => false,
+			],
 			// Uitgeschakelde maten (blocklist, zie PDK_Image_Sizes::disabled()) en
 			// eigen maten (sleutel => breedte/hoogte/crop, altijd voorvoegsel `pdk_`).
 			'image_sizes' => [
@@ -254,6 +276,7 @@ class PDK_Settings {
 			'agent_abilities'         => __( 'AI-agent toegang (MCP)', 'pdk-theme-options' ),
 			'imgx'                    => __( 'IMGX — WebP/AVIF afbeeldingen', 'pdk-theme-options' ),
 			'image_sizes'             => __( 'Afbeeldingsmaten', 'pdk-theme-options' ),
+			'oxygen_elements'         => __( 'Oxygen Element Studio', 'pdk-theme-options' ),
 		];
 	}
 
@@ -275,6 +298,7 @@ class PDK_Settings {
 			'agent_abilities'         => __( 'Eigen PHP, CSS en JS lees- en schrijfbaar maken voor een AI-agent via de Abilities API (WordPress 6.9+, bijvoorbeeld met de Agent Connector-plugin). De agent moet inloggen als gebruiker met code-editor rechten — zie de Rechten-tab.', 'pdk-theme-options' ),
 			'imgx'                    => __( 'WebP- en AVIF-versies naast je bestaande JPEG- en PNG-bestanden zetten en uitserveren via <picture>. De originelen worden nooit gewijzigd.', 'pdk-theme-options' ),
 			'image_sizes'             => __( 'Geregistreerde afbeeldingsmaten bekijken, aan/uit zetten en eigen maten aanmaken. Uitzetten stopt alleen nieuwe generatie — bestaande bestanden blijven staan.', 'pdk-theme-options' ),
+			'oxygen_elements'         => __( 'Eigen opslaglocatie "PDK Elementen" voor Element Studio in Oxygen 6: elementen, macro\'s en presets die je in de builder maakt, komen in wp-content/uploads/pdk-theme-options/oxygen-elements/ (net als custom-functions.php) en overleven plugin- en Oxygen-updates.', 'pdk-theme-options' ),
 		];
 	}
 }
