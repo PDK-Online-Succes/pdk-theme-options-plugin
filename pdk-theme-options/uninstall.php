@@ -27,7 +27,7 @@ delete_option( 'pdk_rest_blocked_routes' );
 // dat hierboven al verwijderd wordt.
 delete_option( 'pdk_image_sizes_batch' );
 
-// IMGX-module. De gegenereerde .webp/.avif-bestanden blijven bewust staan:
+// IMGX-module. De gegenereerde .webp/.avif- en .lqip.jpg-bestanden blijven bewust staan:
 // honderdduizenden bestanden verwijderen in een uninstall-hook loopt in een
 // timeout. Gebruik vooraf "Delete all generated files" of `wp imgx delete`.
 delete_option( 'imgx_settings' );

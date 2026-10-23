@@ -13,7 +13,8 @@ defined( 'ABSPATH' ) || exit;
  * Wraps eligible img elements in a picture element.
  *
  * The original img is never reconstructed: it is concatenated verbatim, so every
- * attribute a theme, plugin or page builder added to it survives untouched.
+ * attribute a theme, plugin or page builder added to it survives untouched. The one
+ * exception is the LQIP placeholder, which only inserts or extends the style attribute.
  */
 class Picture_Renderer {
 
@@ -146,7 +147,44 @@ class Picture_Renderer {
 			return $buffer;
 		}
 
-		return $this->transform( $buffer, 'page' );
+		return $this->add_lqip_preload( $this->transform( $buffer, 'page' ) );
+	}
+
+	/**
+	 * Zet een preload voor de LQIP van de eerste <img fetchpriority="high"> in de <head>.
+	 *
+	 * Eigen pass over de uiteindelijke buffer, dus ook voor een <img> binnen onze eigen
+	 * <picture>. Preload van de LQIP, nooit van de hi-res: dat is de techniek uit het artikel.
+	 *
+	 * @param string $html Volledige pagina.
+	 * @return string
+	 */
+	private function add_lqip_preload( $html ) {
+		if ( ! $this->settings->get( 'lqip_enabled' ) || false === stripos( $html, 'lqip.jpg' ) ) {
+			return $html;
+		}
+
+		$head = stripos( $html, '</head>' );
+
+		if ( false === $head || ! preg_match_all( '#<img\s[^>]*?>#is', $html, $matches ) ) {
+			return $html;
+		}
+
+		foreach ( $matches[0] as $tag ) {
+			if ( ! preg_match( '#\sfetchpriority\s*=\s*(["\'])high\1#i', $tag ) ) {
+				continue;
+			}
+
+			$style = wp_specialchars_decode( $this->attribute( $tag, 'style' ), ENT_QUOTES );
+
+			if ( preg_match( '#background-image\s*:\s*url\("([^"]*\.lqip\.jpg(?:[?\#][^"]*)?)"\)#i', $style, $url ) ) {
+				$link = '<link rel="preload" as="image" href="' . $this->attr( $url[1] ) . '" fetchpriority="high">';
+
+				return substr_replace( $html, $link, $head, 0 );
+			}
+		}
+
+		return $html;
 	}
 
 	/**
@@ -433,10 +471,13 @@ class Picture_Renderer {
 	 * Public so themes and page builders that render their own markup can reuse it:
 	 * imgx()->renderer()->wrap_img( $html, $attachment_id, 'my-builder' ).
 	 *
+	 * Het <picture>-deel hangt van picture_enabled af en de LQIP-achtergrond van lqip_enabled;
+	 * ze werken los van elkaar.
+	 *
 	 * @param string $img_html      The complete img element.
 	 * @param int    $attachment_id Attachment ID.
 	 * @param string $context       Context label.
-	 * @return string The picture element, or the untouched input.
+	 * @return string The picture element, the img with LQIP background, or the untouched input.
 	 */
 	public function wrap_img( $img_html, $attachment_id, $context = 'custom' ) {
 		$attachment_id = (int) $attachment_id;
@@ -462,6 +503,15 @@ class Picture_Renderer {
 			return $img_html;
 		}
 
+		$verify = (bool) apply_filters( 'imgx_verify_variant_files', false );
+		$dir    = $verify ? $this->attachment_dir( $attachment_id ) : '';
+
+		$img_html = $this->add_lqip_style( $img_html, $map, $dir );
+
+		if ( ! $this->settings->get( 'picture_enabled' ) ) {
+			return $img_html;
+		}
+
 		$formats = $this->formats_for( $attachment_id, $context );
 
 		if ( ! $formats ) {
@@ -478,8 +528,6 @@ class Picture_Renderer {
 			return $img_html;
 		}
 
-		$verify  = (bool) apply_filters( 'imgx_verify_variant_files', false );
-		$dir     = $verify ? $this->attachment_dir( $attachment_id ) : '';
 		$sources = '';
 
 		foreach ( $formats as $format ) {
@@ -512,11 +560,87 @@ class Picture_Renderer {
 		 * Filters the final picture markup.
 		 *
 		 * @param string $html          Generated markup.
-		 * @param string $img_html      The original, unmodified img element.
+		 * @param string $img_html      The img element as output, including the LQIP style.
 		 * @param int    $attachment_id Attachment ID.
 		 * @param string $context       Context label.
 		 */
 		return (string) apply_filters( 'imgx_picture_html', $html, $img_html, $attachment_id, $context );
+	}
+
+	/**
+	 * Attribuutwaarde met dubbele codering. Anders dan esc_attr() laat dit een letterlijke
+	 * `&quot;` in de brondata niet staan, die de browser anders alsnog tot `"` zou decoderen.
+	 *
+	 * @param string $value Gedecodeerde waarde.
+	 * @return string
+	 */
+	private function attr( $value ) {
+		return htmlspecialchars( (string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8' );
+	}
+
+	/**
+	 * Zet de LQIP als background-image op de <img> (techniek uit het LCP-LQIP-artikel).
+	 *
+	 * Alleen het style-attribuut verandert: een bestaand attribuut wordt aangevuld met
+	 * behoud van zijn quote-stijl, een ontbrekend wordt vlak voor > of /> ingevoegd. Draagt
+	 * de tag al een background, dan blijft hij onaangeroerd.
+	 *
+	 * @param string $img_html The img element.
+	 * @param array  $map      Source basename to variant basenames.
+	 * @param string $dir      Attachment directory when file verification is enabled.
+	 * @return string
+	 */
+	private function add_lqip_style( $img_html, array $map, $dir ) {
+		if ( ! $this->settings->get( 'lqip_enabled' ) || ! preg_match( '#<img\s[^>]*?>#is', $img_html, $found, PREG_OFFSET_CAPTURE ) ) {
+			return $img_html;
+		}
+
+		list( $tag, $offset ) = $found[0];
+
+		$src = wp_specialchars_decode( $this->attribute( $tag, 'src' ), ENT_QUOTES );
+
+		if ( '' === $src ) {
+			return $img_html;
+		}
+
+		$basename = Files::basename_from_url( $src );
+
+		if ( empty( $map[ $basename ][ Files::LQIP_KEY ] ) ) {
+			return $img_html;
+		}
+
+		$lqip = $map[ $basename ][ Files::LQIP_KEY ];
+
+		if ( '' !== $dir && ! file_exists( $dir . '/' . $lqip ) ) {
+			return $img_html;
+		}
+
+		// Alles wat een url("...") of het attribuut kan openbreken wordt procentgecodeerd.
+		$url = str_replace(
+			array( '"', ';', '\\', '(', ')', "'", ' ', "\n", "\r" ),
+			array( '%22', '%3B', '%5C', '%28', '%29', '%27', '%20', '%0A', '%0D' ),
+			Files::swap_basename_in_url( $src, $lqip )
+		);
+
+		$declarations = 'background-image:url("' . $url . '");background-size:cover;background-repeat:no-repeat;background-position:center';
+
+		if ( preg_match( '#(\sstyle\s*=\s*)(["\'])(.*?)\2#is', $tag, $style, PREG_OFFSET_CAPTURE ) ) {
+			$existing = wp_specialchars_decode( $style[3][0], ENT_QUOTES );
+
+			if ( false !== stripos( $existing, 'background' ) ) {
+				return $img_html;
+			}
+
+			$value = ( '' === trim( $existing ) ? '' : rtrim( $existing, "; \t\r\n" ) . ';' ) . $declarations;
+			$new   = $style[1][0] . $style[2][0] . $this->attr( $value ) . $style[2][0];
+			$tag   = substr_replace( $tag, $new, $style[0][1], strlen( $style[0][0] ) );
+		} else {
+			// Vlak voor > of /> invoegen; de witruimte ervoor blijft bij de afsluiting.
+			$head = rtrim( substr( $tag, 0, '/>' === substr( $tag, -2 ) ? -2 : -1 ) );
+			$tag  = $head . ' style="' . $this->attr( $declarations ) . '"' . substr( $tag, strlen( $head ) );
+		}
+
+		return substr_replace( $img_html, $tag, $offset, strlen( $found[0][0] ) );
 	}
 
 	/**
@@ -762,7 +886,10 @@ class Picture_Renderer {
 	 * @return bool
 	 */
 	public function is_active() {
-		if ( ! $this->settings->get( 'picture_enabled' ) ) {
+		// LQIP staat los van picture_enabled en van de WebP/AVIF-formaten.
+		$lqip = (bool) $this->settings->get( 'lqip_enabled' );
+
+		if ( ! $lqip && ! $this->settings->get( 'picture_enabled' ) ) {
 			return false;
 		}
 
@@ -790,7 +917,7 @@ class Picture_Renderer {
 			return false;
 		}
 
-		if ( ! $this->settings->enabled_formats( $this->capabilities ) ) {
+		if ( ! $lqip && ! $this->settings->enabled_formats( $this->capabilities ) ) {
 			return false;
 		}
 

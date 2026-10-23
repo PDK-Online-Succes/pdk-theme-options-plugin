@@ -59,6 +59,13 @@ class Generator {
 	private $logger;
 
 	/**
+	 * Alfa-beslissing per bijlage, voor de duur van één generate().
+	 *
+	 * @var array<int, bool>
+	 */
+	private $alpha_cache = array();
+
+	/**
 	 * Constructor.
 	 *
 	 * @param Settings     $settings     Settings.
@@ -257,6 +264,23 @@ class Generator {
 	}
 
 	/**
+	 * Formaatsleutels om te genereren: WebP/AVIF plus, bij LQIP aan, de LQIP zelf.
+	 * LQIP is niet afhankelijk van een WebP/AVIF-encoder.
+	 *
+	 * @param int $attachment_id Attachment ID.
+	 * @return string[]
+	 */
+	private function keys_for( $attachment_id ) {
+		$keys = $this->formats_for( $attachment_id );
+
+		if ( $this->settings->get( 'lqip_enabled' ) ) {
+			$keys[] = Files::LQIP_KEY;
+		}
+
+		return $keys;
+	}
+
+	/**
 	 * Whether anything is still missing for this attachment.
 	 *
 	 * @param int        $attachment_id Attachment ID.
@@ -268,7 +292,7 @@ class Generator {
 			return false;
 		}
 
-		$formats = $this->formats_for( $attachment_id );
+		$formats = $this->keys_for( $attachment_id );
 
 		if ( ! $formats ) {
 			return false;
@@ -370,7 +394,7 @@ class Generator {
 			return $result;
 		}
 
-		$formats = $this->formats_for( $attachment_id );
+		$formats = $this->keys_for( $attachment_id );
 
 		if ( ! $formats ) {
 			$result['errors'][] = __( 'Geen enkel afbeeldingsformaat is tegelijk ingeschakeld en ondersteund door deze server.', 'pdk-theme-options' );
@@ -385,6 +409,8 @@ class Generator {
 		}
 
 		try {
+			unset( $this->alpha_cache[ $attachment_id ] );
+
 			$targets  = $this->build_targets( $attachment_id, $args['metadata'] );
 			$variants = Variants::get( $attachment_id );
 
@@ -462,6 +488,32 @@ class Generator {
 	}
 
 	/**
+	 * Of het origineel van een bijlage een alfakanaal heeft; geldt voor alle maten.
+	 *
+	 * De GD-editor van WordPress schrijft PNG-submaten altijd als RGBA, ook bij een opaak
+	 * origineel, dus de submaat zelf zegt niets. Bij een door WordPress geschaalde afbeelding
+	 * is het `-scaled`-bestand al editor-uitvoer, daarom heeft het echte origineel voorrang.
+	 *
+	 * @param int $attachment_id Attachment ID.
+	 * @return bool
+	 */
+	private function original_has_alpha( $attachment_id ) {
+		$attachment_id = (int) $attachment_id;
+
+		if ( ! isset( $this->alpha_cache[ $attachment_id ] ) ) {
+			$original = function_exists( 'wp_get_original_image_path' ) ? wp_get_original_image_path( $attachment_id ) : false;
+
+			if ( ! $original ) {
+				$original = get_attached_file( $attachment_id );
+			}
+
+			$this->alpha_cache[ $attachment_id ] = (bool) Files::has_alpha( (string) $original );
+		}
+
+		return $this->alpha_cache[ $attachment_id ];
+	}
+
+	/**
 	 * Generates a single variant and records it in the registry.
 	 *
 	 * @param int    $attachment_id Attachment ID.
@@ -511,6 +563,18 @@ class Generator {
 		 */
 		if ( ! apply_filters( 'imgx_should_generate_image', true, $attachment_id, $size, $format ) ) {
 			$variants['skipped'][ $size ][ $format ] = 'filtered';
+
+			return array(
+				'status'  => 'skipped',
+				'message' => '',
+			);
+		}
+
+		// De alfa-beslissing valt vóór elke converter-aanroep, één keer per bijlage op het
+		// origineel (zie original_has_alpha()). Niet opnieuw te proberen: een PNG wordt er
+		// niet ineens opaak van.
+		if ( Files::LQIP_KEY === $format && $this->original_has_alpha( $attachment_id ) ) {
+			$variants['skipped'][ $size ][ $format ] = 'has-alpha';
 
 			return array(
 				'status'  => 'skipped',
@@ -821,7 +885,7 @@ class Generator {
 	 *
 	 * `Files::sidecar_path()` names a sidecar in one of three ways, all derived from the
 	 * source's own filename: `<stem>.<format>`, `<basename>.<format>` (collision fallback),
-	 * or `<stem>-<hash>.<format>` (double collision). This reverses that naming to look for
+	 * or `<stem>-<hash>.<format>` (double collision); voor LQIP is `<format>` `lqip.jpg`. This reverses that naming to look for
 	 * the source candidate on disk, independently of whatever the metadata currently says.
 	 * A sidecar is never deleted while its source still exists, even if the caller believes
 	 * the size is stale.
@@ -833,11 +897,14 @@ class Generator {
 	private function sidecar_source_still_exists( $dir, $basename ) {
 		$extension = strtolower( pathinfo( $basename, PATHINFO_EXTENSION ) );
 
-		if ( ! in_array( $extension, Files::VARIANT_EXTENSIONS, true ) ) {
+		// .lqip.jpg gaat als geheel weg; de rest van de terugzoeking is voor alle formaten gelijk.
+		if ( Files::is_lqip( $basename ) ) {
+			$without_format = substr( $basename, 0, -9 );
+		} elseif ( in_array( $extension, Files::VARIANT_EXTENSIONS, true ) ) {
+			$without_format = substr( $basename, 0, - ( strlen( $extension ) + 1 ) );
+		} else {
 			return false;
 		}
-
-		$without_format = substr( $basename, 0, - ( strlen( $extension ) + 1 ) );
 
 		// Collision fallback: the sidecar was named after the full original basename
 		// (e.g. photo.png.webp), so the candidate below already carries its own extension.

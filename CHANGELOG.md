@@ -2,6 +2,21 @@
 
 Alle noemenswaardige wijzigingen in PDK Theme Options worden hier bijgehouden.
 
+## [2.12.0] — 2026-10-23
+
+### IMGX: LCP-waardige LQIP-placeholder
+
+Nieuwe instelling `lqip_enabled` (standaard uit) op de IMGX-tab. Techniek uit het artikel van CSS Wizardry (https://csswizardry.com/2023/09/the-ultimate-lqip-lcp-technique/): per afbeeldingsmaat een JPEG met minstens 0,055 bits per pixel, als `background-image` op de `<img>`, zodat Chromium de placeholder als LCP-kandidaat telt terwijl het echte plaatje nog laadt. Spec: `docs/imgx-lqip-brief.md`.
+
+- **Genereren.** Per maat uit de metadata (incl. `full`) een `<stem>.lqip.jpg` met dezelfde pixelafmeting als de bron, geregistreerd in `_imgx_variants` onder `lqip`. Kwaliteitslus in `Converter`: start op q=10 (filter `imgx_lqip_start_quality`), tot het bestand ≥ breedte × hoogte × 0,055 / 8 bytes is, plafond q=60. Werkt ook op een server zonder WebP/AVIF: alleen JPEG-schrijven is nodig, en `needs_generation()`, `generate()` en `wp imgx generate` stoppen niet meer op ontbrekende WebP/AVIF-formaten als LQIP aan staat
+- **PNG met alfa krijgt geen LQIP** (`Files::has_alpha()`: IHDR-kleurtype 4/6 of `tRNS` vóór `IDAT`), beoordeeld op het origineel en geldig voor alle maten (GD schrijft PNG-submaten altijd als RGBA). Vastgelegd als `skipped[<maat>]['lqip'] = 'has-alpha'`, niet opnieuw te proberen
+- **Uitserveren.** Inline `background-image`, `background-size:cover`, `background-repeat:no-repeat` en `background-position:center` op de `<img>`, ook op `loading="lazy"`; een bestaand `style` wordt aangevuld (quote-stijl behouden), een tag met al een `background` blijft ongemoeid. De URL wordt procentgecodeerd (`"` `'` `\` `(` `)` `;`, spatie, regeleinde) en de stijlwaarde met `htmlspecialchars()` mét dubbel-encoderen geschreven — `esc_attr()` laat een gesmokkeld `&quot;` heel en dat breekt `url("…")` open. Los van `picture_enabled`: ook zonder `<picture>` en zonder WebP/AVIF. Per afbeelding uit te zetten met `imgx_should_render_picture`
+- **Preload.** Met `whole_page` aan komt er een `<link rel="preload" as="image" … fetchpriority="high">` voor de LQIP van de eerste `<img fetchpriority="high">`
+- **Bestandsbeheer.** `Files::delete_variant()` verwijdert naast `.webp`/`.avif` ook `.lqip.jpg` binnen de uploadsmap; `prune_stale_sizes()` wist een LQIP niet zolang zijn bron bestaat. De encoding-vingerafdruk krijgt alleen met LQIP aan het extra deel `lqip`; met LQIP uit verandert er niets. Bij uninstall blijven de `.lqip.jpg`-bestanden staan, net als de WebP/AVIF-bestanden
+- **Gedragswijziging voor directe aanroepers van `wrap_img()`:** het `<picture>`-deel kijkt nu zelf naar `picture_enabled`. Een thema of builder die `wrap_img()` rechtstreeks aanroept krijgt bij `picture_enabled = 0` dus geen `<picture>` meer terug (voorheen alleen de IMGX-filters), maar wel een `<img>` met LQIP-achtergrond als `lqip_enabled` aan staat. `imgx_picture_html` krijgt als tweede argument de `<img>` zoals die werkelijk wordt uitgevoerd, dus mét LQIP-style
+- **Bekende grenzen.** Elke afbeelding kost een extra, vroeg request, ook als hij lazy laadt (R-101); een grotere srcset-kandidaat dan de `src` kan de LQIP onder 0,05 bpp brengen (R-102); een in de WordPress-editor bewerkte afbeelding houdt zijn oude variant tot `wp imgx generate --ids=<id> --force` (R-106, bestaand gedrag)
+- Zelftest: `php tests/test-imgx.php` (LQIP-sectie)
+
 ## [2.11.1] — 2026-10-22
 
 ### Gewijzigd

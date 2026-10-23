@@ -58,6 +58,7 @@ class Settings {
 			'avif_quality'       => 50,
 			'picture_enabled'    => 1,
 			'whole_page'         => 0,
+			'lqip_enabled'       => 0,
 			'generate_on_upload' => 1,
 			'upload_mode'        => 'async',
 			'debug'              => 0,
@@ -160,6 +161,7 @@ class Settings {
 
 		$clean['picture_enabled']    = empty( $input['picture_enabled'] ) ? 0 : 1;
 		$clean['whole_page']         = empty( $input['whole_page'] ) ? 0 : 1;
+		$clean['lqip_enabled']       = empty( $input['lqip_enabled'] ) ? 0 : 1;
 		$clean['generate_on_upload'] = empty( $input['generate_on_upload'] ) ? 0 : 1;
 		$clean['debug']              = empty( $input['debug'] ) ? 0 : 1;
 
@@ -196,14 +198,18 @@ class Settings {
 	 * @return string
 	 */
 	public function encoding_signature() {
-		return implode(
-			'-',
-			array(
-				(string) $this->get( 'mode' ),
-				(string) (int) $this->get( 'webp_quality' ),
-				(string) (int) $this->get( 'avif_quality' ),
-			)
+		$parts = array(
+			(string) $this->get( 'mode' ),
+			(string) (int) $this->get( 'webp_quality' ),
+			(string) (int) $this->get( 'avif_quality' ),
 		);
+
+		// Alleen met LQIP aan, zodat de vingerafdruk met LQIP uit ongewijzigd blijft.
+		if ( 1 === (int) $this->get( 'lqip_enabled' ) ) {
+			$parts[] = 'lqip';
+		}
+
+		return implode( '-', $parts );
 	}
 
 	/**
