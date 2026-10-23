@@ -158,6 +158,14 @@ class Admin {
 			'imgx_markup'
 		);
 
+		add_settings_field(
+			'imgx_lqip_enabled',
+			__( 'LCP-placeholder (LQIP)', 'pdk-theme-options' ),
+			array( $this, 'field_lqip' ),
+			self::PAGE_SLUG,
+			'imgx_markup'
+		);
+
 		add_settings_section(
 			'imgx_generation',
 			__( 'Genereren', 'pdk-theme-options' ),
@@ -312,9 +320,25 @@ class Admin {
 
 		echo '<p class="description">' . esc_html__( 'Terugval voor paginabuilders die hun eigen sjabloon opbouwen: daar komen de gewone contentfilters nooit langs, dus blijven hun afbeeldingen onaangeroerd. Met deze optie leest IMGX de hele pagina na in plaats van alleen de berichtinhoud. Voor Oxygen, Oxygen Classic en Breakdance is dit niet nodig — die hebben een eigen koppeling en werken altijd. Laat hem uit bij een gewoon thema: het scheelt werk per paginaweergave.', 'pdk-theme-options' ) . '</p>';
 
-		if ( $this->settings->get( 'whole_page' ) && ! $this->settings->get( 'picture_enabled' ) ) {
+		if ( $this->settings->get( 'whole_page' ) && ! $this->settings->get( 'picture_enabled' ) && ! $this->settings->get( 'lqip_enabled' ) ) {
 			echo '<p class="notice notice-warning inline" style="padding:8px 12px">' . esc_html__( 'Vervanging door picture-element staat uit, dus er wordt niets omgezet — ook niet met deze optie aan.', 'pdk-theme-options' ) . '</p>';
 		}
+	}
+
+	/**
+	 * Checkbox voor de LQIP-placeholder.
+	 *
+	 * @return void
+	 */
+	public function field_lqip() {
+		printf(
+			'<label><input type="checkbox" name="%1$s[lqip_enabled]" value="1"%2$s> %3$s</label>',
+			esc_attr( Settings::OPTION ),
+			checked( (bool) $this->settings->get( 'lqip_enabled' ), true, false ),
+			esc_html__( 'Een zeer lage resolutie JPEG als achtergrond onder elke afbeelding zetten', 'pdk-theme-options' )
+		);
+
+		echo '<p class="description">' . esc_html__( 'IMGX maakt per afbeeldingsmaat een extra bestand (.lqip.jpg) met net genoeg detail om door Chrome als LCP-kandidaat geteld te worden, en zet dat als achtergrond op de <img>. Het echte plaatje dekt hem af zodra het geladen is. Dit werkt los van de picture-vervanging hierboven, ook zonder WebP of AVIF op deze server. Let op: elke afbeelding krijgt hierdoor een extra, vroeg request, ook als hij lazy laadt, en PNG-bestanden met transparantie worden overgeslagen. Draai na het aanzetten een batch "ontbrekende" om de bestanden aan te maken. Voor een preload van de LQIP bij een afbeelding met fetchpriority="high" is de paginabrede optie nodig.', 'pdk-theme-options' ) . '</p>';
 	}
 
 	/**

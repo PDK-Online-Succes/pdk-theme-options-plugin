@@ -23,6 +23,12 @@ class Files {
 	const VARIANT_EXTENSIONS = array( 'webp', 'avif' );
 
 	/**
+	 * Registratiesleutel van de LQIP-placeholder (<stem>.lqip.jpg). Staat bewust niet in
+	 * MIME_TYPES: die lijst voedt <source type> en de encoder-probe.
+	 */
+	const LQIP_KEY = 'lqip';
+
+	/**
 	 * Mime type per supported variant format.
 	 */
 	const MIME_TYPES = array(
@@ -111,8 +117,8 @@ class Files {
 	/**
 	 * Deletes a generated variant file.
 	 *
-	 * Refuses anything that is not a .webp/.avif file inside the uploads directory, so no
-	 * code path in the plugin can remove an original image.
+	 * Refuses anything that is not a .webp/.avif/.lqip.jpg file inside the uploads directory,
+	 * so no code path in the plugin can remove an original image.
 	 *
 	 * @param string $path Absolute path.
 	 * @return bool True when the file is gone afterwards.
@@ -121,7 +127,7 @@ class Files {
 		$path      = (string) $path;
 		$extension = strtolower( pathinfo( $path, PATHINFO_EXTENSION ) );
 
-		if ( ! in_array( $extension, self::VARIANT_EXTENSIONS, true ) ) {
+		if ( ! in_array( $extension, self::VARIANT_EXTENSIONS, true ) && ! self::is_lqip( $path ) ) {
 			return false;
 		}
 
@@ -139,6 +145,16 @@ class Files {
 	}
 
 	/**
+	 * Whether a path or basename is an LQIP sidecar (ends on .lqip.jpg).
+	 *
+	 * @param string $path Path or basename.
+	 * @return bool
+	 */
+	public static function is_lqip( $path ) {
+		return '.lqip.jpg' === strtolower( substr( (string) $path, -9 ) );
+	}
+
+	/**
 	 * Builds the sidecar path for a source file.
 	 *
 	 * Prefers photo.webp. Because photo.jpg and photo.png can legitimately coexist in one
@@ -146,7 +162,7 @@ class Files {
 	 * not own falls back to photo.jpg.webp and then to photo-<hash>.webp.
 	 *
 	 * @param string $source_path    Absolute path to the source image.
-	 * @param string $format         Variant format key: webp or avif.
+	 * @param string $format         Variant format key: webp, avif or lqip (gives .lqip.jpg).
 	 * @param array  $owned          Basenames already recorded for this attachment.
 	 * @param int    $attachment_id  Attachment ID, used to salt the last-resort hash.
 	 * @return string Absolute destination path.
@@ -157,10 +173,12 @@ class Files {
 		$ext      = pathinfo( $basename, PATHINFO_EXTENSION );
 		$stem     = ( '' !== $ext ) ? substr( $basename, 0, - ( strlen( $ext ) + 1 ) ) : $basename;
 
+		$extension = ( self::LQIP_KEY === $format ) ? 'lqip.jpg' : $format;
+
 		$candidates = array(
-			$stem . '.' . $format,
-			$basename . '.' . $format,
-			$stem . '-' . substr( md5( $basename . '|' . (int) $attachment_id ), 0, 6 ) . '.' . $format,
+			$stem . '.' . $extension,
+			$basename . '.' . $extension,
+			$stem . '-' . substr( md5( $basename . '|' . (int) $attachment_id ), 0, 6 ) . '.' . $extension,
 		);
 
 		foreach ( $candidates as $candidate ) {
@@ -227,6 +245,59 @@ class Files {
 		}
 
 		return '';
+	}
+
+	/**
+	 * Of een PNG een alfakanaal heeft: IHDR-kleurtype 4 of 6, of een tRNS-chunk vóór de
+	 * eerste IDAT. Al het andere (JPEG, onleesbaar) telt als zonder alfa.
+	 *
+	 * @param string $path Absolute path.
+	 * @return bool
+	 */
+	public static function has_alpha( $path ) {
+		if ( ! is_readable( $path ) ) {
+			return false;
+		}
+
+		$handle = @fopen( $path, 'rb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen, WordPress.PHP.NoSilencedErrors.Discouraged -- Chunk headers only; WP_Filesystem would read the whole file.
+
+		if ( ! $handle ) {
+			return false;
+		}
+
+		$alpha  = false;
+		$header = fread( $handle, 33 ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fread -- Signature plus IHDR chunk.
+
+		if ( 33 === strlen( (string) $header ) && "\x89PNG\r\n\x1a\n" === substr( $header, 0, 8 ) ) {
+			if ( in_array( ord( $header[25] ), array( 4, 6 ), true ) ) {
+				$alpha = true;
+			} else {
+				// Chunks doorlopen tot de eerste IDAT; de data zelf wordt overgeslagen.
+				while ( 8 === strlen( (string) ( $chunk = fread( $handle, 8 ) ) ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fread, WordPress.CodeAnalysis.AssignmentInCondition.Found
+					$type = substr( $chunk, 4, 4 );
+
+					if ( 'IDAT' === $type ) {
+						break;
+					}
+
+					if ( 'tRNS' === $type ) {
+						$alpha = true;
+						break;
+					}
+
+					$length = unpack( 'N', substr( $chunk, 0, 4 ) )[1];
+
+					// Data plus 4 bytes CRC overslaan.
+					if ( 0 !== fseek( $handle, $length + 4, SEEK_CUR ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fseek
+						break;
+					}
+				}
+			}
+		}
+
+		fclose( $handle ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
+
+		return $alpha;
 	}
 
 	/**

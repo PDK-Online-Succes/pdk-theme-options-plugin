@@ -1,4 +1,4 @@
-# IMGX — WebP/AVIF sidecars
+# IMGX — WebP/AVIF sidecars en LQIP-placeholder
 
 IMGX zet naast elke bestaande JPEG en PNG een WebP- en/of AVIF-versie neer (een "sidecar":
 `photo.jpg` blijft staan, `photo.webp` komt ernaast) en serveert die op de frontend uit door elke
@@ -6,7 +6,8 @@ IMGX zet naast elke bestaande JPEG en PNG een WebP- en/of AVIF-versie neer (een 
 gewijzigd, verplaatst of verwijderd, en een variant wordt alleen aangeboden als IMGX het bestand
 zelf heeft geschreven en in zijn registratie heeft staan. De module is de originele losse
 IMGX-plugin, ongewijzigd overgenomen in `modules/imgx/includes/` onder de namespace `\IMGX\`
-(`modules/imgx/class-pdk-imgx.php:3-13`).
+(`modules/imgx/class-pdk-imgx.php:3-13`). Sinds 2.12.0 kan de module daarnaast per afbeeldingsmaat
+een LQIP-placeholder (`photo.lqip.jpg`) maken, zie "LQIP-placeholder" hieronder.
 
 ## Aan- en uitzetten
 
@@ -18,7 +19,9 @@ andere modules.
 
 Wel één harde voorwaarde op de server: er moet een `WP_Image_Editor` (GD of Imagick) zijn die het
 gekozen formaat écht kan schrijven. Kan hij dat niet, dan genereert IMGX niets en blijft de
-frontend ongemoeid (`includes/class-capabilities.php:12-18`).
+frontend ongemoeid (`includes/class-capabilities.php:12-18`). Voor de LQIP geldt alleen dat de
+editor JPEG moet kunnen schrijven (`wp_image_editor_supports( mime_type image/jpeg )`), dus die
+werkt ook op een server zonder WebP/AVIF.
 
 Draait de losse IMGX-plugin nog naast deze plugin, dan doet de module niets — te herkennen aan de
 constante `IMGX_MIN_WP`, anders zou elke hook dubbel vuren (`class-pdk-imgx.php:51-60`).
@@ -38,6 +41,7 @@ alleen `imgx.enabled`.
 | `avif_quality` | int 1-100 | `50` | Encoderkwaliteit voor AVIF. AVIF ligt niet op dezelfde perceptuele schaal: 45-60 ≈ JPEG 80-85. |
 | `picture_enabled` | 0/1 | `1` | `<picture>`-uitvoer op de frontend. |
 | `whole_page` | 0/1 | `0` | Hele pagina door een outputbuffer halen in plaats van alleen `the_content`. |
+| `lqip_enabled` | 0/1 | `0` | LQIP-placeholder: per maat een `.lqip.jpg` genereren en als `background-image` op de `<img>` zetten. Los van `picture_enabled` en van de WebP/AVIF-formaten. |
 | `generate_on_upload` | 0/1 | `1` | Varianten maken bij nieuwe uploads. |
 | `upload_mode` | `async` \| `sync` | `async` | Genereren via cron (15 s later) of direct tijdens de upload. |
 | `debug` | 0/1 | `0` | Uitgebreid loggen. Werkt alleen als ook `WP_DEBUG` aan staat. |
@@ -45,7 +49,9 @@ alleen `imgx.enabled`.
 Bron: `includes/class-settings.php:54-65`. Sanering en clamping in `sanitize()` (`:146-187`);
 onbekende modi vallen terug op de standaard. De AVIF-/WebP-kwaliteit en de modus vormen samen de
 `encoding_signature()` (`:198-207`) — die vingerafdruk wordt bij de registratie opgeslagen zodat
-een eerder overgeslagen variant opnieuw geprobeerd wordt als je de kwaliteit verlaagt.
+een eerder overgeslagen variant opnieuw geprobeerd wordt als je de kwaliteit verlaagt. Met
+`lqip_enabled = 1` krijgt de vingerafdruk het extra deel `lqip` (`avif_webp-82-50-lqip`); met LQIP uit
+is hij byte-gelijk aan die van vóór 2.12.0.
 
 ## Hoe het werkt
 
@@ -63,7 +69,7 @@ registreert hun hooks in `boot()` (`includes/class-plugin.php:103-154`).
 | `Converter` | De enige klasse die `WP_Image_Editor` aanraakt. Leest de bron, schrijft een apart doel, verifieert het resultaat (`class-converter.php:14-19`). |
 | `Generator` | Per bijlage: doellijst opbouwen, per maat/formaat converteren, registratie bijwerken, en de koppeling met de WordPress-medialevenscyclus (`class-generator.php:12-15`). |
 | `Variants` | De registratie: welke variantbestanden bestaan voor welke bijlage, opgeslagen als postmeta `_imgx_variants` (`class-variants.php:12-18`). |
-| `Files` | Pad- en URL-helpers, sidecar-naamgeving, formaatherkenning op magic bytes, en de enige plek die een bestand mag verwijderen (`class-files.php:12-17`). |
+| `Files` | Pad- en URL-helpers, sidecar-naamgeving, formaatherkenning op magic bytes, alfa-detectie van PNG-bestanden (`has_alpha()`) en de enige plek die een bestand mag verwijderen (`class-files.php:12-17`). |
 | `Picture_Renderer` | De frontend-transformatie: `<img>` → `<picture>` (`class-picture-renderer.php:12-17`). |
 | `Oxygen` | Koppeling met Oxygen 6/Breakdance en Oxygen Classic, die buiten `the_content` om renderen (`class-oxygen.php:12-36`). |
 | `Batch_Processor` | AJAX-batchrunner voor de bestaande bibliotheek (`class-batch-processor.php:12-17`). |
@@ -110,6 +116,51 @@ groter dan of even groot als de bron, dan wordt hij weggegooid en als `larger-th
 overgeslagen — uitserveren zou een verslechtering zijn (`:256-274`). Die specifieke overslag wordt
 opnieuw geprobeerd zodra de encoding-vingerafdruk wijzigt; een door een filter geweigerde variant
 niet (`class-generator.php:316-330`).
+
+### LQIP-placeholder
+
+Techniek uit <https://csswizardry.com/2023/09/the-ultimate-lqip-lcp-technique/>: een extern JPEG
+met genoeg bits per pixel dat Chromium het als LCP-kandidaat telt (vanaf 0,05 bpp van de
+weergegeven maat), als `background-image` op de `<img>`. Het hi-res plaatje dekt hem af zodra het
+geladen is. Spec: `docs/imgx-lqip-brief.md`.
+
+**Genereren.** Met `lqip_enabled = 1` maakt `Generator` voor elke maat uit de metadata (inclusief
+`full`) een `<stem>.lqip.jpg` naast het bronbestand, met exact dezelfde pixelafmeting. De
+registratie `_imgx_variants` krijgt de sleutel `Files::LQIP_KEY` (`lqip`) naast `avif`/`webp`.
+`Converter` schrijft hem met mime `image/jpeg` in een lus: start op q=10 (filter
+`imgx_lqip_start_quality`), stappen van 5, tot het bestand ≥ breedte × hoogte × 0,055 / 8 bytes is;
+plafond q=60 — een resultaat op het plafond blijft staan, ook onder het doel. `larger-than-source`
+wordt één keer op het eindresultaat gecontroleerd. LQIP wordt ook gegenereerd (en door
+`needs_generation()`, `generate()` en `wp imgx generate` meegeteld) als er geen WebP/AVIF-formaat
+actief is. `Files::MIME_TYPES` blijft alleen `avif`/`webp`: die lijst voedt `<source type>` en de
+encoder-probe.
+
+**PNG met alfa** krijgt geen LQIP: `Files::has_alpha()` leest de ruwe bytes (IHDR-kleurtype 4 of 6,
+of een `tRNS`-chunk vóór de eerste `IDAT`). De beslissing valt één keer per bijlage op het origineel (`wp_get_original_image_path()`, anders `get_attached_file()`) en geldt voor alle maten, omdat de GD-editor van WordPress PNG-submaten altijd als RGBA schrijft, ook bij een opaak origineel. Ze valt vóór elke converter-aanroep en wordt
+vastgelegd als `skipped[<maat>]['lqip'] = 'has-alpha'`; die reden wordt niet opnieuw geprobeerd.
+
+**Naamgeving en verwijderen.** `Files::sidecar_path( $bron, 'lqip', … )` geeft `x.lqip.jpg`, bij een
+vreemd bestaand bestand `x.jpg.lqip.jpg` en daarna `x-<hash6>.lqip.jpg`. `Files::delete_variant()`
+verwijdert naast `.webp`/`.avif` ook bestanden die op `.lqip.jpg` eindigen, nog steeds alleen binnen
+de uploadsmap. `sidecar_source_still_exists()` strip het achtervoegsel `.lqip.jpg` in zijn geheel
+voordat hij de bron terugzoekt, zodat `prune_stale_sizes()` een LQIP niet wist zolang zijn bron bestaat.
+
+**Uitserveren.** `Picture_Renderer::add_lqip_style()` zet `background-image:url("…")`,
+`background-size:cover`, `background-repeat:no-repeat` en `background-position:center` inline op de
+`<img>`, voor de LQIP van de maat waarvan de basename met de `src` overeenkomt, alleen als die
+geregistreerd is (en bij `imgx_verify_variant_files` ook op schijf bestaat). Ook op
+`loading="lazy"`. Een bestaand `style` wordt aangevuld met behoud van zijn quote-stijl, een
+ontbrekend wordt vlak voor `>`/`/>` ingevoegd; een tag met al een `background` blijft onaangeroerd.
+De `src` wordt gedecodeerd, aanhalingstekens, puntkomma, backslash, haakjes, spatie en regeleinden worden
+procentgecodeerd, en de hele stijlwaarde gaat door `esc_attr()`. `is_active()` vereist met LQIP aan
+niet langer `picture_enabled` of formaten; de overige gates (admin, AJAX, REST, cron, WP-CLI, feeds,
+embeds, AMP, `imgx_enable_picture`) blijven gelden. `wrap_img()` doet het `<picture>`-deel alleen bij
+`picture_enabled = 1`; `imgx_picture_html` krijgt de `<img>` zoals die werkelijk wordt uitgevoerd.
+
+**Preload.** In `whole_page`-modus zoekt `filter_page()` in de uiteindelijke buffer de eerste
+`<img fetchpriority="high">` waarvan `style` een `.lqip.jpg` bevat (ook binnen IMGX' eigen
+`<picture>`) en zet `<link rel="preload" as="image" href="…" fetchpriority="high">` vóór `</head>`.
+Nooit een preload van de hi-res of van WebP/AVIF; buiten `whole_page` is de `<head>` al verstuurd.
 
 ### Uitserveren
 
@@ -161,8 +212,8 @@ Voor grote bibliotheken is WP-CLI de praktische weg: `wp imgx status`, `wp imgx 
 **Op schijf**: per bijlage, per maat en per formaat één sidecar, in dezelfde map als het
 bronbestand. Naamgeving bij voorkeur `photo.webp`; omdat `photo.jpg` en `photo.png` in één map
 kunnen bestaan en beide `photo.webp` zouden willen, valt IMGX terug op `photo.jpg.webp` en
-uiteindelijk op `photo-<hash6>.webp` (`class-files.php:141-176`). Alleen `.webp` en `.avif` binnen
-de uploadsmap mogen ooit worden geschreven of verwijderd; `Files::delete_variant()` weigert al het
+uiteindelijk op `photo-<hash6>.webp` (`class-files.php:141-176`). Een LQIP heet `photo.lqip.jpg` (terugval `photo.jpg.lqip.jpg`, dan `photo-<hash6>.lqip.jpg`). Alleen
+`.webp`, `.avif` en `.lqip.jpg` binnen de uploadsmap mogen ooit worden geschreven of verwijderd; `Files::delete_variant()` weigert al het
 andere, zodat geen enkel codepad een origineel kan wissen (`:20-23`, `:111-139`).
 
 **In de database**:
@@ -181,7 +232,8 @@ andere, zodat geen enkel codepad een origineel kan wissen (`:20-23`, `:111-139`)
 Bij deactivering van de plugin worden de geplande generatietaken uit de cron-tabel gehaald
 (`includes/class-pdk-plugin.php:152-160`). Bij uninstall verdwijnen alle opties, de transient, de
 `imgx_lock_%`-rijen en alle `_imgx_variants`-postmeta — maar **de gegenereerde bestanden blijven
-bewust staan**: honderdduizenden bestanden verwijderen in een uninstall-hook loopt in een timeout.
+bewust staan** (ook de `.lqip.jpg`-bestanden): honderdduizenden bestanden verwijderen in een
+uninstall-hook loopt in een timeout.
 Draai eerst "Alle gegenereerde bestanden verwijderen" of `wp imgx delete`
 (`uninstall.php:30-57`).
 
@@ -192,7 +244,10 @@ Toegang tot de services loopt via `\IMGX\Plugin::instance()`, met getters `setti
 (`class-plugin.php:156-229`). De renderer is expliciet publiek zodat een thema of builder markup
 kan wikkelen die IMGX zelf niet ziet:
 `\IMGX\Plugin::instance()->renderer()->wrap_img( $html, $attachment_id, 'mijn-builder' )`
-(`class-picture-renderer.php:430-441`).
+(`class-picture-renderer.php:430-441`). Sinds 2.12.0 hangt het `<picture>`-deel van `wrap_img()` zelf
+van `picture_enabled` af (voorheen alleen de filter-aanroepers): een directe aanroep met
+`picture_enabled = 0` levert dus geen `<picture>` meer, wel een `<img>` met LQIP-achtergrond als
+`lqip_enabled` aan staat.
 
 Filters:
 
@@ -201,13 +256,14 @@ Filters:
 | `imgx_enabled_formats` | Globale formaatlijst (`class-settings.php:242-247`) |
 | `imgx_formats` | Formaten per bijlage, met context `generate` of `render` (`class-generator.php:245-252`) |
 | `imgx_source_mime_types` | Welke bronmimetypes varianten krijgen (`class-generator.php:97-102`) |
-| `imgx_should_generate_image` | Eén specifieke variant overslaan (`class-generator.php:504-512`) |
+| `imgx_should_generate_image` | Eén specifieke variant overslaan, ook de LQIP met `$format = 'lqip'` (`class-generator.php:504-512`) |
 | `imgx_webp_quality` / `imgx_avif_quality` | Kwaliteit per bijlage en maat (`class-converter.php:286-310`) |
+| `imgx_lqip_start_quality` | Startkwaliteit van de LQIP-lus, standaard 10 (`class-converter.php`, `lqip_start_quality()`) |
 | `imgx_keep_larger_variant` | Variant behouden die groter is dan de bron (`class-converter.php:256-265`) |
-| `imgx_enable_picture` | Transformatie per request uitzetten (`class-picture-renderer.php:797-804`) |
-| `imgx_should_render_picture` | Per afbeelding niet wikkelen (`class-picture-renderer.php:448-455`) |
+| `imgx_enable_picture` | Transformatie per request uitzetten, ook de LQIP-achtergrond (`class-picture-renderer.php:797-804`) |
+| `imgx_should_render_picture` | Per afbeelding niet wikkelen, en geen LQIP-achtergrond (`class-picture-renderer.php:448-455`) |
 | `imgx_picture_class` | Klassen op de `<picture>`-wrapper (`class-picture-renderer.php:558-573`) |
-| `imgx_picture_html` | De uiteindelijke markup (`class-picture-renderer.php:511-519`) |
+| `imgx_picture_html` | De uiteindelijke markup; het tweede argument is de `<img>` zoals uitgevoerd, mét LQIP-style (`class-picture-renderer.php:511-519`) |
 | `imgx_verify_variant_files` | Elk variantbestand bij het renderen op schijf controleren (`class-picture-renderer.php:481`) |
 | `imgx_batch_size` | Bijlagen per batchstap, 1-50 (`class-batch-processor.php:204-210`) |
 | `imgx_batch_capability` | Vereiste capability voor de batch (`class-batch-processor.php:87-92`) |
@@ -262,8 +318,21 @@ Vanuit de PDK-kant: `PDK_ImgX::tab_url( array $args = [] )` geeft de URL van de 
 - **`Settings::install_defaults()` wordt nergens aangeroepen** (geverifieerd: enige voorkomen is de
   definitie zelf, `class-settings.php:72`). De standaardwaarden komen in plaats daarvan bij elke
   leesactie over de opgeslagen waarden heen (`:113-125`), dus functioneel maakt het niets uit.
-- **Uninstall laat de gegenereerde bestanden staan.** Verwijder ze vooraf, anders blijven ze in de
-  uploadsmap achter (`uninstall.php:30-32`).
+- **Uninstall laat de gegenereerde bestanden staan** (ook `.lqip.jpg`). Verwijder ze vooraf, anders
+  blijven ze in de uploadsmap achter (`uninstall.php:30-32`).
+- **R-101: elke afbeelding kost een extra, vroeg request.** Een CSS-achtergrond wordt opgehaald
+  ongeacht `loading="lazy"`, en de LQIP staat op alle bijlage-afbeeldingen (orde 5 kB voor
+  1024×768). Per afbeelding uit te zetten met `imgx_should_render_picture`.
+- **R-102: srcset kan een grotere kandidaat kiezen dan `src`.** De LQIP hoort bij de `src`-maat;
+  toont de browser een grotere kandidaat, dan wordt de LQIP opgeschaald en kan hij onder 0,05 bpp
+  zakken en dus geen LCP-kandidaat zijn.
+- **R-106: verouderde variant na het bewerken van een afbeelding.** `generate_one()` beschouwt een
+  geregistreerde variant als klaar zolang het bestand bestaat, ook als de bron intussen in de
+  WordPress-editor is bewerkt. Dat geldt voor WebP/AVIF en nu ook voor de LQIP. Omweg:
+  `wp imgx generate --ids=<id> --force`.
+- **`picture_enabled = 0` laat de frontend niet meer altijd ongemoeid** als `lqip_enabled` aan staat:
+  de `<img>` krijgt dan nog steeds de achtergrond-style. Thema-CSS met `background` op `img` kan
+  daarmee botsen; een inline `background` op de tag zelf wordt gerespecteerd.
 
 ## Zelftest
 
@@ -276,6 +345,7 @@ WordPress-stubs, dus zonder WordPress. Gedekt zijn de sidecar-naamgeving, de ver
 `Files::delete_variant()`, formaatherkenning op magic bytes, de srcset-mapping (inclusief het laten
 vallen van kandidaten zonder variant), de markup-omzetting met nesting-preventie, het terugzoeken
 van builder-`<img>`s naar een bijlage inclusief batching en het weigeren van vreemde hosts en
-data-URI's, de klassenoverdracht naar de wrapper, de sanering van instellingen en registratie, en
-het gemeten scenario van de progressieve metadata-opslag van `wp_create_image_subsizes()`
+data-URI's, de klassenoverdracht naar de wrapper, de sanering van instellingen en registratie, de LQIP (instelling en vingerafdruk, naamgeving en
+verwijderen, alfa-detectie, `has-alpha`-registratie, achtergrond-style en escaping, onafhankelijkheid
+van `picture_enabled`, preload), en het gemeten scenario van de progressieve metadata-opslag van `wp_create_image_subsizes()`
 (`tests/test-imgx.php:2-8`, `:206-510`).

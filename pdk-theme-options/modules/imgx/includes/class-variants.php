@@ -141,7 +141,7 @@ class Variants {
 				}
 
 				foreach ( $formats as $format => $value ) {
-					if ( ! isset( Files::MIME_TYPES[ $format ] ) || ! is_string( $value ) || '' === $value ) {
+					if ( ( ! isset( Files::MIME_TYPES[ $format ] ) && Files::LQIP_KEY !== $format ) || ! is_string( $value ) || '' === $value ) {
 						continue;
 					}
 

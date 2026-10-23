@@ -105,7 +105,7 @@ class Converter {
 	 *
 	 * @param string $source_path Absolute path to an existing JPEG or PNG.
 	 * @param string $dest_path   Absolute destination path; its extension must match $format.
-	 * @param string $format      Variant format key: webp or avif.
+	 * @param string $format      Variant format key: webp, avif or lqip (JPEG-placeholder, zie save_lqip()).
 	 * @param array  $context     Optional context: attachment_id, size.
 	 * @return string|WP_Error Absolute path of the written file, or an error.
 	 */
@@ -118,11 +118,14 @@ class Converter {
 			)
 		);
 
-		if ( ! isset( Files::MIME_TYPES[ $format ] ) ) {
+		$lqip = ( Files::LQIP_KEY === $format );
+
+		if ( ! $lqip && ! isset( Files::MIME_TYPES[ $format ] ) ) {
 			return new WP_Error( 'imgx_unknown_format', __( 'Onbekend afbeeldingsformaat opgevraagd.', 'pdk-theme-options' ) );
 		}
 
-		if ( ! $this->capabilities->supports( $format ) ) {
+		// LQIP is een gewone JPEG: alleen JPEG-schrijven is nodig, niet de WebP/AVIF-probe.
+		if ( $lqip ? ! wp_image_editor_supports( array( 'mime_type' => 'image/jpeg' ) ) : ! $this->capabilities->supports( $format ) ) {
 			return new WP_Error(
 				'imgx_unsupported_format',
 				sprintf(
@@ -153,12 +156,13 @@ class Converter {
 			return new WP_Error( 'imgx_not_writable', __( 'De doelmap is niet beschrijfbaar.', 'pdk-theme-options' ) );
 		}
 
-		$mime    = Files::MIME_TYPES[ $format ];
-		$quality = $this->quality( $format, $context );
+		$mime    = $lqip ? 'image/jpeg' : Files::MIME_TYPES[ $format ];
+		$quality = $lqip ? $this->lqip_start_quality( $context ) : $this->quality( $format, $context );
 
 		self::lock_output_format();
 
-		$written = '';
+		$written      = '';
+		$dest_existed = file_exists( $dest_path );
 		$error   = null;
 
 		try {
@@ -182,7 +186,9 @@ class Converter {
 				 */
 				do_action( 'imgx_before_save', $editor, $format, $quality, $context );
 
-				$saved = $editor->save( $dest_path, $mime );
+				$saved = $lqip
+						? $this->save_lqip( $editor, $dest_path, $mime, $quality )
+						: $editor->save( $dest_path, $mime );
 
 				if ( is_wp_error( $saved ) ) {
 					$error = $saved;
@@ -201,6 +207,12 @@ class Converter {
 		if ( $error instanceof WP_Error ) {
 			if ( '' !== $written ) {
 				Files::delete_variant( $written );
+			}
+
+			// Een eerdere lus-ronde kan het doel al geschreven hebben; zonder registratie
+			// zou het volgende run dat bestand voor een vreemd bestand aanzien.
+			if ( $lqip && ! $dest_existed ) {
+				Files::delete_variant( $dest_path );
 			}
 
 			return $error;
@@ -240,7 +252,7 @@ class Converter {
 			return new WP_Error( 'imgx_write_empty', __( 'Het gegenereerde bestand is leeg.', 'pdk-theme-options' ) );
 		}
 
-		if ( Files::sniff_format( $written ) !== $format ) {
+		if ( Files::sniff_format( $written ) !== ( Files::LQIP_KEY === $format ? 'jpeg' : $format ) ) {
 			Files::delete_variant( $written );
 
 			return new WP_Error(
@@ -274,6 +286,76 @@ class Converter {
 		}
 
 		return $written;
+	}
+
+	/**
+	 * Startkwaliteit van de LQIP-lus.
+	 *
+	 * @param array $context Attachment id and size.
+	 * @return int
+	 */
+	private function lqip_start_quality( array $context ) {
+		/**
+		 * Filters the quality the LQIP loop starts at (default 10).
+		 *
+		 * @param int    $quality       Quality, 1-100.
+		 * @param int    $attachment_id Attachment ID.
+		 * @param string $size          Image size key.
+		 */
+		$quality = apply_filters( 'imgx_lqip_start_quality', 10, $context['attachment_id'], $context['size'] );
+
+		return (int) max( 1, min( 100, (int) $quality ) );
+	}
+
+	/**
+	 * Schrijft de LQIP: JPEG op de pixelafmeting van de bron, met de laagste kwaliteit
+	 * waarbij het bestand minstens 0,055 bits per pixel haalt (Chromium telt een
+	 * afbeelding vanaf 0,05 bpp als LCP-kandidaat). Plafond q=60; een resultaat op het
+	 * plafond blijft staan, ook als het onder het doel zit.
+	 *
+	 * @param \WP_Image_Editor $editor  Editor met de bron geladen.
+	 * @param string           $dest    Absolute destination path.
+	 * @param string           $mime    Mime type (image/jpeg).
+	 * @param int              $quality Startkwaliteit.
+	 * @return array|WP_Error Resultaat van WP_Image_Editor::save().
+	 */
+	private function save_lqip( $editor, $dest, $mime, $quality ) {
+		$dimensions = $editor->get_size();
+		$target     = (int) ceil( $dimensions['width'] * $dimensions['height'] * 0.055 / 8 );
+		$ceiling    = 60;
+
+		// WP_Image_Editor::get_output_format() roept set_quality() zonder argument aan als de
+		// uitvoer-mime van de bron afwijkt (PNG naar JPEG) en zet de kwaliteit dan terug naar
+		// de standaard. Deze filters dwingen de lus-kwaliteit af.
+		$pin = static function () use ( &$quality ) {
+			return $quality;
+		};
+
+		add_filter( 'wp_editor_set_quality', $pin, PHP_INT_MAX );
+		add_filter( 'jpeg_quality', $pin, PHP_INT_MAX );
+
+		try {
+			while ( true ) {
+				$editor->set_quality( $quality );
+
+				$saved = $editor->save( $dest, $mime );
+
+				if ( is_wp_error( $saved ) || ! is_array( $saved ) || empty( $saved['path'] ) || $quality >= $ceiling ) {
+					return $saved;
+				}
+
+				clearstatcache( true, $saved['path'] );
+
+				if ( (int) filesize( $saved['path'] ) >= $target ) {
+					return $saved;
+				}
+
+				$quality = min( $ceiling, $quality + 5 );
+			}
+		} finally {
+			remove_filter( 'wp_editor_set_quality', $pin, PHP_INT_MAX );
+			remove_filter( 'jpeg_quality', $pin, PHP_INT_MAX );
+		}
 	}
 
 	/**

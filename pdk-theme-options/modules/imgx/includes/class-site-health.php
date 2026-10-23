@@ -90,9 +90,13 @@ class Site_Health {
 			)
 			: sprintf(
 				/* translators: %s: image editor name. */
-				esc_html__( 'IMGX kan geen van de gekozen formaten coderen met %s, er worden dus geen afbeeldingen gegenereerd.', 'pdk-theme-options' ),
+				esc_html__( 'IMGX kan geen van de gekozen formaten coderen met %s, er worden dus geen WebP- of AVIF-bestanden gegenereerd.', 'pdk-theme-options' ),
 				esc_html( $this->capabilities->editor_name() )
 			);
+
+		if ( ! $available && $this->settings->get( 'lqip_enabled' ) ) {
+			$description .= ' ' . esc_html__( 'De LQIP-placeholders (JPEG) worden wel gegenereerd.', 'pdk-theme-options' );
+		}
 
 		$result = array(
 			'label'       => __( 'IMGX kan moderne afbeeldingsformaten genereren', 'pdk-theme-options' ),
@@ -168,6 +172,10 @@ class Site_Health {
 				'picture'      => array(
 					'label' => __( 'Picture-vervanging', 'pdk-theme-options' ),
 					'value' => $this->settings->get( 'picture_enabled' ) ? __( 'aan', 'pdk-theme-options' ) : __( 'uit', 'pdk-theme-options' ),
+				),
+				'lqip'         => array(
+					'label' => __( 'LQIP-placeholder', 'pdk-theme-options' ),
+					'value' => $this->settings->get( 'lqip_enabled' ) ? __( 'aan', 'pdk-theme-options' ) : __( 'uit', 'pdk-theme-options' ),
 				),
 				'webp_quality' => array(
 					'label' => __( 'WebP-kwaliteit', 'pdk-theme-options' ),

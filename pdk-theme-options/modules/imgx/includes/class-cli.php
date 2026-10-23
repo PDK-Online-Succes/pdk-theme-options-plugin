@@ -122,7 +122,7 @@ class CLI {
 			return;
 		}
 
-		if ( ! $this->settings->enabled_formats( $this->capabilities ) ) {
+		if ( ! $this->settings->get( 'lqip_enabled' ) && ! $this->settings->enabled_formats( $this->capabilities ) ) {
 			\WP_CLI::error( 'Geen enkel afbeeldingsformaat is tegelijk ingeschakeld en ondersteund door deze server. Draai: wp imgx status' );
 		}
 
