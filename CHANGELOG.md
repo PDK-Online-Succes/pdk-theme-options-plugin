@@ -2,6 +2,14 @@
 
 Alle noemenswaardige wijzigingen in PDK Theme Options worden hier bijgehouden.
 
+## [2.12.3] — 2026-10-30
+
+### IMGX: tiny-laag als SVG met exacte beeldverhouding
+
+- **Tiny als SVG.** De tiny-laag is nu een `data:image/svg+xml`-URI met als viewBox de afmetingen van de maat waarop de `<img>` staat, plus een Gaussian blur (`stdDeviation` = langste zijde / 40, min. 1). Zo heeft de laag exact de beeldverhouding van de foto en verdwijnen de zichtbare randen bij `background-size: contain` / `object-fit: scale-down`; bij bijgesneden maten (bv. thumbnail) wordt de tiny gecentreerd bijgesneden i.p.v. vervormd. Onbekende afmetingen: terugval op de gewone JPEG-data-URI
+- **Kosten.** Ongeveer 300 bytes extra HTML per afbeelding
+- **Tip.** Gebruik je `object-fit: contain` of `scale-down`, zet dan in je custom CSS ook `background-size: contain` voor die afbeeldingen
+
 ## [2.12.2] — 2026-10-30
 
 ### IMGX: standaard img-CSS in custom-style.css; LQIP-style en klassenkopie vereenvoudigd

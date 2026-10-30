@@ -158,10 +158,12 @@ check( 'sniff empty file', IMGX\Files::sniff_format( "$base/2026/09/empty.webp" 
 /* ---------- Picture_Renderer ---------- */
 
 $GLOBALS['imgx_attachment_meta'] = array(
-	'file'  => '2026/09/photo.jpg',
-	'sizes' => array(
-		'medium' => array( 'file' => 'photo-300x200.jpg' ),
-		'large'  => array( 'file' => 'photo-1024x683.jpg' ),
+	'file'   => '2026/09/photo.jpg',
+	'width'  => 1600,
+	'height' => 1067,
+	'sizes'  => array(
+		'medium' => array( 'file' => 'photo-300x200.jpg', 'width' => 300, 'height' => 200 ),
+		'large'  => array( 'file' => 'photo-1024x683.jpg', 'width' => 1024, 'height' => 683 ),
 	),
 );
 
@@ -999,12 +1001,56 @@ foreach ( array( 'a"b', 'a)b', 'a;b', 'a b', 'a<b', 'data:image/jpeg;base64,AAAA
 }
 check( 'T-T2: get_tiny returns empty for an invalid stored value', '' === IMGX\Variants::get_tiny( 42 ) );
 
-// T4: LQIP + tiny.
+/**
+ * Splits a decoded style "background-image:url("A")[,url("B")]" into array( A, B ) (B '' when absent),
+ * or null when it has another shape (a stray quote, extra declarations).
+ */
+function t_layers( $style ) {
+	return preg_match( '#^background-image:url\("([^"]*)"\)(?:,url\("([^"]*)"\))?$#', (string) $style, $m ) ? array( $m[1], $m[2] ?? '' ) : null;
+}
+
+/** Parses the SVG data URI layer: array( W, H, S, href, par, tableValues, viewBox, width, height, imgPar ) or null. */
+function t_svg( $layer ) {
+	$pfx = 'data:image/svg+xml,';
+	if ( 0 !== strpos( (string) $layer, $pfx ) ) { return null; }
+	$prev = libxml_use_internal_errors( true );
+	$dom  = new DOMDocument();
+	$ok   = $dom->loadXML( rawurldecode( substr( $layer, strlen( $pfx ) ) ) );
+	libxml_clear_errors();
+	libxml_use_internal_errors( $prev );
+	if ( ! $ok ) { return null; }
+	$x = new DOMXPath( $dom );
+	$x->registerNamespace( 's', 'http://www.w3.org/2000/svg' );
+	$r   = $dom->documentElement;
+	$blr = $x->query( '//s:feGaussianBlur' )->item( 0 );
+	$fa  = $x->query( '//s:feFuncA' )->item( 0 );
+	$im  = $x->query( '//s:image' )->item( 0 );
+	if ( ! $blr || ! $fa || ! $im || 'svg' !== $r->localName ) { return null; }
+	return array(
+		'viewBox' => $r->getAttribute( 'viewBox' ), 'width' => $r->getAttribute( 'width' ), 'height' => $r->getAttribute( 'height' ),
+		'std' => $blr->getAttribute( 'stdDeviation' ), 'table' => $fa->getAttribute( 'tableValues' ),
+		'href' => $im->getAttribute( 'href' ), 'par' => $im->getAttribute( 'preserveAspectRatio' ),
+	);
+}
+
+/** Whether the second layer of $html is a valid blur-SVG for $w x $h wrapping $tiny with blur $std. */
+function t_svg_ok( $html, $w, $h, $std, $tiny ) {
+	$l = t_layers( lq_style( lq_img_tag( $html ) ) );
+	$s = $l ? t_svg( $l[1] ) : null;
+	return $s && "0 0 $w $h" === $s['viewBox'] && (string) $w === $s['width'] && (string) $h === $s['height']
+		&& 'data:image/jpeg;base64,' . $tiny === $s['href'] && 'xMidYMid slice' === $s['par']
+		&& (float) $std === (float) $s['std'] && '1 1' === $s['table'];
+}
+
+// T4: LQIP + tiny (second layer = blur-SVG since 2.12.3; first layer stays exact).
 update_post_meta( 42, IMGX\Variants::TINY_KEY, $t_tiny );
 $t_o = $renderer->wrap_img( $lq_img, 42, 'test' );
-check( 'T-T4: LQIP + tiny -> exact two-layer background-image', 'background-image:url("' . $lq_large . '"),url("data:image/jpeg;base64,' . $t_tiny . '")' === $t_bg( $t_o ), $t_o );
-check( 'T-T4: LQIP layer comes first, data: layer second', strpos( $t_o, 'lqip.jpg' ) < strpos( $t_o, 'data:image/jpeg' ) );
-check( 'T-T4: two-layer style has no background-size/-repeat/-position', lq_has_bg( str_replace( ',url("data:image/jpeg;base64,' . $t_tiny . '")', '', lq_style( lq_img_tag( $t_o ) ) ), $lq_large ) && 0 === preg_match( '#background-(size|repeat|position)#', lq_img_tag( $t_o ) ), $t_o );
+$t_l = t_layers( $t_bg( $t_o ) );
+check( 'T-T4: LQIP + tiny -> two layers, first is exactly the .lqip.jpg url', $t_l && $t_l[0] === $lq_large && '' !== $t_l[1], $t_o );
+check( 'T-T4: second layer is an SVG data URI that parses (large 1024x683 -> S 25.6)', t_svg_ok( $t_o, 1024, 683, 25.6, $t_tiny ), $t_o );
+check( 'T-T4: SVG layer: no raw <, >, # in the decoded style; exactly 4 double quotes', ! preg_match( '/[<>#]/', (string) lq_style( lq_img_tag( $t_o ) ) ) && 4 === substr_count( lq_style( lq_img_tag( $t_o ) ), '"' ), $t_o );
+check( 'T-T4: LQIP layer comes first, SVG layer second', strpos( $t_o, 'lqip.jpg' ) < strpos( $t_o, 'data:image/svg+xml' ) );
+check( 'T-T4: two-layer style has no background-size/-repeat/-position', lq_has_bg( 'background-image:url("' . $lq_large . '")', $lq_large ) && 0 === preg_match( '#background-(size|repeat|position)#', lq_img_tag( $t_o ) ), $t_o );
 check( 'T-T4: exactly one style attribute, tag closes', 1 === substr_count( lq_img_tag( $t_o ), ' style=' ) && '/>' === substr( lq_img_tag( $t_o ), -2 ) );
 
 // Size without LQIP + tiny -> data: layer only.
@@ -1014,7 +1060,41 @@ IMGX\Variants::save( 42, array( 'sizes' => array(
 ) ) );
 IMGX\Variants::flush_cache( 42 );
 update_post_meta( 42, IMGX\Variants::TINY_KEY, $t_tiny );
-check( 'T-T4: size without LQIP + tiny -> only the data: layer', 'background-image:url("data:image/jpeg;base64,' . $t_tiny . '")' === $t_bg( $renderer->wrap_img( $lq_img, 42, 'test' ) ) );
+$t_o = $renderer->wrap_img( $lq_img, 42, 'test' );
+$t_l = t_layers( $t_bg( $t_o ) );
+check( 'T-T4: size without LQIP + tiny -> only the SVG layer (large 1024x683)', $t_l && '' === $t_l[1] && 0 === strpos( $t_l[0], 'data:image/svg+xml,' ) && false === strpos( $t_o, 'lqip.jpg' ), $t_o );
+check( 'T-T4: tiny-only SVG layer parses with the right geometry', $t_l && ( $t_sv = t_svg( $t_l[0] ) ) && '0 0 1024 683' === $t_sv['viewBox'] && 'data:image/jpeg;base64,' . $t_tiny === $t_sv['href'], $t_o );
+lq_registry( true );
+
+// Size selection: the dimensions come from the attachment size that matches the img src.
+$t_meta2 = $lq_meta;
+$t_meta2['sizes']['pdk_wide']  = array( 'file' => 'photo-1024x581.jpg', 'width' => 1024, 'height' => 581 );
+$t_meta2['sizes']['thumbnail'] = array( 'file' => 'photo-150x150.jpg', 'width' => 150, 'height' => 150 );
+$GLOBALS['imgx_attachment_meta'] = $t_meta2;
+IMGX\Variants::save( 42, array( 'sizes' => array(
+	'full'      => array( 'lqip' => 'photo.lqip.jpg' ),
+	'pdk_wide'  => array( 'lqip' => 'photo-1024x581.lqip.jpg' ),
+	'thumbnail' => array( 'lqip' => 'photo-150x150.lqip.jpg' ),
+) ) );
+IMGX\Variants::flush_cache( 42 );
+$renderer->reset();
+$t_src = function ( $file ) use ( $lq_url ) { return '<img src="' . $lq_url . $file . '" class="wp-image-42" alt="" />'; };
+$t_o   = $renderer->wrap_img( $t_src( 'photo-1024x581.jpg' ), 42, 'test' );
+check( 'T-T4: proportional 1024x581 -> viewBox 0 0 1024 581, S 25.6', t_svg_ok( $t_o, 1024, 581, 25.6, $t_tiny ), $t_o );
+check( 'T-T4: proportional size keeps its own .lqip.jpg as first layer', ( $t_l = t_layers( $t_bg( $t_o ) ) ) && $t_l[0] === $lq_url . 'photo-1024x581.lqip.jpg', $t_o );
+$t_o = $renderer->wrap_img( $t_src( 'photo-150x150.jpg' ), 42, 'test' );
+check( 'T-T4: cropped 150x150 -> viewBox 0 0 150 150, S 3.8', t_svg_ok( $t_o, 150, 150, 3.8, $t_tiny ), $t_o );
+$t_o = $renderer->wrap_img( $t_src( 'photo.jpg' ), 42, 'test' );
+check( 'T-T4: full size -> full dimensions 1600x1067, S 40', t_svg_ok( $t_o, 1600, 1067, 40, $t_tiny ), $t_o );
+
+// Unknown dimensions -> the pre-2.12.3 JPEG layer.
+$t_meta3 = $t_meta2;
+unset( $t_meta3['sizes']['pdk_wide']['width'], $t_meta3['sizes']['pdk_wide']['height'] );
+$GLOBALS['imgx_attachment_meta'] = $t_meta3;
+$t_o = $renderer->wrap_img( $t_src( 'photo-1024x581.jpg' ), 42, 'test' );
+check( 'T-T4: unknown dimensions -> JPEG fallback layer, no svg', 'background-image:url("' . $lq_url . 'photo-1024x581.lqip.jpg"),url("data:image/jpeg;base64,' . $t_tiny . '")' === $t_bg( $t_o ) && false === strpos( $t_o, 'svg' ), $t_o );
+$GLOBALS['imgx_attachment_meta'] = $lq_meta;
+$renderer->reset();
 lq_registry( true );
 
 // lqip_enabled=0 -> nothing, byte-identical.
@@ -1029,7 +1109,7 @@ $t_o  = $renderer->wrap_img( $lq_hostile, 42, 'test' );
 $t_st = (string) lq_style( lq_img_tag( $t_o ) );
 check( 'T-T4: hostile src + tiny: exactly 4 double quotes (2 per layer)', 4 === substr_count( $t_st, '"' ), $t_st );
 check( 'T-T4: hostile src + tiny: one style attr, tag closes, no injected declaration', 1 === substr_count( lq_img_tag( $t_o ), ' style=' ) && '/>' === substr( lq_img_tag( $t_o ), -2 ) && false === strpos( $t_st, 'background:' ) && false === strpos( $t_st, '//evil' ), $t_st );
-check( 'T-T4: hostile src + tiny: data: layer intact', false !== strpos( $t_st, ',url("data:image/jpeg;base64,' . $t_tiny . '")' ), $t_st );
+check( 'T-T4: hostile src + tiny: SVG layer intact, no raw <, >, # in the attribute', ( $t_l = t_layers( $t_st ) ) && $t_l[1] && t_svg( $t_l[1] ) && 'data:image/jpeg;base64,' . $t_tiny === t_svg( $t_l[1] )['href'] && ! preg_match( '/[<>#]/', $t_st ), $t_st );
 
 // Preload unchanged: first layer .lqip.jpg, never data:.
 lq_cfg( array( 'lqip_enabled' => 1, 'whole_page' => 1 ) );

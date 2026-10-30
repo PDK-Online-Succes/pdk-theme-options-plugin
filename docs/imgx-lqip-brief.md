@@ -363,3 +363,20 @@ Gevolg: ongeveer 1 KB extra HTML per afbeelding. Bekende rest: mislukt of oversc
 ## 13. Aanvulling 2026-10-30: basis-CSS in custom-style.css (2.12.2)
 
 Bron: gebruikersverzoek 2026-10-30. Vervangt de longhands uit D3: de inline style bevat alleen nog `background-image:url("…")[,url("data:…")]`. `background-size:cover`, `background-repeat:no-repeat` en `background-position:center` staan in een `img`-blok in `custom-style.css` (alleen voor nieuwe installaties; bestaande bestanden worden niet overschreven). `picture { display: contents }` maakt de wrapper boxloos (i.p.v. `picture * { all: inherit }`, dat de width/height-hints van de `<img>` zou overschrijven). De klassen van de `<img>` worden niet meer naar de `<picture>` gekopieerd.
+
+
+---
+
+## 14. Aanvulling 2026-10-30: tiny als SVG met exacte beeldverhouding (2.12.3)
+
+Bron: klantcase 2026-10-30. Met `object-fit: scale-down` + `background-size: contain` is de tiny (16×9, 1,778) breder dan de afbeelding (2560×1452, 1,763): aan beide zijden blijft na het laden een strook van ca. 3,7 px zichtbaar. Bij bijgesneden maten (thumbnail 150×150) wijkt de verhouding geheel af.
+
+| ID | Besluit | Bron |
+|----|---------|------|
+| S1 | De tiny-laag wordt per `<img>` een `data:image/svg+xml`-URI met viewBox/width/height = afmetingen van de maat bij de `src` (attachment-metadata, geen extra query); onbekend: terugval op de JPEG-data-URI | klantcase 2026-10-30 |
+| S2 | `<image>` met `xMidYMid slice`: proportionele maten snijden de afrondingsfout weg, bijgesneden maten krijgen een gecentreerde crop | klantcase 2026-10-30 |
+| S3 | `feGaussianBlur` `stdDeviation` = max(w,h)/40 (min. 1) en `feFuncA table 1 1` voor dekkende randen | klantcase 2026-10-30 |
+| S4 | SVG bevat alleen gevalideerde base64 + integers; procentcodering van `% < > # "`; de LQIP-url-codering (NFR-104) wordt niet op de SVG-laag toegepast | klantcase 2026-10-30 |
+| S5 | Preload en lqip-uit ongewijzigd; versie 2.12.3 | klantcase 2026-10-30 |
+
+Gevolg: ca. 300 bytes extra HTML per afbeelding. Aanbeveling voor contain/scale-down: `background-size: contain` in de custom CSS.
