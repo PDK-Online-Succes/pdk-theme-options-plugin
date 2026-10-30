@@ -24,6 +24,16 @@ class Variants {
 	const META_KEY = '_imgx_variants';
 
 	/**
+	 * Post meta key van de tiny-placeholder (kale base64 van een JPEG van 16 px).
+	 */
+	const TINY_KEY = '_imgx_lqip_tiny';
+
+	/**
+	 * Maximale lengte van de base64-string; groter wordt niet opgeslagen.
+	 */
+	const TINY_MAX = 2048;
+
+	/**
 	 * Structure version, so a future format change can be migrated.
 	 */
 	const SCHEMA_VERSION = 1;
@@ -73,6 +83,29 @@ class Variants {
 	}
 
 	/**
+	 * Geeft de tiny-placeholder (bare base64) of een lege string. Valideert ook bij het lezen,
+	 * want de waarde komt ongeëscaped in een data-URI terecht.
+	 *
+	 * @param int $attachment_id Attachment ID.
+	 * @return string
+	 */
+	public static function get_tiny( $attachment_id ) {
+		$tiny = get_post_meta( (int) $attachment_id, self::TINY_KEY, true );
+
+		return self::valid_tiny( $tiny ) ? $tiny : '';
+	}
+
+	/**
+	 * Of een waarde een toegestane tiny-base64 is.
+	 *
+	 * @param mixed $tiny Waarde.
+	 * @return bool
+	 */
+	public static function valid_tiny( $tiny ) {
+		return is_string( $tiny ) && strlen( $tiny ) <= self::TINY_MAX && 1 === preg_match( '/\A[A-Za-z0-9+\/]+={0,2}\z/', $tiny );
+	}
+
+	/**
 	 * Removes the registry.
 	 *
 	 * @param int $attachment_id Attachment ID.
@@ -82,6 +115,7 @@ class Variants {
 		$attachment_id = (int) $attachment_id;
 
 		delete_post_meta( $attachment_id, self::META_KEY );
+		delete_post_meta( $attachment_id, self::TINY_KEY );
 
 		unset( self::$map_cache[ $attachment_id ] );
 	}

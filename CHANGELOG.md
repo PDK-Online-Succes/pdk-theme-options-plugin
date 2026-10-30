@@ -2,6 +2,19 @@
 
 Alle noemenswaardige wijzigingen in PDK Theme Options worden hier bijgehouden.
 
+## [2.12.1] — 2026-10-30
+
+### IMGX: tiny base64-laag onder de LQIP (blurry eerste frame)
+
+De LQIP uit 2.12.0 is een echt bestand dat pas na een request verschijnt, dus de allereerste frame bleef leeg. Zoals in het artikel van CSS Wizardry krijgt de `<img>` er nu een tweede, inline laag onder: een JPEG van 16 px (langste zijde) als base64. Die is te klein om als LCP-kandidaat te tellen, maar geeft direct een blurry eerste beeld; de `.lqip.jpg` blijft de LCP-kandidaat en de hi-res dekt alles af.
+
+- **Eén tiny per bijlage** (niet per maat): afgeleid van het door WordPress geschaalde bestand (`get_attached_file()`; de alfa-beslissing blijft op het origineel), langste zijde 16 px, JPEG op vaste kwaliteit 40, als kale base64 in postmeta `_imgx_lqip_tiny`. Het tijdelijke bestand wordt direct opgeruimd; er blijft niets op schijf staan
+- **Grens.** Een base64 langer dan 2048 tekens wordt niet opgeslagen (debug-logregel); opslaan én uitserveren valideren op `^[A-Za-z0-9+/]+={0,2}$`
+- **Uitserveren.** `background-image:url("…lqip.jpg"),url("data:image/jpeg;base64,…")`: LQIP bovenop, tiny eronder. Heeft de maat geen LQIP maar de bijlage wel een tiny, dan alleen de tiny-laag. De bestaande regels (quote-stijl, tag met eigen `background` blijft ongemoeid, procentcodering van de LQIP-URL) blijven gelden. De preload blijft de `.lqip.jpg`
+- **Kosten.** Ongeveer 1 KB extra HTML per afbeelding (base64 in het `style`-attribuut)
+- **Levenscyclus.** Zelfde schakelaar als de LQIP (`lqip_enabled`); PNG's met alfa krijgen geen tiny. Wordt in dezelfde `generate()`-ronde gemaakt, ook zonder WebP/AVIF. `needs_generation()` is waar zolang de tiny ontbreekt (niet voor alfa-originelen), dus **een batch "ontbrekende" vult de tiny aan bij bijlagen die al een 2.12.0-LQIP hebben**; `--force` / batch "alles" maakt hem opnieuw. `wp imgx delete`, batch-verwijderen en het verwijderen van een bijlage wissen ook de meta
+- Spec: `docs/imgx-lqip-brief.md` (sectie "Aanvulling 2026-10-30")
+
 ## [2.12.0] — 2026-10-23
 
 ### IMGX: LCP-waardige LQIP-placeholder

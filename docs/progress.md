@@ -74,4 +74,5 @@ Vorige ledger (Afbeeldingsmaten, uitgebracht in 2.10.0): zie git-historie van di
 - Gebruiker: PNG-fix + commit/PR. Besluit D4b: alfa één keer per bijlage op het origineel bepalen. backend-dev (run 14, incl. live) + tester (run 15) parallel
 - PNG-fix DONE: alfa op origineel (`original_has_alpha()`), 202/0, live opake PNG 24 gegenereerd/0 overgeslagen, alfa-PNG alle maten has-alpha
 - dev.local opgeruimd door coördinator: `imgx_settings` terug naar origineel (lqip stond nog aan), LQIP's van bijlagen 11/14 verwijderd, WebP/AVIF opnieuw gegenereerd, 0 `.lqip.jpg`
-- Volgende actie: branch feature/imgx-lqip, commit, PR
+- Commit 246b529 op feature/imgx-lqip, PR #4 geopend
+- PR #4 gemerged (7cae98d), tag v2.12.0, release gepubliceerd als latest (niet pre-release). Taak afgerond

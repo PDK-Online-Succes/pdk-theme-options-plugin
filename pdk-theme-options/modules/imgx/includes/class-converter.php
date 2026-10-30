@@ -359,6 +359,86 @@ class Converter {
 	}
 
 	/**
+	 * Maakt de tiny-placeholder: JPEG met een langste zijde van 16 px op vaste kwaliteit 40,
+	 * als kale base64. Het tijdelijke bestand wordt altijd opgeruimd.
+	 *
+	 * @param string $source Absoluut pad van de bron.
+	 * @return string Base64, of een lege string als het niet lukt.
+	 */
+	public function tiny_base64( $source ) {
+		if ( ! is_readable( $source ) || ! wp_image_editor_supports( array( 'mime_type' => 'image/jpeg' ) ) ) {
+			return '';
+		}
+
+		$editor = wp_get_image_editor( $source );
+
+		if ( is_wp_error( $editor ) ) {
+			return '';
+		}
+
+		$size = $editor->get_size();
+
+		if ( empty( $size['width'] ) || empty( $size['height'] ) ) {
+			return '';
+		}
+
+		$ratio = 16 / max( $size['width'], $size['height'] );
+
+		if ( is_wp_error( $editor->resize( max( 1, (int) round( $size['width'] * $ratio ) ), max( 1, (int) round( $size['height'] * $ratio ) ), false ) ) ) {
+			return '';
+		}
+
+		// Zie save_lqip(): get_output_format() zet de kwaliteit terug bij een mime-wissel.
+		$pin = static function () {
+			return 40;
+		};
+
+		add_filter( 'wp_editor_set_quality', $pin, PHP_INT_MAX );
+		add_filter( 'jpeg_quality', $pin, PHP_INT_MAX );
+
+		$base  = wp_tempnam( 'imgx-tiny' );
+		$tmp   = $base . '.jpg';
+		$bytes = false;
+		$saved = null;
+
+		// Een image_editor_output_format-map van derden mag de JPEG niet in een andere indeling schrijven.
+		self::lock_output_format();
+
+		try {
+			$editor->set_quality( 40 );
+
+			$saved = $editor->save( $tmp, 'image/jpeg' );
+
+			if ( ! is_wp_error( $saved ) && is_array( $saved ) && ! empty( $saved['path'] ) ) {
+				$bytes = file_get_contents( $saved['path'] ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Lokaal tempbestand.
+			}
+
+			// Alleen echte JPEG-bytes mogen in de data-URI.
+			if ( false !== $bytes && 'jpeg' !== Files::sniff_format( $saved['path'] ) ) {
+				$bytes = false;
+			}
+		} finally {
+			self::unlock_output_format();
+			remove_filter( 'wp_editor_set_quality', $pin, PHP_INT_MAX );
+			remove_filter( 'jpeg_quality', $pin, PHP_INT_MAX );
+
+			$files = array( $base, $tmp );
+
+			if ( is_array( $saved ) && ! empty( $saved['path'] ) ) {
+				$files[] = $saved['path'];
+			}
+
+			foreach ( array_unique( $files ) as $file ) {
+				if ( is_file( $file ) ) {
+					wp_delete_file( $file );
+				}
+			}
+		}
+
+		return $bytes ? base64_encode( $bytes ) : '';
+	}
+
+	/**
 	 * Resolves the encoder quality for a format.
 	 *
 	 * @param string $format  Format key.

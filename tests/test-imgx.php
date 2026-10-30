@@ -764,7 +764,9 @@ check( 'AC-109: webp/avif complete + lqip off -> needs_generation false', false 
 lq_cfg( array( 'lqip_enabled' => 1 ) );
 check( 'AC-109: webp/avif complete, lqip turned on -> needs_generation true', true === $lq_gen->needs_generation( 89 ) );
 IMGX\Variants::save( 89, array( 'sizes' => array( 'full' => array( 'avif' => 'photo.avif', 'webp' => 'photo.webp', 'lqip' => 'photo.lqip.jpg' ) ) ) );
-check( 'AC-109: once lqip is registered -> needs_generation false again', false === $lq_gen->needs_generation( 89 ) );
+check( 'AC-109: lqip registered but tiny still missing -> needs_generation true (T3)', true === $lq_gen->needs_generation( 89 ) );
+update_post_meta( 89, IMGX\Variants::TINY_KEY, 'AAAA' );
+check( 'AC-109: once lqip is registered (and tiny stored) -> needs_generation false again', false === $lq_gen->needs_generation( 89 ) );
 
 /* ---------- AC-106 (H): renderer output ---------- */
 
@@ -964,6 +966,182 @@ $GLOBALS['imgx_actions'] = array();
 ( new IMGX\Picture_Renderer( $settings, $caps ) )->register_hooks();
 $lq_buf = array_filter( $GLOBALS['imgx_actions'], function ( $a ) { return 'template_redirect' === $a[0]; } );
 check( 'AC-108: whole_page=0 does not register start_buffer (so no preload)', 0 === count( $lq_buf ) );
+
+/* ---------- T2-T4 (v2.12.1): tiny base64 layer under the LQIP ---------- */
+
+$t_tiny = str_repeat( 'QUJD', 20 ) . 'RA=='; // plain base64
+$t_bg   = function ( $html ) { return preg_match( '#background-image:.*?(?=;background-size:cover)#', (string) lq_style( lq_img_tag( $html ) ), $m ) ? $m[0] : ''; };
+
+// T2: validation.
+check( 'T-T2: valid_tiny accepts normal base64', true === IMGX\Variants::valid_tiny( $t_tiny ) );
+foreach ( array( '"' => 'AAA"AAA', ')' => 'AAA)AAA', ';' => 'AAA;AAA', 'space' => 'AAA AAA', '<' => 'AAA<AAA', 'data: prefix' => 'data:image/jpeg;base64,AAAA', 'empty' => '', 'array' => array( 'AAAA' ) ) as $t_n => $t_bad ) {
+	check( "T-T2: valid_tiny rejects $t_n", false === IMGX\Variants::valid_tiny( $t_bad ) );
+}
+check( 'T-T2: valid_tiny accepts exactly TINY_MAX chars', true === IMGX\Variants::valid_tiny( str_repeat( 'A', IMGX\Variants::TINY_MAX ) ) );
+check( 'T-T2: valid_tiny rejects TINY_MAX + 1 chars', false === IMGX\Variants::valid_tiny( str_repeat( 'A', IMGX\Variants::TINY_MAX + 1 ) ) );
+check( 'T-T2: TINY_KEY is _imgx_lqip_tiny', '_imgx_lqip_tiny' === IMGX\Variants::TINY_KEY );
+
+lq_cfg( array( 'lqip_enabled' => 1, 'picture_enabled' => 0 ) );
+lq_registry( true );
+delete_post_meta( 42, IMGX\Variants::TINY_KEY );
+$t_single = $renderer->wrap_img( $lq_img, 42, 'test' );
+check( 'T-T4: no tiny -> exactly the 2.12.0 single-layer form', 'background-image:url("' . $lq_large . '")' === $t_bg( $t_single ), $t_single );
+foreach ( array( 'a"b', 'a)b', 'a;b', 'a b', 'a<b', 'data:image/jpeg;base64,AAAA', str_repeat( 'A', 2049 ) ) as $t_bad ) {
+	update_post_meta( 42, IMGX\Variants::TINY_KEY, $t_bad );
+	$t_o = $renderer->wrap_img( $lq_img, 42, 'test' );
+	check( 'T-T2: invalid stored tiny (' . substr( $t_bad, 0, 12 ) . ') -> no data: layer, output equals LQIP-only', false === strpos( $t_o, 'data:' ) && $t_o === $t_single, $t_o );
+}
+check( 'T-T2: get_tiny returns empty for an invalid stored value', '' === IMGX\Variants::get_tiny( 42 ) );
+
+// T4: LQIP + tiny.
+update_post_meta( 42, IMGX\Variants::TINY_KEY, $t_tiny );
+$t_o = $renderer->wrap_img( $lq_img, 42, 'test' );
+check( 'T-T4: LQIP + tiny -> exact two-layer background-image', 'background-image:url("' . $lq_large . '"),url("data:image/jpeg;base64,' . $t_tiny . '")' === $t_bg( $t_o ), $t_o );
+check( 'T-T4: LQIP layer comes first, data: layer second', strpos( $t_o, 'lqip.jpg' ) < strpos( $t_o, 'data:image/jpeg' ) );
+check( 'T-T4: size/repeat/position declarations still present', lq_has_bg( str_replace( ',url("data:image/jpeg;base64,' . $t_tiny . '")', '', lq_style( lq_img_tag( $t_o ) ) ), $lq_large ) );
+check( 'T-T4: exactly one style attribute, tag closes', 1 === substr_count( lq_img_tag( $t_o ), ' style=' ) && '/>' === substr( lq_img_tag( $t_o ), -2 ) );
+
+// Size without LQIP + tiny -> data: layer only.
+IMGX\Variants::save( 42, array( 'sizes' => array(
+	'full'  => array( 'avif' => 'photo.avif', 'webp' => 'photo.webp', 'lqip' => 'photo.lqip.jpg' ),
+	'large' => array( 'avif' => 'photo-1024x683.avif', 'webp' => 'photo-1024x683.webp' ),
+) ) );
+IMGX\Variants::flush_cache( 42 );
+update_post_meta( 42, IMGX\Variants::TINY_KEY, $t_tiny );
+check( 'T-T4: size without LQIP + tiny -> only the data: layer', 'background-image:url("data:image/jpeg;base64,' . $t_tiny . '")' === $t_bg( $renderer->wrap_img( $lq_img, 42, 'test' ) ) );
+lq_registry( true );
+
+// lqip_enabled=0 -> nothing, byte-identical.
+lq_cfg( array( 'lqip_enabled' => 0, 'picture_enabled' => 0 ) );
+check( 'T-T4: lqip off + tiny stored -> output byte-identical to input', $renderer->wrap_img( $lq_img, 42, 'test' ) === $lq_img );
+lq_cfg( array( 'lqip_enabled' => 0 ) );
+check( 'T-T4: lqip off + tiny stored (picture on) -> no data: layer', false === strpos( $renderer->wrap_img( $lq_img, 42, 'test' ), 'data:' ) );
+
+// Hostile src with a tiny present (NFR-104 fixture).
+lq_cfg( array( 'lqip_enabled' => 1, 'picture_enabled' => 0 ) );
+$t_o  = $renderer->wrap_img( $lq_hostile, 42, 'test' );
+$t_st = (string) lq_style( lq_img_tag( $t_o ) );
+check( 'T-T4: hostile src + tiny: exactly 4 double quotes (2 per layer)', 4 === substr_count( $t_st, '"' ), $t_st );
+check( 'T-T4: hostile src + tiny: one style attr, tag closes, no injected declaration', 1 === substr_count( lq_img_tag( $t_o ), ' style=' ) && '/>' === substr( lq_img_tag( $t_o ), -2 ) && false === strpos( $t_st, 'background:' ) && false === strpos( $t_st, '//evil' ), $t_st );
+check( 'T-T4: hostile src + tiny: data: layer intact', false !== strpos( $t_st, ',url("data:image/jpeg;base64,' . $t_tiny . '")' ), $t_st );
+
+// Preload unchanged: first layer .lqip.jpg, never data:.
+lq_cfg( array( 'lqip_enabled' => 1, 'whole_page' => 1 ) );
+$t_page = $renderer->filter_page( '<!DOCTYPE html><html><head><title>t</title></head><body>' . $lq_high_img . '</body></html>' );
+preg_match_all( '#<link\b[^>]*rel="preload"[^>]*>#', $t_page, $t_links );
+check( 'T-T4: preload with tiny present is exactly the .lqip.jpg link', 1 === count( $t_links[0] ) && $t_links[0][0] === $lq_link, $t_page );
+check( 'T-T4: preload never points at data:', false === strpos( implode( '', $t_links[0] ), 'data:' ) );
+
+// T3: needs_generation / delete.
+$t_setup = function ( $id, $type, $lqip ) use ( $lq_dir ) {
+	$GLOBALS['imgx_attached'][ $id ]  = "$lq_dir/t$id.png";
+	$GLOBALS['imgx_post_mime'][ $id ] = 'image/png';
+	file_put_contents( "$lq_dir/t$id.png", lq_png( $type ) );
+	$GLOBALS['imgx_attachment_meta'] = array( 'file' => "2026/09/t$id.png", 'sizes' => array() );
+	IMGX\Variants::save( $id, array( 'sizes' => array( 'full' => array( 'lqip' => 't.lqip.jpg' ) ) ) );
+	delete_post_meta( $id, IMGX\Variants::TINY_KEY );
+	$GLOBALS['imgx_filters']['imgx_enabled_formats'] = array( function () { return array(); } );
+	lq_cfg( array( 'lqip_enabled' => $lqip ) );
+};
+$t_mkgen = function () use ( $settings, $caps ) { return new IMGX\Generator( $settings, $caps, new IMGX\Converter( $settings, $caps, new IMGX\Logger() ), new IMGX\Logger() ); };
+$t_setup( 95, 2, 1 );
+$t_gen = $t_mkgen();
+check( 'T-T3: lqip on + tiny missing + opaque original -> needs_generation true', true === $t_gen->needs_generation( 95 ) );
+update_post_meta( 95, IMGX\Variants::TINY_KEY, $t_tiny );
+check( 'T-T3: tiny present -> needs_generation false', false === $t_gen->needs_generation( 95 ) );
+IMGX\Variants::delete( 95 );
+check( 'T-T3: Variants::delete() removes the tiny meta', '' === get_post_meta( 95, IMGX\Variants::TINY_KEY, true ) );
+$t_setup( 96, 6, 1 );
+check( 'T-T3: alpha original without tiny -> needs_generation false (no endless requeue)', false === $t_mkgen()->needs_generation( 96 ) );
+$t_setup( 97, 2, 0 );
+check( 'T-T3: lqip off + tiny missing -> needs_generation false', false === $t_mkgen()->needs_generation( 97 ) );
+foreach ( array( 95, 96, 97 ) as $t_i ) { unset( $GLOBALS['imgx_attached'][ $t_i ], $GLOBALS['imgx_post_mime'][ $t_i ] ); }
+$GLOBALS['imgx_filters']['imgx_enabled_formats'] = array();
+$GLOBALS['imgx_attachment_meta'] = $lq_meta;
+
+/* ---------- T3 (v2.12.1): tiny generation path via generate(), with a fake image editor ---------- */
+
+$t_tmpdir = str_replace( '\\', '/', sys_get_temp_dir() ) . '/imgx-tiny-tmp';
+@mkdir( $t_tmpdir );
+array_map( 'unlink', glob( "$t_tmpdir/*" ) );
+$GLOBALS['t_ed'] = 'jpeg'; // jpeg | fail | webp (writes a .webp file with RIFF bytes instead)
+if ( ! function_exists( 'wp_tempnam' ) ) {
+	function wp_tempnam( $prefix = '' ) { return tempnam( $GLOBALS['t_tmpdir'], $prefix ); }
+}
+if ( ! class_exists( 'T_Fake_Editor' ) ) {
+	class T_Fake_Editor {
+		public function get_size() { return array( 'width' => 1600, 'height' => 900 ); }
+		public function resize( $w, $h, $crop = false ) { $GLOBALS['t_resized'] = array( $w, $h ); return true; }
+		public function set_quality( $q ) { return true; }
+		public function save( $path, $mime = null ) {
+			if ( 'fail' === $GLOBALS['t_ed'] ) { return new WP_Error( 'x', 'encode failed' ); }
+			if ( 'webp' === $GLOBALS['t_ed'] ) { $path = preg_replace( '#\.jpg$#', '.webp', $path ); file_put_contents( $path, 'RIFF' . str_repeat( "\0", 60 ) ); return array( 'path' => $path ); }
+			file_put_contents( $path, "\xFF\xD8\xFF" . str_repeat( "\x01", 120 ) );
+			return array( 'path' => $path );
+		}
+	}
+}
+if ( ! function_exists( 'wp_get_image_editor' ) ) {
+	function wp_get_image_editor( $p ) { return new T_Fake_Editor(); }
+}
+$t_jpeg_b64 = base64_encode( "\xFF\xD8\xFF" . str_repeat( "\x01", 120 ) );
+
+$t_gen_setup = function ( $id, $type, $ed = 'jpeg' ) use ( $lq_dir ) {
+	$GLOBALS['imgx_attached'][ $id ]  = "$lq_dir/g$id.png";
+	$GLOBALS['imgx_post_mime'][ $id ] = 'image/png';
+	file_put_contents( "$lq_dir/g$id.png", lq_png( $type ) );
+	$GLOBALS['imgx_attachment_meta'] = array( 'file' => "2026/09/g$id.png", 'sizes' => array() );
+	$GLOBALS['imgx_filters']['imgx_enabled_formats'] = array( function () { return array(); } );
+	$GLOBALS['imgx_filters']['imgx_should_generate_image'] = array( function () { return false; } ); // keep the sub-size LQIP encoder out of it
+	$GLOBALS['t_ed'] = $ed;
+	delete_post_meta( $id, IMGX\Variants::TINY_KEY );
+	lq_cfg( array( 'lqip_enabled' => 1 ) );
+	return new IMGX\Generator( $GLOBALS['settings'], $GLOBALS['caps'], new IMGX\Converter( $GLOBALS['settings'], $GLOBALS['caps'], new IMGX\Logger() ), new IMGX\Logger() );
+};
+$t_left = function () use ( $t_tmpdir ) { return array_map( 'basename', glob( "$t_tmpdir/*" ) ); };
+$GLOBALS['t_tmpdir'] = $t_tmpdir;
+
+$t_g = $t_gen_setup( 98, 2 );
+$t_g->generate( 98 );
+check( 'T-T3: generate() on an opaque original stores a tiny', IMGX\Variants::get_tiny( 98 ) === $t_jpeg_b64, (string) get_post_meta( 98, IMGX\Variants::TINY_KEY, true ) );
+check( 'T-T3: tiny survives Variants::save() (registry save does not wipe it)', '' !== IMGX\Variants::get_tiny( 98 ) && array() !== IMGX\Variants::get( 98 ) );
+check( 'T-T3: tiny is encoded from 16px longest side (1600x900 -> 16x9)', array( 16, 9 ) === ( $GLOBALS['t_resized'] ?? null ) );
+check( 'T-T3: no temp file left behind after generate()', array() === $t_left(), implode( ',', $t_left() ) );
+
+$t_keep = 'S0VFUA=='; // valid base64 differing from the encoder output
+update_post_meta( 98, IMGX\Variants::TINY_KEY, $t_keep );
+$t_g->generate( 98 );
+check( 'T-T3: existing tiny kept without force', $t_keep === IMGX\Variants::get_tiny( 98 ) );
+$t_g->generate( 98, array( 'force' => true ) );
+check( 'T-T3: force regenerates the tiny', $t_jpeg_b64 === IMGX\Variants::get_tiny( 98 ) );
+
+$GLOBALS['t_ed'] = 'fail';
+$t_g->generate( 98, array( 'force' => true ) );
+check( 'T-T3: force + encoder yields nothing -> tiny meta removed', '' === get_post_meta( 98, IMGX\Variants::TINY_KEY, true ) );
+check( 'T-T3: failed encode leaves no temp file', array() === $t_left(), implode( ',', $t_left() ) );
+
+$t_g = $t_gen_setup( 99, 2, 'webp' );
+$t_g->generate( 99 );
+check( 'T-T3: editor writes another extension (jpeg->webp map) -> no tiny stored (non-JPEG bytes rejected)', '' === get_post_meta( 99, IMGX\Variants::TINY_KEY, true ) );
+check( 'T-T3: other-extension output leaks no temp file', array() === $t_left(), implode( ',', $t_left() ) );
+
+$t_g = $t_gen_setup( 100, 6 );
+$t_g->generate( 100 );
+check( 'T-T3: alpha original -> generate() stores no tiny', '' === get_post_meta( 100, IMGX\Variants::TINY_KEY, true ) );
+
+$t_g = $t_gen_setup( 101, 2 );
+lq_cfg( array( 'lqip_enabled' => 0 ) );
+$t_g->generate( 101 );
+check( 'T-T3: lqip off -> generate() stores no tiny', '' === get_post_meta( 101, IMGX\Variants::TINY_KEY, true ) );
+
+check( 'T-T2: valid_tiny("AAAA\n") === false (trailing newline)', false === IMGX\Variants::valid_tiny( "AAAA\n" ) );
+
+foreach ( array( 98, 99, 100, 101 ) as $t_i ) { unset( $GLOBALS['imgx_attached'][ $t_i ], $GLOBALS['imgx_post_mime'][ $t_i ] ); }
+$GLOBALS['imgx_filters']['imgx_enabled_formats'] = array();
+$GLOBALS['imgx_filters']['imgx_should_generate_image'] = array();
+$GLOBALS['imgx_attachment_meta'] = $lq_meta;
+array_map( 'unlink', glob( "$t_tmpdir/*" ) );
+@rmdir( $t_tmpdir );
 
 lq_cfg( array() );
 
