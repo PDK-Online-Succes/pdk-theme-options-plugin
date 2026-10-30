@@ -7,7 +7,7 @@ De module laadt het klantbestand `custom-style.css` uit de storage-map op de fro
 | | |
 |---|---|
 | Modulesleutel | `custom_css` (`includes/class-pdk-plugin.php:19`) |
-| Standaard | `enabled => false` (`includes/class-pdk-settings.php:153-155`) |
+| Standaard | `enabled => false` (`includes/class-pdk-settings.php:185-187`); nieuwe installaties starten sinds 2.12.2 met aan (`PDK_Plugin::initial_settings()`) |
 | Eigen tab | Ja — "Custom CSS", alleen als de module aan staat (`includes/class-pdk-admin.php:739`, `includes/class-pdk-admin.php:750-754`) |
 
 ## Instellingen

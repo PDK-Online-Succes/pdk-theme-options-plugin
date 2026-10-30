@@ -2,6 +2,18 @@
 
 Alle noemenswaardige wijzigingen in PDK Theme Options worden hier bijgehouden.
 
+## [2.12.2] — 2026-10-30
+
+### IMGX: standaard img-CSS in custom-style.css; LQIP-style en klassenkopie vereenvoudigd
+
+- **Standaard CSS.** Een nieuwe installatie krijgt in `custom-style.css` een `img`-blok (`font-style: italic`, `background-repeat: no-repeat`, `background-size: cover`, `background-position: center`, `shape-margin: 1rem`, `max-width: 100%`, `height: auto`, `vertical-align: middle`) en `picture { display: contents }`
+- **Inline style.** De LQIP zet nog alleen `background-image:url("…")[,url("data:…")]` op de `<img>`; size/repeat/position komen uit de CSS hierboven
+- **Geen klassenkopie.** De klassen van de `<img>` worden niet meer naar de `<picture>` gekopieerd; die houdt alleen `imgx-picture` en is `display: contents`
+
+- **Module Custom CSS aan bij nieuwe installaties.** De standaardwaarde blijft uit; alleen een verse installatie slaat hem aan op, zodat `custom-style.css` (met het img/picture-blok) meteen geladen wordt; bestaande sites houden hun opgeslagen instelling
+
+**Upgrade-opmerking.** `custom-style.css` wordt nooit overschreven. Sites die al op 2.12.x draaien met LQIP aan moeten het `img`- en `picture`-blok zelf in hun `custom-style.css` zetten via PDK Tools → de code-editor (niet via FTP: dan wordt het bestand als gewijzigd geblokkeerd), anders verliest de LQIP `cover`/`no-repeat`. Zet de module Custom CSS aan als LQIP aan staat (bestaande sites houden hun opgeslagen keuze). Thema's of builders die de wrapper via de gekopieerde klasse opmaakten, moeten nu de `<img>` selecteren (de `<picture>` is `display: contents`).
+
 ## [2.12.1] — 2026-10-30
 
 ### IMGX: tiny base64-laag onder de LQIP (blurry eerste frame)

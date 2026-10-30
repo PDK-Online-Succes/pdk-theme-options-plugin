@@ -328,16 +328,16 @@ check( 'oxygen classic keeps id and class', false !== strpos( $h, 'id="image-2-2
 check( 'oxygen classic avif srcset', false !== strpos( $h, 'photo.avif 400w' ) && false !== strpos( $h, 'photo-300x200.avif 300w' ) );
 check( 'oxygen classic img verbatim', false !== strpos( $h, $classic ) );
 
-/* ---------- the image's classes are carried over to <picture> ---------- */
+/* ---------- <picture> keeps its own class; the img's classes are not copied (2.12.2) ---------- */
 
-check( 'picture inherits builder class', false !== strpos( $h, '<picture class="imgx-picture ct-image">' ), $h );
-check( 'picture never inherits the id', false === strpos( $h, '<picture class="imgx-picture ct-image" id=' ) );
+check( 'picture wrapper class is exactly imgx-picture (no copy of img class)', false !== strpos( $h, '<picture class="imgx-picture">' ) && false === strpos( $h, '<picture class="imgx-picture ct-image' ), $h );
+check( 'picture never inherits the id', false === strpos( $h, '<picture class="imgx-picture" id=' ) && 1 === preg_match( '#<picture[^>]*>#', $h, $pm ) && false === strpos( $pm[0], 'image-2-2' ) );
 
 // Multiple classes keep their order, imgx-picture first.
 $multi = '<img class="oxy-image-2-100 oxy-image" src="https://example.org/uploads/2026/09/photo.jpg" alt="">';
 check(
-	'picture inherits every class',
-	false !== strpos( $renderer->transform( $multi, 'oxygen' ), '<picture class="imgx-picture oxy-image-2-100 oxy-image">' ),
+	'picture wrapper ignores multiple img classes; img keeps them unchanged',
+	false !== strpos( $renderer->transform( $multi, 'oxygen' ), '<picture class="imgx-picture">' ) && false !== strpos( $renderer->transform( $multi, 'oxygen' ), '<img class="oxy-image-2-100 oxy-image"' ) && false === strpos( $renderer->transform( $multi, 'oxygen' ), 'imgx-picture oxy' ),
 	$renderer->transform( $multi, 'oxygen' )
 );
 
@@ -347,19 +347,23 @@ check( 'no class attribute still works', false !== strpos( $renderer->transform(
 
 // Escaped entities in the class attribute survive one decode/encode round trip.
 $entity = '<img class="a&amp;b keep" src="https://example.org/uploads/2026/09/photo.jpg" alt="">';
-check( 'class entities not double-escaped', false !== strpos( $renderer->transform( $entity, 'oxygen' ), 'class="imgx-picture a&amp;b keep"' ), $renderer->transform( $entity, 'oxygen' ) );
+check( 'class entities: wrapper stays imgx-picture, img class untouched', false !== strpos( $renderer->transform( $entity, 'oxygen' ), '<picture class="imgx-picture">' ) && false !== strpos( $renderer->transform( $entity, 'oxygen' ), 'class="a&amp;b keep"' ), $renderer->transform( $entity, 'oxygen' ) );
 
 // Duplicates are collapsed.
 $dupe = '<img class="ct-image ct-image" src="https://example.org/uploads/2026/09/photo.jpg" alt="">';
-check( 'duplicate classes collapsed', false !== strpos( $renderer->transform( $dupe, 'oxygen' ), '<picture class="imgx-picture ct-image">' ) );
+check( 'duplicate img classes: wrapper stays imgx-picture, img class untouched', false !== strpos( $renderer->transform( $dupe, 'oxygen' ), '<picture class="imgx-picture">' ) && false !== strpos( $renderer->transform( $dupe, 'oxygen' ), 'class="ct-image ct-image"' ) );
 
-// Developers can drop a class from the wrapper without touching the img.
+// Developers can add a class to the wrapper via imgx_picture_class; the img stays untouched.
 $GLOBALS['imgx_filters']['imgx_picture_class'][] = function ( $classes ) {
-	return array_values( array_diff( $classes, array( 'ct-image' ) ) );
+	$classes[] = 'my-wrap';
+	return $classes;
 };
 $filtered = $renderer->transform( $classic, 'oxygen-classic' );
-check( 'imgx_picture_class can drop a class', false !== strpos( $filtered, '<picture class="imgx-picture">' ), $filtered );
-check( 'filter leaves the img class alone', false !== strpos( $filtered, 'class="ct-image"' ) );
+check( 'imgx_picture_class can add a class', false !== strpos( $filtered, '<picture class="imgx-picture my-wrap">' ), $filtered );
+check( 'filter leaves the img class alone', false !== strpos( $filtered, 'class="ct-image"' ) && false === strpos( $filtered, 'class="ct-image my-wrap"' ) );
+$GLOBALS['imgx_filters']['imgx_picture_class'] = array( function () { return array(); } );
+$filtered = $renderer->transform( $classic, 'oxygen-classic' );
+check( 'imgx_picture_class returning array() -> <picture> without class attribute', false !== strpos( $filtered, '<picture><' ) && false === strpos( $filtered, '<picture class' ), $filtered );
 $GLOBALS['imgx_filters']['imgx_picture_class'] = array();
 
 $GLOBALS['wpdb']->attached = array();
@@ -538,13 +542,13 @@ function lq_style( $tag ) {
 	return preg_match( '#\sstyle\s*=\s*(["\'])(.*?)\1#is', (string) $tag, $m ) ? html_entity_decode( $m[2], ENT_QUOTES, 'UTF-8' ) : null;
 }
 
-/** Whether a decoded style carries the four AC-106 declarations for $url. */
+/** Whether a decoded style carries the AC-106 background-image for $url and none of the longhands (moved to custom-style.css in 2.12.2). */
 function lq_has_bg( $style, $url ) {
 	return is_string( $style )
 		&& false !== strpos( $style, 'background-image:url("' . $url . '")' )
-		&& false !== strpos( $style, 'background-size:cover' )
-		&& false !== strpos( $style, 'background-repeat:no-repeat' )
-		&& false !== strpos( $style, 'background-position:center' );
+		&& false === strpos( $style, 'background-size' )
+		&& false === strpos( $style, 'background-repeat' )
+		&& false === strpos( $style, 'background-position' );
 }
 
 /** Applies settings over the defaults and drops every cache the renderer keeps. */
@@ -775,7 +779,9 @@ lq_registry( true );
 
 $lq_out = $renderer->wrap_img( $lq_img, 42, 'test' );
 $lq_tag = lq_img_tag( $lq_out );
-check( 'AC-106: style carries the four declarations with the swapped lqip url', lq_has_bg( lq_style( $lq_tag ), $lq_large ), $lq_tag );
+check( 'AC-106: style carries the background-image with the swapped lqip url', lq_has_bg( lq_style( $lq_tag ), $lq_large ), $lq_tag );
+check( 'AC-106: style is exactly the background-image declaration', 'background-image:url("' . $lq_large . '")' === lq_style( $lq_tag ), $lq_tag );
+check( 'AC-106: style has no background-size/-repeat/-position', 0 === preg_match( '#background-(size|repeat|position)#', (string) lq_style( $lq_tag ) ) && 0 === preg_match( '#background-(size|repeat|position)#', $lq_tag ), $lq_tag );
 check( 'AC-106: url(...) quotes are esc_attr-encoded in the attribute', false !== strpos( $lq_tag, 'url(&quot;' . $lq_large . '&quot;)' ), $lq_tag );
 foreach ( array_filter( explode( '<source', $lq_out ) ) as $lq_part ) {
 	if ( 0 === strpos( $lq_part, ' type=' ) ) {
@@ -940,7 +946,7 @@ $lq_bad = array_filter( $lq_links[0], function ( $l ) { return ! preg_match( '#h
 check( 'AC-108: never a preload for a hi-res or WebP/AVIF url', $lq_links[0] && ! $lq_bad, implode( ' ', $lq_bad ) );
 
 // Second fixture: the high-priority img already sits in IMGX's own <picture>, style is esc_attr'd (&quot;).
-$lq_style_attr = esc_attr( 'background-image:url("' . $lq_large . '");background-size:cover;background-repeat:no-repeat;background-position:center' );
+$lq_style_attr = esc_attr( 'background-image:url("' . $lq_large . '")' );
 $lq_wrapped    = '<picture class="imgx-picture"><source type="image/webp" srcset="' . $lq_url . 'photo-1024x683.webp">'
 	. '<img fetchpriority="high" src="' . $lq_url . 'photo-1024x683.jpg" class="wp-image-42" alt="" style="' . $lq_style_attr . '"></picture>';
 $lq_page2      = $renderer->filter_page( '<!DOCTYPE html><html><head><title>t</title></head><body>' . $lq_wrapped . '</body></html>' );
@@ -970,7 +976,7 @@ check( 'AC-108: whole_page=0 does not register start_buffer (so no preload)', 0 
 /* ---------- T2-T4 (v2.12.1): tiny base64 layer under the LQIP ---------- */
 
 $t_tiny = str_repeat( 'QUJD', 20 ) . 'RA=='; // plain base64
-$t_bg   = function ( $html ) { return preg_match( '#background-image:.*?(?=;background-size:cover)#', (string) lq_style( lq_img_tag( $html ) ), $m ) ? $m[0] : ''; };
+$t_bg   = function ( $html ) { return (string) lq_style( lq_img_tag( $html ) ); }; // whole style: since 2.12.2 it is only the background-image
 
 // T2: validation.
 check( 'T-T2: valid_tiny accepts normal base64', true === IMGX\Variants::valid_tiny( $t_tiny ) );
@@ -985,7 +991,7 @@ lq_cfg( array( 'lqip_enabled' => 1, 'picture_enabled' => 0 ) );
 lq_registry( true );
 delete_post_meta( 42, IMGX\Variants::TINY_KEY );
 $t_single = $renderer->wrap_img( $lq_img, 42, 'test' );
-check( 'T-T4: no tiny -> exactly the 2.12.0 single-layer form', 'background-image:url("' . $lq_large . '")' === $t_bg( $t_single ), $t_single );
+check( 'T-T4: no tiny -> exactly the single-layer form', 'background-image:url("' . $lq_large . '")' === $t_bg( $t_single ), $t_single );
 foreach ( array( 'a"b', 'a)b', 'a;b', 'a b', 'a<b', 'data:image/jpeg;base64,AAAA', str_repeat( 'A', 2049 ) ) as $t_bad ) {
 	update_post_meta( 42, IMGX\Variants::TINY_KEY, $t_bad );
 	$t_o = $renderer->wrap_img( $lq_img, 42, 'test' );
@@ -998,7 +1004,7 @@ update_post_meta( 42, IMGX\Variants::TINY_KEY, $t_tiny );
 $t_o = $renderer->wrap_img( $lq_img, 42, 'test' );
 check( 'T-T4: LQIP + tiny -> exact two-layer background-image', 'background-image:url("' . $lq_large . '"),url("data:image/jpeg;base64,' . $t_tiny . '")' === $t_bg( $t_o ), $t_o );
 check( 'T-T4: LQIP layer comes first, data: layer second', strpos( $t_o, 'lqip.jpg' ) < strpos( $t_o, 'data:image/jpeg' ) );
-check( 'T-T4: size/repeat/position declarations still present', lq_has_bg( str_replace( ',url("data:image/jpeg;base64,' . $t_tiny . '")', '', lq_style( lq_img_tag( $t_o ) ) ), $lq_large ) );
+check( 'T-T4: two-layer style has no background-size/-repeat/-position', lq_has_bg( str_replace( ',url("data:image/jpeg;base64,' . $t_tiny . '")', '', lq_style( lq_img_tag( $t_o ) ) ), $lq_large ) && 0 === preg_match( '#background-(size|repeat|position)#', lq_img_tag( $t_o ) ), $t_o );
 check( 'T-T4: exactly one style attribute, tag closes', 1 === substr_count( lq_img_tag( $t_o ), ' style=' ) && '/>' === substr( lq_img_tag( $t_o ), -2 ) );
 
 // Size without LQIP + tiny -> data: layer only.

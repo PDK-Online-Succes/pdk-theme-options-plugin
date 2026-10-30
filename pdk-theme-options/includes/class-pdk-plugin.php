@@ -116,6 +116,34 @@ class PDK_Plugin {
 		}
 	}
 
+	/**
+	 * Startinhoud van custom-style.css (alleen voor nieuwe installaties).
+	 *
+	 * @return string
+	 */
+	private static function default_css(): string {
+		return "/*\n * Eigen CSS-stijlen.\n * Dit bestand wordt NIET overschreven bij plugin-updates.\n */\n"
+			. "\n/* Basis voor de LQIP-achtergrond van IMGX (de background-image komt inline van IMGX);\n"
+			. " * picture { display: contents } maakt de wrapper van IMGX boxloos. */\n"
+			. "img {\n\tfont-style: italic;\n\tbackground-repeat: no-repeat;\n\tbackground-size: cover;\n\tbackground-position: center;\n"
+			. "\tshape-margin: 1rem;\n\tmax-width: 100%;\n\theight: auto;\n\tvertical-align: middle;\n}\n"
+			. "picture {\n\tdisplay: contents;\n}\n";
+	}
+
+	/**
+	 * Instellingen voor een verse installatie: Custom CSS staat aan, zodat de
+	 * img/picture-basis-CSS voor IMGX uit custom-style.css meteen wordt geladen.
+	 * Bestaande sites houden hun opgeslagen keuze; get_defaults() blijft uit.
+	 *
+	 * @return array
+	 */
+	private static function initial_settings(): array {
+		$settings                         = PDK_Settings::get_defaults();
+		$settings['custom_css']['enabled'] = true;
+
+		return $settings;
+	}
+
 	public static function activate(): void {
 		pdk_ensure_storage_dir();
 
@@ -125,7 +153,7 @@ class PDK_Plugin {
 		);
 		pdk_maybe_create_storage_file(
 			'custom-style.css',
-			"/*\n * Eigen CSS-stijlen.\n * Dit bestand wordt NIET overschreven bij plugin-updates.\n */\n"
+			self::default_css()
 		);
 		pdk_maybe_create_storage_file(
 			'custom-script.js',
@@ -133,7 +161,7 @@ class PDK_Plugin {
 		);
 
 		if ( ! get_option( PDK_Settings::OPTION_KEY ) ) {
-			add_option( PDK_Settings::OPTION_KEY, PDK_Settings::get_defaults() );
+			add_option( PDK_Settings::OPTION_KEY, self::initial_settings() );
 		}
 
 		// Geef de code-editor-capability ALLEEN aan de gebruiker die de plugin
@@ -179,14 +207,14 @@ class PDK_Plugin {
 		);
 		pdk_maybe_create_storage_file(
 			'custom-style.css',
-			"/*\n * Eigen CSS-stijlen.\n * Dit bestand wordt NIET overschreven bij plugin-updates.\n */\n"
+			self::default_css()
 		);
 		pdk_maybe_create_storage_file(
 			'custom-script.js',
 			"/*\n * Eigen JavaScript.\n * Dit bestand wordt NIET overschreven bij plugin-updates.\n */\n"
 		);
 
-		add_option( PDK_Settings::OPTION_KEY, PDK_Settings::get_defaults() );
+		add_option( PDK_Settings::OPTION_KEY, self::initial_settings() );
 
 		// Geef de code-editor-capability aan de huidige ingelogde beheerder.
 		// In MU-modus is dit de eerste beheerder die de admin bezoekt na installatie.

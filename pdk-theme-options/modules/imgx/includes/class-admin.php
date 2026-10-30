@@ -217,7 +217,7 @@ class Admin {
 	 */
 	public function section_markup() {
 		echo '<p>' . esc_html__( 'Een afbeelding in een <picture> staat een niveau dieper in de DOM. Een thema met een selector als ".card > img" matcht dan niet meer en heeft ".card picture > img" of ".card img" nodig. Zet dit uit als je thema daarvan afhankelijk is; de gegenereerde bestanden blijven staan, er hoeft niets opnieuw gegenereerd te worden als je het weer aanzet.', 'pdk-theme-options' ) . '</p>';
-		echo '<p>' . esc_html__( 'De <picture> neemt de classes van de afbeelding zelf over, zodat CSS die de afbeelding via een class positioneert of opmaakt blijft werken. De afbeelding houdt die classes ook, dus een class die marges of padding zet geldt nu voor allebei en telt op. Met het filter imgx_picture_class haal je zo\'n class van de wrapper af.', 'pdk-theme-options' ) . '</p>';
+		echo '<p>' . esc_html__( 'De <picture> krijgt alleen de class imgx-picture en wordt display: contents via custom-style.css (module Custom CSS moet aan staan); de classes van de afbeelding blijven op de <img> staan, dus CSS die de afbeelding via een class opmaakt werkt op de <img>.', 'pdk-theme-options' ) . '</p>';
 	}
 
 	/**
