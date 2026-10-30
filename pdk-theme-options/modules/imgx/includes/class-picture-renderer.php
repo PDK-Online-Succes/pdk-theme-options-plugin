@@ -633,7 +633,7 @@ class Picture_Renderer {
 			return $img_html;
 		}
 
-		$declarations = 'background-image:' . implode( ',', $layers ) . ';background-size:cover;background-repeat:no-repeat;background-position:center';
+		$declarations = 'background-image:' . implode( ',', $layers );
 
 		if ( preg_match( '#(\sstyle\s*=\s*)(["\'])(.*?)\2#is', $tag, $style, PREG_OFFSET_CAPTURE ) ) {
 			$existing = wp_specialchars_decode( $style[3][0], ENT_QUOTES );
@@ -657,18 +657,9 @@ class Picture_Renderer {
 	/**
 	 * Builds the class attribute for the picture element.
 	 *
-	 * The image's own classes are carried over, because wrapping moves the `<img>` one
-	 * level down: a page builder or theme that styles or lays out the image through a
-	 * class — Oxygen's `.ct-image` and its per-element `.oxy-image-2-100`, a grid or flex
-	 * child, an alignment class — would otherwise be styling an element that no longer
-	 * sits where the CSS expects it.
-	 *
-	 * The `id` attribute is deliberately not copied: two elements sharing an id is invalid
-	 * HTML and would break `getElementById` and `#id` selectors.
-	 *
-	 * Note that a class carrying box properties (margin, padding, border) now applies to
-	 * both the wrapper and the image, and those add up. Use `imgx_picture_class` to drop
-	 * such a class from the wrapper.
+	 * Only `imgx-picture`: the image's own classes stay on the `<img>` (since 2.12.2 the
+	 * wrapper is `display: contents` via custom-style.css, so it has no box to style).
+	 * The `id` is not copied either: duplicate ids are invalid HTML.
 	 *
 	 * @param string $img_html      The original img element.
 	 * @param int    $attachment_id Attachment ID.
@@ -678,27 +669,10 @@ class Picture_Renderer {
 	private function picture_classes( $img_html, $attachment_id, $context ) {
 		$classes = array( 'imgx-picture' );
 
-		$attribute = trim( wp_specialchars_decode( $this->attribute( $img_html, 'class' ), ENT_QUOTES ) );
-
-		if ( '' !== $attribute ) {
-			foreach ( preg_split( '/\s+/', $attribute ) as $class ) {
-				if ( '' !== $class ) {
-					$classes[] = $class;
-				}
-			}
-		}
-
-		$classes = array_values( array_unique( $classes ) );
-
 		/**
 		 * Filters the classes placed on the generated picture element.
 		 *
-		 * Defaults to `imgx-picture` plus every class the image itself carries. Return a
-		 * smaller list to keep a class off the wrapper, for example one that sets margins:
-		 *
-		 *     add_filter( 'imgx_picture_class', function ( $classes ) {
-		 *         return array_values( array_diff( $classes, array( 'my-spaced-image' ) ) );
-		 *     } );
+		 * Defaults to just `imgx-picture`; the image's own classes are no longer copied.
 		 *
 		 * @param string[] $classes       Class names.
 		 * @param string   $img_html      The original img element.

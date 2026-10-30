@@ -357,3 +357,9 @@ Bron: gebruikersfeedback 2026-10-30 ("de low res is niet zoals het voorbeeld van
 | T6 | Versie 2.12.1 (patch, op verzoek gebruiker) | gebruikersfeedback 2026-10-30 |
 
 Gevolg: ongeveer 1 KB extra HTML per afbeelding. Bekende rest: mislukt of overschrijdt de tiny de grens, dan blijft de meta leeg en meldt `needs_generation()` de bijlage bij elke batch "ontbrekende" opnieuw.
+
+---
+
+## 13. Aanvulling 2026-10-30: basis-CSS in custom-style.css (2.12.2)
+
+Bron: gebruikersverzoek 2026-10-30. Vervangt de longhands uit D3: de inline style bevat alleen nog `background-image:url("…")[,url("data:…")]`. `background-size:cover`, `background-repeat:no-repeat` en `background-position:center` staan in een `img`-blok in `custom-style.css` (alleen voor nieuwe installaties; bestaande bestanden worden niet overschreven). `picture { display: contents }` maakt de wrapper boxloos (i.p.v. `picture * { all: inherit }`, dat de width/height-hints van de `<img>` zou overschrijven). De klassen van de `<img>` worden niet meer naar de `<picture>` gekopieerd.

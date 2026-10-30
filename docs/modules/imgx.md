@@ -157,9 +157,8 @@ ongeveer 1 KB HTML per afbeelding. De renderer schrijft
 `background-image:url("…lqip.jpg"),url("data:image/jpeg;base64,…")` (zonder LQIP voor die maat
 alleen de tiny); de preload blijft de `.lqip.jpg`.
 
-**Uitserveren.** `Picture_Renderer::add_lqip_style()` zet `background-image:url("…")`,
-`background-size:cover`, `background-repeat:no-repeat` en `background-position:center` inline op de
-`<img>`, voor de LQIP van de maat waarvan de basename met de `src` overeenkomt, alleen als die
+**Uitserveren.** `Picture_Renderer::add_lqip_style()` zet alleen `background-image:url("…")`
+inline op de `<img>` (sinds 2.12.2; cover/no-repeat/center staan in `custom-style.css`, zie hieronder), voor de LQIP van de maat waarvan de basename met de `src` overeenkomt, alleen als die
 geregistreerd is (en bij `imgx_verify_variant_files` ook op schijf bestaat). Ook op
 `loading="lazy"`. Een bestaand `style` wordt aangevuld met behoud van zijn quote-stijl, een
 ontbrekend wordt vlak voor `>`/`/>` ingevoegd; een tag met al een `background` blijft onaangeroerd.
@@ -185,9 +184,14 @@ output heen valt (`:100-106`).
 
 De originele `<img>` wordt nooit opnieuw opgebouwd: hij wordt letterlijk in de `<picture>`
 geconcateneerd, zodat elk attribuut dat een thema, plugin of paginabuilder erop zette blijft staan
-(`:12-17`, `:507-509`). De klassen van de `<img>` worden wél gekopieerd naar de wrapper, omdat het
-wikkelen de `<img>` een niveau verplaatst en layout-CSS anders op het verkeerde element werkt; het
-`id`-attribuut bewust niet (`:522-542`).
+(`:12-17`, `:507-509`). De klassen van de `<img>` worden sinds 2.12.2 niet meer naar de wrapper
+gekopieerd (die houdt alleen `imgx-picture` en is `display: contents`); het `id` ook niet (`class-picture-renderer.php:554-557`, `:657-687`).
+
+**Basis-CSS.** Een nieuwe installatie krijgt in `custom-style.css` (aangemaakt door
+`PDK_Plugin::default_css()`) een `img`-blok (`font-style:italic`, `background-repeat:no-repeat`,
+`background-size:cover`, `background-position:center`, `shape-margin:1rem`, `max-width:100%`,
+`height:auto`, `vertical-align:middle`) en `picture { display: contents }`. Bestaande bestanden worden
+nooit overschreven: sites op 2.12.x met LQIP moeten dit zelf toevoegen, anders verliest de LQIP cover/no-repeat. Doe dat via PDK Tools → de code-editor (niet via FTP: dan wordt het bestand als gewijzigd geblokkeerd). De module Custom CSS moet aan staan; die staat sinds 2.12.2 aan op nieuwe installaties, bestaande sites houden hun opgeslagen keuze (zet hem aan als LQIP aan staat).
 
 Een bijlage-ID komt uit de `wp-image-<id>`-class. Ontbreekt die — paginabuilders renderen hun eigen
 markup — dan wordt de `src` in één gebatchte query teruggezocht naar `_wp_attached_file`
@@ -274,7 +278,7 @@ Filters:
 | `imgx_keep_larger_variant` | Variant behouden die groter is dan de bron (`class-converter.php:256-265`) |
 | `imgx_enable_picture` | Transformatie per request uitzetten, ook de LQIP-achtergrond (`class-picture-renderer.php:797-804`) |
 | `imgx_should_render_picture` | Per afbeelding niet wikkelen, en geen LQIP-achtergrond (`class-picture-renderer.php:448-455`) |
-| `imgx_picture_class` | Klassen op de `<picture>`-wrapper (`class-picture-renderer.php:558-573`) |
+| `imgx_picture_class` | Klassen op de `<picture>`-wrapper (`class-picture-renderer.php:682`) |
 | `imgx_picture_html` | De uiteindelijke markup; het tweede argument is de `<img>` zoals uitgevoerd, mét LQIP-style (`class-picture-renderer.php:511-519`) |
 | `imgx_verify_variant_files` | Elk variantbestand bij het renderen op schijf controleren (`class-picture-renderer.php:481`) |
 | `imgx_batch_size` | Bijlagen per batchstap, 1-50 (`class-batch-processor.php:204-210`) |
@@ -319,9 +323,9 @@ Vanuit de PDK-kant: `PDK_ImgX::tab_url( array $args = [] )` geeft de URL van de 
 - **`prune_stale_sizes()` doet niets als er géén doel gevonden wordt**, bewust: een offload-plugin
   of verplaatste uploadsmap zou anders de hele registratie wissen en de `<picture>`-uitvoer stil
   laten vallen terwijl de bestanden er gewoon staan (`class-generator.php:750-760`).
-- **Klassen worden gekopieerd naar de `<picture>`.** Een klasse met marges, padding of border werkt
-  daardoor op zowel wrapper als afbeelding en telt dubbel. Gebruik `imgx_picture_class` om zo'n
-  klasse van de wrapper te halen (`class-picture-renderer.php:533-537`).
+- **Klassen worden sinds 2.12.2 niet meer naar de `<picture>` gekopieerd.** De wrapper is
+  `display: contents`; thema's of builders die de wrapper via de gekopieerde klasse opmaakten,
+  moeten de `<img>` selecteren. `imgx_picture_class` blijft bestaan (standaard alleen `imgx-picture`).
 - **Statistieken zijn een full table scan** over de `_imgx_variants`-meta, vijf minuten gecached
   (`class-admin.php:624-658`). Op een zeer grote bibliotheek is de eerste laadbeurt van de tab traag.
 - **Batch-offsets schuiven** als er tijdens een lange run geüpload of verwijderd wordt: de telling
@@ -357,7 +361,7 @@ WordPress-stubs, dus zonder WordPress. Gedekt zijn de sidecar-naamgeving, de ver
 `Files::delete_variant()`, formaatherkenning op magic bytes, de srcset-mapping (inclusief het laten
 vallen van kandidaten zonder variant), de markup-omzetting met nesting-preventie, het terugzoeken
 van builder-`<img>`s naar een bijlage inclusief batching en het weigeren van vreemde hosts en
-data-URI's, de klassenoverdracht naar de wrapper, de sanering van instellingen en registratie, de LQIP (instelling en vingerafdruk, naamgeving en
+data-URI's, de wrapper-klasse (geen klassenoverdracht), de sanering van instellingen en registratie, de LQIP (instelling en vingerafdruk, naamgeving en
 verwijderen, alfa-detectie, `has-alpha`-registratie, achtergrond-style en escaping, onafhankelijkheid
 van `picture_enabled`, preload), en het gemeten scenario van de progressieve metadata-opslag van `wp_create_image_subsizes()`
 (`tests/test-imgx.php:2-8`, `:206-510`).
