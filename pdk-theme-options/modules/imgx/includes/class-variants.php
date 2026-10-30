@@ -106,6 +106,38 @@ class Variants {
 	}
 
 	/**
+	 * Pixelafmetingen [breedte, hoogte] van het bestand met deze basename, uit de al geladen
+	 * attachment-metadata (geen extra query), of een lege array als ze onbekend zijn.
+	 *
+	 * @param int    $attachment_id Attachment ID.
+	 * @param string $basename      Basename van het bronbestand (full/scaled of een sub-size).
+	 * @return int[]
+	 */
+	public static function dimensions( $attachment_id, $basename ) {
+		$meta = wp_get_attachment_metadata( (int) $attachment_id );
+
+		if ( ! is_array( $meta ) ) {
+			return array();
+		}
+
+		$infos = array( $meta );
+
+		if ( ! empty( $meta['sizes'] ) && is_array( $meta['sizes'] ) ) {
+			$infos = array_merge( $infos, array_values( $meta['sizes'] ) );
+		}
+
+		foreach ( $infos as $info ) {
+			$file = isset( $info['file'] ) && is_string( $info['file'] ) ? wp_basename( $info['file'] ) : '';
+
+			if ( $file === $basename && ! empty( $info['width'] ) && ! empty( $info['height'] ) ) {
+				return array( (int) $info['width'], (int) $info['height'] );
+			}
+		}
+
+		return array();
+	}
+
+	/**
 	 * Removes the registry.
 	 *
 	 * @param int $attachment_id Attachment ID.

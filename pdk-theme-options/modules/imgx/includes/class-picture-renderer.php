@@ -579,6 +579,41 @@ class Picture_Renderer {
 	}
 
 	/**
+	 * Data-URI van de tiny: een SVG met de exacte afmetingen van de maat waarop de <img> staat,
+	 * zodat de laag dezelfde beeldverhouding heeft als de foto (geen randen bij
+	 * background-size:contain). De <image> gebruikt "slice": proportionele maten verliezen alleen
+	 * de afrondingsfout, bijgesneden maten krijgen een gecentreerde crop. Onbekende afmetingen:
+	 * de gewone JPEG-data-URI.
+	 *
+	 * Het SVG bevat alleen de gevalideerde base64 en integers, zonder spaties-in-URL-problemen:
+	 * % < > # worden procentgecodeerd; de enkele quotes blijven staan (veilig in url("...")).
+	 *
+	 * @param string $tiny Gevalideerde base64 van de tiny.
+	 * @param int[]  $dims Breedte en hoogte, of leeg.
+	 * @return string
+	 */
+	private function tiny_data_uri( $tiny, array $dims ) {
+		if ( 2 !== count( $dims ) || $dims[0] < 1 || $dims[1] < 1 ) {
+			return 'data:image/jpeg;base64,' . $tiny;
+		}
+
+		list( $w, $h ) = $dims;
+
+		// Blur schaalt mee met de viewBox; number_format met '.' is locale-onafhankelijk.
+		$blur = rtrim( rtrim( number_format( max( 1, round( max( $w, $h ) / 40, 1 ) ), 1, '.', '' ), '0' ), '.' );
+
+		$svg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 $w $h' width='$w' height='$h' preserveAspectRatio='none'>"
+			. "<filter id='b' color-interpolation-filters='sRGB'><feGaussianBlur stdDeviation='$blur'/>"
+			. "<feComponentTransfer><feFuncA type='table' tableValues='1 1'/></feComponentTransfer></filter>"
+			. "<image href='data:image/jpeg;base64,$tiny' width='$w' height='$h' preserveAspectRatio='xMidYMid slice' filter='url(#b)'/></svg>";
+
+		// % eerst, anders worden de zojuist gezette codes dubbel gecodeerd.
+		$svg = str_replace( array( '%', '<', '>', '#', '"', ' ' ), array( '%25', '%3C', '%3E', '%23', '%22', '%20' ), $svg );
+
+		return 'data:image/svg+xml,' . $svg;
+	}
+
+	/**
 	 * Zet de LQIP als background-image op de <img> (techniek uit het LCP-LQIP-artikel).
 	 *
 	 * Alleen het style-attribuut verandert: een bestaand attribuut wordt aangevuld met
@@ -626,7 +661,7 @@ class Picture_Renderer {
 		}
 
 		if ( '' !== $tiny ) {
-			$layers[] = 'url("data:image/jpeg;base64,' . $tiny . '")';
+			$layers[] = 'url("' . $this->tiny_data_uri( $tiny, Variants::dimensions( $attachment_id, $basename ) ) . '")';
 		}
 
 		if ( ! $layers ) {

@@ -154,8 +154,25 @@ opgeslagen; `Variants::valid_tiny()` valideert (`^[A-Za-z0-9+/]+={0,2}$`) bij op
 Alfa-originelen krijgen er geen. `needs_generation()` is waar zolang de tiny ontbreekt, dus batch
 "ontbrekende" vult bestaande 2.12.0-bijlagen aan; `Variants::delete()` wist de meta mee. Kost
 ongeveer 1 KB HTML per afbeelding. De renderer schrijft
-`background-image:url("…lqip.jpg"),url("data:image/jpeg;base64,…")` (zonder LQIP voor die maat
+`background-image:url("…lqip.jpg"),url("data:image/svg+xml,…")` (zonder LQIP voor die maat
 alleen de tiny); de preload blijft de `.lqip.jpg`.
+
+**Tiny als SVG (sinds 2.12.3).** De tiny is één per bijlage, maar de beeldverhouding verschilt per
+maat (16×9 is breder dan 2560×1452; een thumbnail is bijgesneden). `Picture_Renderer::tiny_data_uri()`
+verpakt de tiny daarom per `<img>` in een SVG met `viewBox`/`width`/`height` = de afmetingen van de
+maat die bij de `src` hoort (`Variants::dimensions()`, uit de al geladen attachment-metadata).
+De `<image>` erin gebruikt `preserveAspectRatio="xMidYMid slice"` (afrondingsfout wegsnijden,
+bijgesneden maten gecentreerd croppen) en een `feGaussianBlur` met `stdDeviation` = langste zijde / 40
+(min. 1); `feFuncA table 1 1` houdt de randen dekkend. Het SVG bevat alleen
+de gevalideerde base64 en integers, zonder spaties-probleem: `%`, `<`, `>`, `#` en `"` worden
+procentgecodeerd, enkele quotes blijven staan (geldig binnen `url("…")`). Onbekende afmetingen: de
+gewone `data:image/jpeg;base64,…`-laag. Kost ongeveer 300 bytes extra HTML per afbeelding.
+
+**`object-fit: contain` / `scale-down`.** Laat de tiny dan meeschalen met de afbeelding:
+
+```css
+img { background-size: contain; }
+```
 
 **Uitserveren.** `Picture_Renderer::add_lqip_style()` zet alleen `background-image:url("…")`
 inline op de `<img>` (sinds 2.12.2; cover/no-repeat/center staan in `custom-style.css`, zie hieronder), voor de LQIP van de maat waarvan de basename met de `src` overeenkomt, alleen als die
