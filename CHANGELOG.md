@@ -14,6 +14,24 @@ Alle noemenswaardige wijzigingen in PDK Theme Options worden hier bijgehouden.
 
 **Upgrade-opmerking.** `custom-style.css` wordt nooit overschreven. Sites die al op 2.12.x draaien met LQIP aan moeten het `img`- en `picture`-blok zelf in hun `custom-style.css` zetten via PDK Tools → de code-editor (niet via FTP: dan wordt het bestand als gewijzigd geblokkeerd), anders verliest de LQIP `cover`/`no-repeat`. Zet de module Custom CSS aan als LQIP aan staat (bestaande sites houden hun opgeslagen keuze). Thema's of builders die de wrapper via de gekopieerde klasse opmaakten, moeten nu de `<img>` selecteren (de `<picture>` is `display: contents`).
 
+Het blok om te plakken:
+
+```css
+img {
+	font-style: italic;
+	background-repeat: no-repeat;
+	background-size: cover;
+	background-position: center;
+	shape-margin: 1rem;
+	max-width: 100%;
+	height: auto;
+	vertical-align: middle;
+}
+picture {
+	display: contents;
+}
+```
+
 ## [2.12.1] — 2026-10-30
 
 ### IMGX: tiny base64-laag onder de LQIP (blurry eerste frame)
