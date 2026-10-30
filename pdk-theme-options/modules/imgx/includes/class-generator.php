@@ -323,7 +323,8 @@ class Generator {
 			}
 		}
 
-		return false;
+		// Tiny-placeholder ontbreekt (bijv. LQIP's van 2.12.0); niet voor alfa-originelen.
+		return (bool) $this->settings->get( 'lqip_enabled' ) && '' === Variants::get_tiny( $attachment_id ) && ! $this->original_has_alpha( $attachment_id );
 	}
 
 	/**
@@ -469,6 +470,9 @@ class Generator {
 			$variants['signature'] = $this->settings->encoding_signature();
 
 			Variants::save( $attachment_id, $variants );
+
+			// Na Variants::save(): een leeg register wist daar ook de tiny.
+			$this->generate_tiny( $attachment_id, (bool) $args['force'] );
 		} catch ( \Throwable $e ) {
 			$result['errors'][] = $e->getMessage();
 			$this->logger->error( 'Unexpected failure while generating variants.', array( 'attachment' => $attachment_id, 'error' => $e->getMessage() ) );
@@ -511,6 +515,36 @@ class Generator {
 		}
 
 		return $this->alpha_cache[ $attachment_id ];
+	}
+
+	/**
+	 * Maakt en bewaart de tiny-placeholder (één per bijlage) in postmeta.
+	 *
+	 * @param int  $attachment_id Attachment ID.
+	 * @param bool $force         Opnieuw maken als hij al bestaat.
+	 * @return void
+	 */
+	private function generate_tiny( $attachment_id, $force ) {
+		if ( ! $this->settings->get( 'lqip_enabled' ) || $this->original_has_alpha( $attachment_id ) ) {
+			return;
+		}
+
+		if ( ! $force && '' !== Variants::get_tiny( $attachment_id ) ) {
+			return;
+		}
+
+		// Bron is het door WordPress geschaalde bestand: zelfde 16 px, veel minder decodegeheugen.
+		$source = get_attached_file( $attachment_id );
+		$tiny   = $source ? $this->converter->tiny_base64( (string) $source ) : '';
+
+		if ( ! Variants::valid_tiny( $tiny ) ) {
+			delete_post_meta( $attachment_id, Variants::TINY_KEY );
+			$this->logger->debug( 'Tiny-placeholder niet opgeslagen (mislukt of te groot).', array( 'attachment' => (string) $attachment_id, 'length' => (string) strlen( $tiny ) ) );
+
+			return;
+		}
+
+		update_post_meta( $attachment_id, Variants::TINY_KEY, $tiny );
 	}
 
 	/**

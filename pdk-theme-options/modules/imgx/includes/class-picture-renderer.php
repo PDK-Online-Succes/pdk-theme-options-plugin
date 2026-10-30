@@ -506,7 +506,7 @@ class Picture_Renderer {
 		$verify = (bool) apply_filters( 'imgx_verify_variant_files', false );
 		$dir    = $verify ? $this->attachment_dir( $attachment_id ) : '';
 
-		$img_html = $this->add_lqip_style( $img_html, $map, $dir );
+		$img_html = $this->add_lqip_style( $img_html, $map, $dir, $attachment_id );
 
 		if ( ! $this->settings->get( 'picture_enabled' ) ) {
 			return $img_html;
@@ -588,9 +588,10 @@ class Picture_Renderer {
 	 * @param string $img_html The img element.
 	 * @param array  $map      Source basename to variant basenames.
 	 * @param string $dir      Attachment directory when file verification is enabled.
+	 * @param int    $attachment_id Attachment ID, voor de tiny-placeholder.
 	 * @return string
 	 */
-	private function add_lqip_style( $img_html, array $map, $dir ) {
+	private function add_lqip_style( $img_html, array $map, $dir, $attachment_id ) {
 		if ( ! $this->settings->get( 'lqip_enabled' ) || ! preg_match( '#<img\s[^>]*?>#is', $img_html, $found, PREG_OFFSET_CAPTURE ) ) {
 			return $img_html;
 		}
@@ -605,24 +606,34 @@ class Picture_Renderer {
 
 		$basename = Files::basename_from_url( $src );
 
-		if ( empty( $map[ $basename ][ Files::LQIP_KEY ] ) ) {
+		$lqip = empty( $map[ $basename ][ Files::LQIP_KEY ] ) ? '' : $map[ $basename ][ Files::LQIP_KEY ];
+
+		if ( '' !== $lqip && '' !== $dir && ! file_exists( $dir . '/' . $lqip ) ) {
+			$lqip = '';
+		}
+
+		// Tiny onderop (eerste frame, geen LCP-kandidaat); get_tiny() valideert de base64.
+		$tiny   = Variants::get_tiny( $attachment_id );
+		$layers = array();
+
+		if ( '' !== $lqip ) {
+			// Alles wat een url("...") of het attribuut kan openbreken wordt procentgecodeerd.
+			$layers[] = 'url("' . str_replace(
+				array( '"', ';', '\\', '(', ')', "'", ' ', "\n", "\r" ),
+				array( '%22', '%3B', '%5C', '%28', '%29', '%27', '%20', '%0A', '%0D' ),
+				Files::swap_basename_in_url( $src, $lqip )
+			) . '")';
+		}
+
+		if ( '' !== $tiny ) {
+			$layers[] = 'url("data:image/jpeg;base64,' . $tiny . '")';
+		}
+
+		if ( ! $layers ) {
 			return $img_html;
 		}
 
-		$lqip = $map[ $basename ][ Files::LQIP_KEY ];
-
-		if ( '' !== $dir && ! file_exists( $dir . '/' . $lqip ) ) {
-			return $img_html;
-		}
-
-		// Alles wat een url("...") of het attribuut kan openbreken wordt procentgecodeerd.
-		$url = str_replace(
-			array( '"', ';', '\\', '(', ')', "'", ' ', "\n", "\r" ),
-			array( '%22', '%3B', '%5C', '%28', '%29', '%27', '%20', '%0A', '%0D' ),
-			Files::swap_basename_in_url( $src, $lqip )
-		);
-
-		$declarations = 'background-image:url("' . $url . '");background-size:cover;background-repeat:no-repeat;background-position:center';
+		$declarations = 'background-image:' . implode( ',', $layers ) . ';background-size:cover;background-repeat:no-repeat;background-position:center';
 
 		if ( preg_match( '#(\sstyle\s*=\s*)(["\'])(.*?)\2#is', $tag, $style, PREG_OFFSET_CAPTURE ) ) {
 			$existing = wp_specialchars_decode( $style[3][0], ENT_QUOTES );

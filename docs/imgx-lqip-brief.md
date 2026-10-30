@@ -13,7 +13,7 @@ met een screenshot van `img { …; background-repeat:no-repeat; background-size:
 **Antwoorden gebruiker (normatief):**
 - U1 — Variant: de LCP-LQIP-techniek uit het artikel. Een extern, laag-kwaliteit afbeeldingsbestand
   met genoeg bits per pixel dat Chromium het als LCP-kandidaat telt, als `background-image` op de
-  `<img>`. Uitdrukkelijk géén piepkleine inline base64-blur.
+  `<img>`. Uitdrukkelijk géén piepkleine inline base64-blur (herzien 2026-10-30, zie §12).
 - U2 — Scope: alle afbeeldingen die IMGX nu al als bijlage herkent.
 - U3 — De nieuwe instelling staat standaard UIT.
 - V4 (2026-10-23) — *"Toch alle afbeeldingen"*: LQIP ook op `<img loading="lazy">`, in het besef dat
@@ -317,7 +317,7 @@ Geen open vragen meer.
 
 - LQIP per **weergavemaat** (aparte bestanden per srcset-breedte of per `sizes`-breakpoint) — D1.
 - LQIP in **AVIF of WebP** — F3, D1.
-- **Inline base64-blur** of SVG-blur placeholders — U1.
+- **Inline base64-blur** of SVG-blur placeholders — U1 (vervallen voor de tiny-laag, zie §12).
 - **Preload buiten `whole_page`**, of preload van de hi-res — D5, F3.
 - Een apart **stylesheet** of JS (bijv. fade-in, verwijderen van de achtergrond na laden) — D3.
 - LQIP voor **niet-bijlagen** (externe afbeeldingen, CSS-achtergronden, `<img>` die al in een
@@ -339,3 +339,21 @@ zelftesthelften van AC-102, AC-104, AC-107, AC-109 en AC-111. De live-helften va
 AC-107, AC-109 en AC-111, plus AC-103, AC-110 en AC-112, zijn op dev.local afgevinkt.
 Externe afhankelijkheden: geen. Alles draait tegen WordPress core, GD/Imagick en de lokale uploadsmap;
 geen AC vereist een extern account.
+
+---
+
+## 12. Aanvulling 2026-10-30: tiny base64-laag
+
+Bron: gebruikersfeedback 2026-10-30 ("de low res is niet zoals het voorbeeld van CSS Wizardry: blurry afbeelding"). Het artikel gebruikt drie lagen: tiny inline base64 (direct een blurry eerste frame, geen LCP-kandidaat) → LQIP-bestand (LCP) → hi-res. Keuze van de gebruiker: gelaagd zoals het artikel, de LQIP blijft. Dit vervangt voor de tiny-laag de Won't-Have "Inline base64-blur" (U1) hierboven.
+
+| ID | Besluit | Bron |
+|----|---------|------|
+| T1 | Eén tiny per bijlage (niet per maat), van het origineel (`wp_get_original_image_path()`, anders `get_attached_file()`); langste zijde 16 px, JPEG op vaste kwaliteit 40 (gepind via `wp_editor_set_quality`/`jpeg_quality`), kale base64 in postmeta `_imgx_lqip_tiny`; geschreven via een tijdelijk bestand dat direct wordt verwijderd | gebruikersfeedback 2026-10-30 |
+| T1b | Bron van de tiny is `get_attached_file()` (het door WordPress geschaalde bestand), niet het ongeschaalde origineel: zelfde resultaat van 16 px met veel minder decodegeheugen bij enorme originelen. De alfa-beslissing blijft op het origineel (`original_has_alpha()`). Wijzigt de bron van T1. | code review 2026-10-30 |
+| T2 | Base64 > 2048 tekens wordt niet opgeslagen (debug-log); validatie `^[A-Za-z0-9+/]+={0,2}$` bij opslaan en bij uitserveren | gebruikersfeedback 2026-10-30 |
+| T3 | Zelfde schakelaar en levenscyclus als de LQIP: alleen met `lqip_enabled = 1`, geen tiny voor alfa-originelen, gemaakt in dezelfde `generate()`-ronde; `needs_generation()` is waar zolang de tiny ontbreekt (niet voor alfa), zodat batch "ontbrekende" 2.12.0-bijlagen aanvult; `delete`-paden wissen de meta, `--force`/"alles" maakt opnieuw | gebruikersfeedback 2026-10-30 |
+| T4 | `background-image:url("<lqip>"),url("data:image/jpeg;base64,<tiny>")`; zonder LQIP voor die maat alleen de tiny; alle bestaande escaping- en samenvoegregels ongewijzigd. De meta komt uit de postmeta-cache die `Variants::get()` al vult: geen extra query per afbeelding | gebruikersfeedback 2026-10-30 |
+| T5 | Preload ongewijzigd: nog steeds de `.lqip.jpg` | gebruikersfeedback 2026-10-30 |
+| T6 | Versie 2.13.0 | gebruikersfeedback 2026-10-30 |
+
+Gevolg: ongeveer 1 KB extra HTML per afbeelding. Bekende rest: mislukt of overschrijdt de tiny de grens, dan blijft de meta leeg en meldt `needs_generation()` de bijlage bij elke batch "ontbrekende" opnieuw.
