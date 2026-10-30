@@ -214,6 +214,8 @@ img {
 	background-repeat: no-repeat;
 	background-size: cover;
 	background-position: center;
+	background-origin: content-box;
+	background-clip: content-box;
 	shape-margin: 1rem;
 	max-width: 100%;
 	height: auto;
@@ -224,8 +226,22 @@ picture {
 }
 ```
 
-Bestaande bestanden worden nooit overschreven. Draait een site al op 2.12.0 of 2.12.1 met LQIP aan,
-doe dan zelf:
+`background-origin` en `background-clip: content-box` (sinds 2.12.4) houden de LQIP binnen de
+content-box, waar ook de foto staat. Zonder `origin` komt hij in de padding terecht; zonder `clip`
+loopt hij bij een bijsnede (`object-fit: cover` in een andere verhouding, bv. `aspect-ratio: 1/1`) aan
+één as de padding in. Let op: `background-clip` geldt ook voor een `background-color` op de `<img>`.
+Wil je een gekleurde lijst in de padding, teken die dan met een inset-schaduw zo dik als de padding:
+
+```css
+.fotolijst {
+	padding: 3px;
+	border: 1px solid #e2e2e2;
+	box-shadow: inset 0 0 0 3px #fff;
+}
+```
+
+Bestaande bestanden worden nooit overschreven. Draait een site al op 2.12.x met LQIP aan, doe dan
+zelf:
 
 1. Plak het blok hierboven in `custom-style.css` via PDK Tools → Custom CSS (de code-editor). Niet via
    FTP: dan klopt de opgeslagen hash niet meer en wordt het hele bestand als gewijzigd geblokkeerd.

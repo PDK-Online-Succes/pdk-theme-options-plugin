@@ -109,6 +109,8 @@ img {
 	background-repeat: no-repeat;
 	background-size: cover;
 	background-position: center;
+	background-origin: content-box;
+	background-clip: content-box;
 	shape-margin: 1rem;
 	max-width: 100%;
 	height: auto;
@@ -119,7 +121,11 @@ picture {
 }
 ```
 
-**Bestaande sites met LQIP aan** (bijgewerkt vanaf 2.12.0 of 2.12.1) krijgen dit niet vanzelf, want
+`background-origin`/`background-clip: content-box` houden de LQIP binnen het fotovlak, ook bij padding
+en bij een bijsnede met `object-fit: cover`. Een `background-color` op de `<img>` wordt daardoor ook
+tot dat vlak beperkt: teken een gekleurde lijst in de padding met `box-shadow: inset 0 0 0 <padding> <kleur>`.
+
+**Bestaande sites met LQIP aan** (bijgewerkt vanaf een eerdere 2.12.x) krijgen dit niet vanzelf, want
 `custom-style.css` wordt nooit overschreven:
 
 1. Plak het blok via PDK Tools → **Custom CSS** in de code-editor. Niet via FTP, anders blokkeert de
