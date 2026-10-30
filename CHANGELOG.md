@@ -2,6 +2,22 @@
 
 Alle noemenswaardige wijzigingen in PDK Theme Options worden hier bijgehouden.
 
+## [2.12.4] — 2026-10-30
+
+### IMGX: LQIP respecteert padding
+
+- **Standaard CSS.** Het `img`-blok in `custom-style.css` van nieuwe installaties krijgt `background-origin: content-box` en `background-clip: content-box`. De LQIP valt daarmee binnen de content-box, net als de foto. Voorheen liep hij de padding in (een lijstje rond een foto) en bij een bijsnede (`object-fit: cover` in een andere verhouding) aan één as ook onder de rand
+- **Let op:** `background-clip` beperkt ook een `background-color` op de `<img>` tot het fotovlak. Een gekleurde lijst in de padding teken je met `box-shadow: inset 0 0 0 <padding> <kleur>`
+
+**Upgrade-opmerking.** `custom-style.css` wordt nooit overschreven. Voeg op bestaande sites met LQIP via PDK Tools → de code-editor toe aan het `img`-blok:
+
+```css
+img {
+	background-origin: content-box;
+	background-clip: content-box;
+}
+```
+
 ## [2.12.3] — 2026-10-30
 
 ### IMGX: tiny-laag als SVG met exacte beeldverhouding

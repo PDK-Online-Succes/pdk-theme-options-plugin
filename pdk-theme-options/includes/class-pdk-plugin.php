@@ -124,8 +124,10 @@ class PDK_Plugin {
 	private static function default_css(): string {
 		return "/*\n * Eigen CSS-stijlen.\n * Dit bestand wordt NIET overschreven bij plugin-updates.\n */\n"
 			. "\n/* Basis voor de LQIP-achtergrond van IMGX (de background-image komt inline van IMGX);\n"
+			. " * origin/clip content-box houden hem binnen de content-box, net als de foto (padding blijft vrij);\n"
 			. " * picture { display: contents } maakt de wrapper van IMGX boxloos. */\n"
 			. "img {\n\tfont-style: italic;\n\tbackground-repeat: no-repeat;\n\tbackground-size: cover;\n\tbackground-position: center;\n"
+			. "\tbackground-origin: content-box;\n\tbackground-clip: content-box;\n"
 			. "\tshape-margin: 1rem;\n\tmax-width: 100%;\n\theight: auto;\n\tvertical-align: middle;\n}\n"
 			. "picture {\n\tdisplay: contents;\n}\n";
 	}
