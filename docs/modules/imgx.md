@@ -145,7 +145,7 @@ verwijdert naast `.webp`/`.avif` ook bestanden die op `.lqip.jpg` eindigen, nog 
 de uploadsmap. `sidecar_source_still_exists()` strip het achtervoegsel `.lqip.jpg` in zijn geheel
 voordat hij de bron terugzoekt, zodat `prune_stale_sizes()` een LQIP niet wist zolang zijn bron bestaat.
 
-**Tiny-laag (sinds 2.13.0).** Onder de LQIP zit een inline base64-JPEG van 16 px (langste zijde, q=40)
+**Tiny-laag (sinds 2.12.1).** Onder de LQIP zit een inline base64-JPEG van 16 px (langste zijde, q=40)
 als eerste, blurry frame; te klein om als LCP-kandidaat te tellen, zoals in het artikel. Eén per
 bijlage, van het door WordPress geschaalde bestand (`get_attached_file()`; alfa-beslissing blijft op het origineel), in postmeta `_imgx_lqip_tiny` (`Variants::TINY_KEY`), gemaakt door
 `Converter::tiny_base64()` via een tijdelijk bestand dat direct wordt verwijderd en door

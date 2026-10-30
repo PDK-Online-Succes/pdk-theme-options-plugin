@@ -354,6 +354,6 @@ Bron: gebruikersfeedback 2026-10-30 ("de low res is niet zoals het voorbeeld van
 | T3 | Zelfde schakelaar en levenscyclus als de LQIP: alleen met `lqip_enabled = 1`, geen tiny voor alfa-originelen, gemaakt in dezelfde `generate()`-ronde; `needs_generation()` is waar zolang de tiny ontbreekt (niet voor alfa), zodat batch "ontbrekende" 2.12.0-bijlagen aanvult; `delete`-paden wissen de meta, `--force`/"alles" maakt opnieuw | gebruikersfeedback 2026-10-30 |
 | T4 | `background-image:url("<lqip>"),url("data:image/jpeg;base64,<tiny>")`; zonder LQIP voor die maat alleen de tiny; alle bestaande escaping- en samenvoegregels ongewijzigd. De meta komt uit de postmeta-cache die `Variants::get()` al vult: geen extra query per afbeelding | gebruikersfeedback 2026-10-30 |
 | T5 | Preload ongewijzigd: nog steeds de `.lqip.jpg` | gebruikersfeedback 2026-10-30 |
-| T6 | Versie 2.13.0 | gebruikersfeedback 2026-10-30 |
+| T6 | Versie 2.12.1 (patch, op verzoek gebruiker) | gebruikersfeedback 2026-10-30 |
 
 Gevolg: ongeveer 1 KB extra HTML per afbeelding. Bekende rest: mislukt of overschrijdt de tiny de grens, dan blijft de meta leeg en meldt `needs_generation()` de bijlage bij elke batch "ontbrekende" opnieuw.

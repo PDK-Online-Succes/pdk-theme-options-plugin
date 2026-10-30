@@ -2,7 +2,7 @@
 
 Alle noemenswaardige wijzigingen in PDK Theme Options worden hier bijgehouden.
 
-## [2.13.0] — 2026-10-30
+## [2.12.1] — 2026-10-30
 
 ### IMGX: tiny base64-laag onder de LQIP (blurry eerste frame)
 

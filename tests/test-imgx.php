@@ -967,7 +967,7 @@ $GLOBALS['imgx_actions'] = array();
 $lq_buf = array_filter( $GLOBALS['imgx_actions'], function ( $a ) { return 'template_redirect' === $a[0]; } );
 check( 'AC-108: whole_page=0 does not register start_buffer (so no preload)', 0 === count( $lq_buf ) );
 
-/* ---------- T2-T4 (v2.13.0): tiny base64 layer under the LQIP ---------- */
+/* ---------- T2-T4 (v2.12.1): tiny base64 layer under the LQIP ---------- */
 
 $t_tiny = str_repeat( 'QUJD', 20 ) . 'RA=='; // plain base64
 $t_bg   = function ( $html ) { return preg_match( '#background-image:.*?(?=;background-size:cover)#', (string) lq_style( lq_img_tag( $html ) ), $m ) ? $m[0] : ''; };
@@ -1059,7 +1059,7 @@ foreach ( array( 95, 96, 97 ) as $t_i ) { unset( $GLOBALS['imgx_attached'][ $t_i
 $GLOBALS['imgx_filters']['imgx_enabled_formats'] = array();
 $GLOBALS['imgx_attachment_meta'] = $lq_meta;
 
-/* ---------- T3 (v2.13.0): tiny generation path via generate(), with a fake image editor ---------- */
+/* ---------- T3 (v2.12.1): tiny generation path via generate(), with a fake image editor ---------- */
 
 $t_tmpdir = str_replace( '\\', '/', sys_get_temp_dir() ) . '/imgx-tiny-tmp';
 @mkdir( $t_tmpdir );
