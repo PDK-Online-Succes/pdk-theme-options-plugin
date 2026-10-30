@@ -187,11 +187,35 @@ geconcateneerd, zodat elk attribuut dat een thema, plugin of paginabuilder erop 
 (`:12-17`, `:507-509`). De klassen van de `<img>` worden sinds 2.12.2 niet meer naar de wrapper
 gekopieerd (die houdt alleen `imgx-picture` en is `display: contents`); het `id` ook niet (`class-picture-renderer.php:554-557`, `:657-687`).
 
-**Basis-CSS.** Een nieuwe installatie krijgt in `custom-style.css` (aangemaakt door
-`PDK_Plugin::default_css()`) een `img`-blok (`font-style:italic`, `background-repeat:no-repeat`,
-`background-size:cover`, `background-position:center`, `shape-margin:1rem`, `max-width:100%`,
-`height:auto`, `vertical-align:middle`) en `picture { display: contents }`. Bestaande bestanden worden
-nooit overschreven: sites op 2.12.x met LQIP moeten dit zelf toevoegen, anders verliest de LQIP cover/no-repeat. Doe dat via PDK Tools → de code-editor (niet via FTP: dan wordt het bestand als gewijzigd geblokkeerd). De module Custom CSS moet aan staan; die staat sinds 2.12.2 aan op nieuwe installaties, bestaande sites houden hun opgeslagen keuze (zet hem aan als LQIP aan staat).
+**Basis-CSS.** IMGX zet inline alleen `background-image` op de `<img>`; de rest van de opmaak komt
+uit `custom-style.css`. Een nieuwe installatie krijgt dit blok daar automatisch (aangemaakt door
+`PDK_Plugin::default_css()`):
+
+```css
+img {
+	font-style: italic;
+	background-repeat: no-repeat;
+	background-size: cover;
+	background-position: center;
+	shape-margin: 1rem;
+	max-width: 100%;
+	height: auto;
+	vertical-align: middle;
+}
+picture {
+	display: contents;
+}
+```
+
+Bestaande bestanden worden nooit overschreven. Draait een site al op 2.12.0 of 2.12.1 met LQIP aan,
+doe dan zelf:
+
+1. Plak het blok hierboven in `custom-style.css` via PDK Tools → Custom CSS (de code-editor). Niet via
+   FTP: dan klopt de opgeslagen hash niet meer en wordt het hele bestand als gewijzigd geblokkeerd.
+2. Zet de module Custom CSS aan op de Modules-tab. Die staat sinds 2.12.2 alleen op nieuwe
+   installaties standaard aan; bestaande sites houden hun opgeslagen keuze.
+
+Zonder deze stappen tegelt de LQIP en vult hij het vlak niet meer.
 
 Een bijlage-ID komt uit de `wp-image-<id>`-class. Ontbreekt die — paginabuilders renderen hun eigen
 markup — dan wordt de `src` in één gebatchte query teruggezocht naar `_wp_attached_file`

@@ -97,6 +97,37 @@ Clientbestanden staan in `wp-content/uploads/pdk-theme-options/` en worden **nie
 Fontbestanden staan in `wp-content/uploads/fonts/`:  
 Bestandsnaamconventie: `FamilyName-Weight.woff2` (bijv. `Raleway-Bold.woff2`)
 
+### Basis-CSS voor afbeeldingen (IMGX LQIP)
+
+Sinds 2.12.2 zet IMGX bij de LQIP-placeholder inline alleen `background-image` op de `<img>`. De rest
+komt uit `custom-style.css`. Nieuwe installaties krijgen dit blok automatisch, met de module Custom CSS
+aan:
+
+```css
+img {
+	font-style: italic;
+	background-repeat: no-repeat;
+	background-size: cover;
+	background-position: center;
+	shape-margin: 1rem;
+	max-width: 100%;
+	height: auto;
+	vertical-align: middle;
+}
+picture {
+	display: contents;
+}
+```
+
+**Bestaande sites met LQIP aan** (bijgewerkt vanaf 2.12.0 of 2.12.1) krijgen dit niet vanzelf, want
+`custom-style.css` wordt nooit overschreven:
+
+1. Plak het blok via PDK Tools → **Custom CSS** in de code-editor. Niet via FTP, anders blokkeert de
+   [integriteitscontrole](#integriteitscontrole-van-de-code-bestanden) het hele bestand.
+2. Zet de module **Custom CSS** aan op de Modules-tab.
+
+Zonder deze stappen tegelt de LQIP en vult hij het vlak niet. Meer in [docs/modules/imgx.md](docs/modules/imgx.md).
+
 ---
 
 ## Hulpfuncties voor thema's
