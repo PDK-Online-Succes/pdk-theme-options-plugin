@@ -24,7 +24,7 @@ foreach ( PDK_CSS_Framework::tokens( $c ) as $t ) { if ( isset( $t['min'] ) ) { 
 $e   = static fn( $s ) => esc_html( (string) $s );
 $m   = static fn( array $a ) => ' data-m="' . esc_attr( wp_json_encode( $a ) ) . '"';
 $L   = static fn( $t ) => '<small class="demo-lbl" dir="ltr"><span class="demo-t" data-t="' . esc_attr( $t ) . '"></span> <span class="demo-rds"></span></small>';
-$sec = static fn( $title, $inner, $cls = '', $attr = '' ) => '<div class="demo-blk"><div class="demo-h">' . esc_html( $title ) . '</div><section class="demo-sec ' . $cls . '"' . $attr . '>' . $inner . '</section></div>';
+$sec = static fn( $title, $inner, $cls = '', $attr = '', $pre = '' ) => '<div class="demo-blk"><div class="demo-h">' . esc_html( $title ) . '</div>' . $pre . '<section class="demo-sec ' . $cls . '"' . $attr . '>' . $inner . '</section></div>';
 $cap = static fn( $txt, array $ent = [ [ 'info' ] ], $f = '' ) => '<div class="demo-cap"' . ( $f ? ' data-f="1"' : '' ) . $m( $ent ) . '>' . $L( $txt ) . '</div>';
 $T   = static fn( $name ) => '{tok:' . $name . '} = {fl:' . $name . '}';   // sjabloon: ruwe tokenwaarde + px @min -> px @max
 
@@ -99,20 +99,23 @@ $lane_txt = [
 $lanes = static function ( array $names ) use ( $lane_txt, $L, $m ) {
 	$o = '';
 	foreach ( $names as $k => $n ) {
-		$probe = 0 === $k ? '<div class="demo-pw"><div class="demo-pi demo-pr-c" data-pr="c"></div><div class="demo-pi demo-pr-g" data-pr="g"></div><div class="demo-pi demo-pr-p" data-pr="p"></div><div class="demo-pi demo-pr-w" data-pr="w"></div></div>' : '';
+		$probe = 0 === $k ? '<div class="demo-pw"><div class="demo-pi demo-pr-c" data-pr="c"></div></div>' : '';
 		$o .= '<div class="' . ( 'wide' === $n ? '' : 'pdk-' . $n . ' ' ) . 'demo-l demo-l-' . $n . '"' . $m( [ [ 'lane', $n ] ] ) . '>' . $probe . $L( $lane_txt[ $n ] ) . '</div>';
 	}
 	return $o;
 };
 $tokens_txt = 'gutter = {tok:--pdk-gutter} ({fl:--pdk-gutter}) · site-width {tok:--pdk-site-width} · measure {tok:--pdk-measure} · popout-space = {tok:--pdk-popout-space} ({fl:--pdk-popout-space})';
+// De gutter-, popout-space- en site-width-probes staan als sibling VOOR de section: de cqi in de sporen van de section lost op tegen de
+// container BOVEN de section (een section bevraagt zichzelf niet), dus de probes moeten in diezelfde context staan. De maat (c) blijft binnen de section (V12).
+$prebox = '<div class="demo-pw"><div class="demo-pi demo-pr-g" data-pre="g"></div><div class="demo-pi demo-pr-p" data-pre="p"></div><div class="demo-pi demo-pr-w" data-pre="w"></div></div>';
 $names = array_keys( $lane_txt );
-$h  = $cap( 'Lanes of the section grid. ' . $tokens_txt . '. Widths: LTR/RTL are equal; start = logical start offset.' ) . $lanes( $names );
-$blocks[] = $sec( '4. Section = grid: lanes (each its own tint; the empty tint at the edges is the gutter / outer tracks)', $h );
+$h  = $cap( 'Lanes of the section grid. ' . $tokens_txt . '. Widths: LTR/RTL are equal; start = logical start offset. Lane expectations = sums of the real used track sizes; the "trk" pill checks the tracks themselves (5 inner tracks = min(site-width, section − 2×gutter); content = min(measure, site-width, section − 2×gutter)).', [ [ 'info' ], [ 'trk' ] ] ) . $lanes( $names );
+$blocks[] = $sec( '4. Section = grid: lanes (each its own tint; the empty tint at the edges is the gutter / outer tracks)', $h, '', '', $prebox );
 
 // ---- 5. RTL ----------------------------------------------------------------------------------------------------
-$h = $cap( 'dir="rtl" on the section: the grid mirrors, so -start sits on the right edge. Expected values are the same widths; start offset is measured from the right.' )
+$h = $cap( 'dir="rtl" on the section: the grid mirrors, so -start sits on the right edge. Expected values are the same widths; start offset is measured from the right.', [ [ 'info' ], [ 'trk' ] ] )
 	. $lanes( [ 'wide', 'content', 'popout-start', 'wide-end', 'full-start' ] );
-$blocks[] = $sec( '5. RTL section (dir="rtl")', $h, '', ' dir="rtl"' );
+$blocks[] = $sec( '5. RTL section (dir="rtl")', $h, '', ' dir="rtl"', $prebox );
 
 // ---- 6. .pdk-off -----------------------------------------------------------------------------------------------
 $h = '<div class="demo-b">' . $L( '.pdk-off section — no framework grid: display block, container-type normal, child = full section width (no lanes, no gutters)' ) . '</div>';
@@ -187,6 +190,8 @@ const X=(s,el)=>s.replace(/\{(\w+)(?::([^}]*))?\}/g,(_,f,a)=>({
  lr:()=>T('--pdk-lh-'+a)+' × font-size + '+f2(lp(a))+'px',
  tok:()=>T(a),px:()=>f2(P(a,innerWidth))+'px',
  gt:()=>cs(gw(el)).getPropertyValue('--pdk-grid-min').trim(),gm:()=>f2(gmp(el)),cols:()=>cols(el)}[f]||(()=>''))());
+const PR=(s,q)=>(q=='c'?s.querySelector('[data-pr=c]'):s.previousElementSibling.querySelector('[data-pre='+q+']')).getBoundingClientRect().width;
+const TR=s=>cs(s).gridTemplateColumns.replace(/\[[^\]]*\]/g,' ').trim().split(/\s+/).map(n);
 const fmt=v=>Array.isArray(v)?v.map(f2).join(' / '):typeof v=='number'?f2(v)+'px':v;
 const H={
 fs:(t,W,k)=>[n(cs(t).fontSize),P(k,W)],
@@ -200,19 +205,26 @@ disp:(t,W,v)=>[cs(t).display,v],ct:(t,W,v)=>[cs(t).containerType,v],
 cw:t=>[t.firstElementChild.getBoundingClientRect().width,t.clientWidth],
 cols:t=>{const g=n(cs(t).columnGap),m=gmp(t),w=t.clientWidth;
  return[''+cols(t),''+Math.min(t.children.length,Math.max(1,Math.floor((w+g)/(Math.min(m,w)+g))))]},
-lane:(t,W,k)=>{const s=t.parentElement,S=s.clientWidth,pr=q=>s.querySelector('[data-pr='+q+']').getBoundingClientRect().width,
- g=pr('g'),a=S-2*g,c=Math.min(pr('c'),pr('w'),a),w=Math.min(pr('w'),a),p=c+2*Math.min(pr('p'),Math.max(0,(pr('w')-pr('c'))/2),(a-c)/4),
- T2={wide:[(S-w)/2,w],content:[(S-c)/2,c],popout:[(S-p)/2,p],'popout-start':[(S-p)/2,(p+c)/2],'popout-end':[(S-c)/2,(p+c)/2],
- 'wide-start':[(S-w)/2,(w+c)/2],'wide-end':[(S-c)/2,(w+c)/2],full:[0,S],'full-start':[0,(S+w)/2],'full-end':[(S-w)/2,(S+w)/2]},
+/* Placement: verwacht = som van de WERKELIJK gebruikte spoorbreedtes (getComputedStyle(section).gridTemplateColumns: full, wide, popout, content, popout, wide, full);
+   de start is logisch (vanaf de start-rand), dus RTL heeft geen aparte berekening. */
+lane:(t,W,k)=>{const s=t.parentElement,tr=TR(s),sm=(x,y)=>tr.slice(x,y).reduce((u,v)=>u+v,0),
+ T2={wide:[sm(0,1),sm(1,6)],content:[sm(0,3),tr[3]],popout:[sm(0,2),sm(2,5)],'popout-start':[sm(0,2),sm(2,4)],'popout-end':[sm(0,3),sm(3,5)],
+ 'wide-start':[sm(0,1),sm(1,4)],'wide-end':[sm(0,3),sm(3,6)],full:[0,sm(0,7)],'full-start':[0,sm(0,6)],'full-end':[sm(0,1),sm(1,7)]},
  r=t.getBoundingClientRect(),sr=s.getBoundingClientRect(),rtl=cs(s).direction=='rtl';
- return[[rtl?sr.right-r.right:r.left-sr.left,r.width],T2[k],.5]}};
+ if(tr.length!=7)return['tracks '+tr.length,'7 tracks'];
+ return[[rtl?sr.right-r.right:r.left-sr.left,r.width],T2[k],.5]},
+/* Het echte framework-check per section: de 5 binnenste sporen samen = min(site-width, sectie - 2×gutter); content = min(measure, site-width, sectie - 2×gutter). */
+trk:t=>{const s=t.closest('section'),tr=TR(s),S=s.clientWidth,pr=q=>PR(s,q),
+ a=S-2*pr('g'),sm=(x,y)=>tr.slice(x,y).reduce((u,v)=>u+v,0);
+ if(tr.length!=7)return['tracks '+tr.length,'7 tracks'];
+ return[[sm(1,6),tr[3]],[Math.min(pr('w'),a),Math.min(pr('c'),pr('w'),a)],.5]}};
 function run(){let bad=0,tot=0;
  document.querySelectorAll('.demo-t').forEach(e=>{e.textContent=X(e.dataset.t,e)});
  document.querySelectorAll('[data-m]').forEach(el=>{
   const t=el.dataset.f?el.nextElementSibling:el,c=t.parentElement.closest('section:not(.pdk-off),.pdk-container'),W=c?c.clientWidth:innerWidth,
    box=el.querySelector('.demo-rds'),sec=t.closest('section');box.textContent='';
   JSON.parse(el.dataset.m).forEach(([k,...a])=>{const s=document.createElement('span');s.className='demo-rd';
-   if(k=='info'){const p=sec&&sec.querySelector('[data-pr=c]'),r=q=>sec.querySelector('[data-pr='+q+']').getBoundingClientRect().width;
+   if(k=='info'){const p=sec&&sec.querySelector('[data-pr=c]'),r=q=>PR(sec,q);
     s.textContent='width '+f2(W)+'px · viewport '+innerWidth+'px'+(p?' · measure='+f2(r('c'))+'px (1ch='+f2(r('c')/n(T('--pdk-measure')))+') · gutter '+f2(r('g'))+'px · popout-space '+f2(r('p'))+'px':'');
    }else{const[g,e2,tol=.1]=H[k](t,W,...a);tot++;
     const ok=Array.isArray(g)?g.every((x,i)=>Math.abs(x-e2[i])<=tol):typeof g=='number'?Math.abs(g-e2)<=tol:g===e2;

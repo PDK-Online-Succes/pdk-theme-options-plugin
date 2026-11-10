@@ -365,6 +365,10 @@ async function ac009( label ) {
 	// WordPress print global styles inline: <style id="global-styles-inline-css">. Vergelijk posities in de volledige HTML.
 	const posGs = html.search( /id=['"](wp-)?global-styles-inline-css/ ), posFw = html.search( /css-framework\.css\?ver=/ );
 	if ( label.includes( 'oxygen actief' ) ) {
+		// De brief: Oxygens global-styles bevat geen selector voor h1-h6 of p (anders zou die tegen het framework vechten).
+		const gsm = html.match( /<style[^>]*id=['"](?:wp-)?global-styles-inline-css['"][^>]*>([\s\S]*?)<\/style>/ );
+		const hit = gsm ? ( gsm[ 1 ].match( /(^|[},\s])(h[1-6]|p)\s*[{,:]/ ) || [] )[ 0 ] : null;
+		check( '009', `[${ label }] global-styles-inline-css bevat geen selector voor h1-h6 of p${ gsm ? '' : ' (tag niet aanwezig)' }${ hit ? ': ' + JSON.stringify( hit ) : '' }`, ! hit );
 		// Met Oxygen actief print WP global-styles in de footer (onschadelijk: oxygen-zero heeft geen theme.json): ná het framework en ná </main> / alle head-links.
 		const posMain = html.lastIndexOf( '</main>' ), posHeadEnd = html.indexOf( '</head>' );
 		check( '009', `[${ label }] global-styles inline staat ná het framework (pos ${ posGs } > ${ posFw }) en in de footer (ná </head> ${ posHeadEnd }${ posMain >= 0 ? ' en </main> ' + posMain : '' })`, posGs > posFw && posGs > posHeadEnd && ( posMain < 0 || posGs > posMain ) );

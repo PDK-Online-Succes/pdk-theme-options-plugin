@@ -4,8 +4,10 @@ Status: concept. OQ-CSS-01 t/m OQ-CSS-04 beantwoord door de gebruiker (2026-11-0
 herstelronde 1 (B1, M1–M4, minors 1–13, drie lean cuts) verwerkt; gebruikersbesluiten V7 (Modern Normalize + flow),
 V8 (breedtes), V9 (ruimte zonder utilityklassen bevestigd), V10 (de section is het grid), V11 (logische namen,
 RTL/LTR), V12 (basis-font-size op de section), V13 (line-height met ratio) en V14 (`grid_min` in ch, veldbeschrijvingen
-uit één bron; alle 2026-11-10) verwerkt, plus de live-bevindingen D-L1–D-L3 uit Slice 1 en de implementatiekeuze D-P2
-(regenereren bij een nieuwe pluginversie).
+uit één bron; alle 2026-11-10) verwerkt, plus de live-bevindingen D-L1–D-L3 uit Slice 1, de implementatiekeuze D-P2
+(regenereren bij een nieuwe pluginversie) en de review-fixes van PR #10 (§14). De brief volgt de code in
+`pdk-theme-options/modules/css-framework/class-pdk-css-framework.php`; waar een regelnummer staat, is dat uit dat
+bestand, tenzij anders vermeld.
 Scope: nieuwe module in PDK Theme Options (huidige versie 2.12.4 —
 `pdk-theme-options/pdk-theme-options-plugin.php:6`, `:24`; wordt **2.13.0**, minor volgens `CLAUDE.md`).
 Geen volledige PRD: alleen wat erbij komt. Geen CI, geen release in deze opdracht.
@@ -107,10 +109,11 @@ responsive fallback, zonder magic numbering. Zoals utopia.fyi. Gebruik dev.local
 | Oxygen schakelt het WordPress-thema **altijd** uit en zet zijn eigen thema `oxygen-zero` in de plaats (filters op `template`/`stylesheet` en de `pre_option_*`-varianten; `is_theme_disabled()` geeft in Oxygen-modus altijd `true`). Dat thema heeft geen `theme.json` en geen eigen kopstijlen | `plugin/themeless/theme-disabler/theme-disabler.php:12-13`, `:28-48`, `:59-63`; `plugin/themeless/themes/oxygen-zero/` (geen `theme.json`) |
 | Oxygens eigen CSS (globale instellingen, presets, variabelen, selectors, post-CSS) komt via een placeholder op `wp_head` prioriteit **1000000**, dus ná elk ge-enqueued stylesheet | `plugin/render/capture-wordpress-output.php:17`, `:39-64`, `:232-308` |
 | Variabelen staan in de globale optie `variables_json_string`; optienaam = `meta_prefix` + veld = **`oxygen_variables_json_string`**; collecties in `oxygen_variables_collections_json_string` | `plugin/variables/variables.php:63`, `:94`; `plugin/data/api/options.php:22-26`, `:46-59`; `plugin/util/bdox.php:87` |
-| Ruw lezen zonder filter: `\Breakdance\Data\get_global_option( 'variables_json_string' )` (JSON-gedecodeerd; `false` bij ontbreken **of** decodeerfout); bestaan los te testen met `global_option_exists()`; oude installaties kunnen nog een JSON-string bevatten | `plugin/data/api/options.php:36-39`, `:46-59`; `plugin/data/api/helpers.php:32-46`; `plugin/variables/variables.php:68-72` |
+| Ruw lezen zonder filter: `\Breakdance\Data\get_global_option( 'variables_json_string' )` (JSON-gedecodeerd **als array**, `json_decode( …, true )`; `false` bij ontbreken **of** decodeerfout); bestaan los te testen met `global_option_exists()`; oude installaties kunnen nog een JSON-string bevatten | `plugin/data/api/options.php:36-39`, `:46-59`; `plugin/data/api/helpers.php:32-46`; `plugin/variables/variables.php:68-72` |
+| Ontbreken de collecties, dan zaait Oxygen ze zelf uit de `collection`-velden van de variabelen | `plugin/variables/variables.php:94-107` |
 | Vorm per variabele: `{id, cssVariableName, label, value, type, dynamicData, collection}` | `plugin/psalm-types/z-z-misc.php:32` |
 | `getVariables()` past de filter `breakdance_variables` → `oxygen_variables` toe (niet geschikt als bron voor schrijven) | `plugin/variables/variables.php:80`; `plugin/breakdance-oxygen/actions-filters.php:21-33` |
-| Schrijven: `\Breakdance\Variables\saveVariables( string $json )`. Doet `str_replace("{}", "null", $data)`, dan `json_decode`, en schrijft `$variablesData['variables']` en `['collections']` **zonder controle**. Een kapotte payload wordt `null` en **wist alle variabelen zonder exceptie**. Revisie + `generateCacheForGlobalSettings()` alleen bij verschil. Altijd geladen (niet afhankelijk van Oxygen-MCP) | `plugin/variables/save.php:32-58`; `plugin/variables/base.php:3-5`; `plugin/base.php:125` |
+| Schrijven: `\Breakdance\Variables\saveVariables( string $json )`. Doet `str_replace("{}", "null", $data)`, dan `json_decode( $data, true )` (dus ook Oxygen zelf schrijft lege objecten terug als `[]`), en schrijft `$variablesData['variables']` en `['collections']` **zonder controle**. Een kapotte payload wordt `null` en **wist alle variabelen zonder exceptie**. Revisie + `generateCacheForGlobalSettings()` alleen bij verschil. Altijd geladen (niet afhankelijk van Oxygen-MCP) | `plugin/variables/save.php:32-58` (decode `:38`); `plugin/variables/base.php:3-5`; `plugin/base.php:125` |
 | Uitvoer: `:root { --<cssVariableName>: <value.style of value>; }`, daarna `replaceVariablesInString()` (alleen `{var-<id>}`-tokens) en `formatCss()` = matthiasmullie-minifier, dus de tekst in het bestand is **niet** byte-gelijk aan de opgeslagen waarde | `plugin/variables/template/global.twig:1-5`, `macro.twig:6`, `:29`; `plugin/variables/variables.php:38-53`; `plugin/breakdance-oxygen/selectors.php:249-271`; `plugin/render/format-css.php:12-22`; `plugin/render/cache.php:270-271` |
 | `unit`-waarde die de builder kan lezen: `{number, unit: 'custom', style}` voor een vrije CSS-expressie | `plugin/mcp/design/css-utils.php:306-326`; `plugin/mcp/tools/variables.php:342-384` |
 | Oxygens eigen insert: overschrijft op `cssVariableName` en behoudt het id; nieuwe id's = `wp_generate_uuid4()`; namen zonder voorloop-`--` | `plugin/mcp/tools/variables.php:446-454`, `:487-490`, `:521-541`, `:566-573` |
@@ -227,10 +230,10 @@ regel op webstatus.dev (R-CSS-04). Alle features zitten boven de Newly-ondergren
 | Feature | web-features-id | Status |
 |---------|-----------------|--------|
 | `calc()` (ook gemengde eenheden zoals `rem − ch`, en een getal × `1em`) | `calc` | Widely available (al jaren) |
-| `clamp()`, `min()`, `max()` (ook binnen `minmax()`) | `min-max-clamp` | Widely available (sinds 2020) |
+| `clamp()`, `min()`, `max()` (ook geneste `min()`/`max()` binnen `minmax()`) | `min-max-clamp` | Widely available (sinds 2020) |
 | Containerqueries + `container-type` + `cqi` | `container-queries` | Baseline 2023 (Newly februari 2023), Widely sinds 2025 |
 | Terugval van `cqi` zonder container op de small viewport | spec CSS Containment 3, §container-lengths | spec (bevestigt V2) |
-| `:where()` / `:not()` met selectorlijst | `where`, `not` | Widely |
+| `:where()` / `:not()` (ook gestapeld en met attribuutselector `[hidden]`) | `where`, `not` | Widely |
 | Grid met benoemde lijnen, `minmax()`, `repeat(auto-fit, …)`, `fr`; kolommen volgen `direction` (RTL) | `grid` | Widely |
 | Lengte-eenheid `ch` | niet opgezocht (CSS Values 3) | Widely (eigen kennis) |
 | Custom properties (ook als track-lijst in `grid-template-columns`) | `custom-properties` | Widely |
@@ -246,16 +249,16 @@ Bewust **niet** gebruikt (nergens voor nodig): cascade layers (`@layer`, afgesch
 
 | Bestand | Wijziging | Source |
 |---------|-----------|--------|
-| `modules/css-framework/class-pdk-css-framework.php` (nieuw) | Pure generator (config → tokens → CSS-string), validatie, de veldbeschrijvingen als één statische bron `PDK_CSS_Framework::fields()` (§3a), schrijven van het bestand, register/enqueue (§4), Oxygen-sync (pure merge + guarded `saveVariables`, §5), Modern Normalize-check voor de tab-melding (§4a), versiecheck voor regeneratie (D-P2) | V1, V2, V4, V7, V8, V10–V14, OQ-CSS-04, D-P2 |
+| `modules/css-framework/class-pdk-css-framework.php` (nieuw) | Pure generator (config → tokens → CSS-string), validatie, de veldbeschrijvingen als één statische bron `PDK_CSS_Framework::fields()` (§3a), de klassenlijst als constante `PDK_CSS_Framework::CLASSES` (`:41`), schrijven van het bestand, register/enqueue (§4), Oxygen-sync (pure merge + guarded `saveVariables`, §5), Modern Normalize-check voor de tab-melding (§4a), versiecheck voor regeneratie (D-P2) | V1, V2, V4, V7, V8, V10–V14, OQ-CSS-04, D-P2, §14 |
 | `includes/class-pdk-plugin.php:17-32` | `'css_framework' => modules/css-framework/class-pdk-css-framework.php, PDK_CSS_Framework` | V1 |
 | `includes/class-pdk-settings.php:109-255`, `:261-303` | Blok `css_framework` (§3), label "CSS Framework", omschrijving. **Niet** in `OXYGEN6_MODULES`: de module werkt ook zonder Oxygen | V1, D2 |
 | `includes/class-pdk-admin.php:26-37`, `:740+` (`get_tabs()`), `:787+` (`render_tab_content()`), `:315-352` (`handle_save()`), `:725-734` (`render_notices()`) | Tab "CSS Framework" in `MODULE_TABS`, gewone wrapper-form (niet standalone), velden gegroepeerd en beschreven uit `fields()` (§3a), `case 'css_framework'`: valideren → opslaan → bestand genereren → Oxygen-sync. Validatiefout → redirect met `error` (bestaand patroon `:541-544`); sync-fout → redirect met `saved=1` **plus** nieuw query-arg `warning`, dat `render_notices()` als `notice-warning` toont. De tab zelf toont de Modern Normalize-waarschuwing (§4a) | V1, V7, V14, OQ-CSS-04 |
 | `modules/custom-css/class-pdk-custom-css.php:29-34` | Deps van `pdk-custom-style` = `[ 'pdk-css-framework' ]` als `wp_style_is( 'pdk-css-framework', 'registered' )`, anders `[]` (B1: custom-style.css wint altijd van de basisregels) | B1 |
-| `modules/agent-abilities/class-pdk-agent-abilities.php:118-121` | Twee abilities, alleen als `class_exists( 'PDK_CSS_Framework' )` (§6); `description` per schema-eigenschap uit `fields()`; één regel in `get-site-info` → `other_output` | V1, V14, D10 |
-| `uninstall.php` (na `:28`) | `delete_option( 'pdk_css_framework_built' )` (D-P2). De instellingen zelf staan in `pdk_theme_options`, dat op `:16` al verwijderd wordt; `css-framework.css` blijft in uploads staan, net als de andere klantbestanden (`:5-6`) | D-P2 |
-| `tests/test-css-framework.php` (nieuw) | H-checks uit §7 | — |
+| `modules/agent-abilities/class-pdk-agent-abilities.php` (`:140-232`) | Twee abilities, alleen als `class_exists( 'PDK_CSS_Framework' )` (§6); `description` per schema-eigenschap uit `fields()` (`with_help()`, `:189-194`); `classes` uit `PDK_CSS_Framework::CLASSES` (`:211`); eigen foutcode bij een mislukte bestandsschrijfactie (`:222-224`); één regel in `get-site-info` → `other_output` | V1, V14, D10, §14 |
+| `uninstall.php` (na `:28`) | `delete_option( 'pdk_css_framework_built' )` (D-P2). De instellingen zelf staan in `pdk_theme_options`, dat op `:16` al verwijderd wordt; `css-framework.css` blijft in uploads staan, net als de andere klantbestanden (`:5-6`). De transient `pdk_css_framework_write_failed` verloopt vanzelf (10 min) | D-P2 |
+| `tests/test-css-framework.php`, `tests/test-css-framework-slice2.php` (nieuw) | H-checks uit §7; de review-fixes van §14 staan in het blok "PR #10 review fixes" van `test-css-framework-slice2.php` | — |
 | `tests/live/css-framework-demo.php` | Demo-pagina; leidt zijn verwachtingen live af uit de tokens (§13). Geen framework-AC | V14 |
-| `docs/modules/css-framework.md` (nieuw), `CHANGELOG.md`, `pdk-theme-options-plugin.php:6`, `:24` | Slice 2. De moduledoc bevat de veldtabel (§3a), de banen van de section en hun klassen (met de start/end-betekenis in RTL), de basis-font-size van de section, de line-height-formule met de erfenis-kanttekening, de opt-out, de uitweg-snippet voor sections van derden, de laadvolgorde, de flow-regel en de Modern Normalize-aanname, inclusief het verschuiven van bestaande sites (§4a) | `CLAUDE.md`, OQ-CSS-03, V7, V8, V10–V14 |
+| `docs/modules/css-framework.md` (nieuw), `CHANGELOG.md`, `pdk-theme-options-plugin.php:6`, `:24` | Slice 2. De moduledoc verwijst voor de veldteksten naar `fields()` (één bron) en beschrijft de banen van de section en hun klassen (met de start/end-betekenis in RTL), de begrenzing door `site_width`, `[hidden]` en `.pdk-grid` op een section, de basis-font-size van de section, de line-height-formule met de erfenis-kanttekening, de opt-out, de uitweg-snippet voor sections van derden, de laadvolgorde, de regeneratie en de schrijffout-transient, de flow-regel en de Modern Normalize-aanname, inclusief het verschuiven van bestaande sites (§4a) | `CLAUDE.md`, OQ-CSS-03, V7, V8, V10–V14 |
 
 ---
 
@@ -265,20 +268,24 @@ Alle waarden numeriek of uit een vaste lijst. Er komt **geen vrije tekst** in de
 Is één veld ongeldig, dan wordt **niets** opgeslagen, krijgt de gebruiker een foutmelding met de veldnaam, en
 blijven het oude bestand en de oude Oxygen-variabelen staan.
 
-**Validatieregels (één functie voor admin en MCP):**
+**Validatieregels (één functie voor admin en MCP, `validate()`, `:118-188`):**
 - *Float-velden:* eerst `is_numeric()`, dan pas casten naar `(float)`, daarna `is_finite()`, daarna het bereik.
   `'1e999'` (INF), `'NAN'`, `''` en arrays worden geweigerd.
 - *`measure`, `grid_min`, `lh_heading_ratio` en `lh_body_ratio`:* float-velden met hoogstens **2 decimalen**;
   `65.25`, `30.5` en `1.15` mogen, `65.125`, `30.125` en `1.125` worden geweigerd (niet afgerond).
-- *Int-velden:* een PHP-int, of een string die volledig matcht op `/^-?\d+$/`, dan casten naar `(int)` en het bereik
+- *Int-velden:* een PHP-int, of een string die volledig matcht op `/^-?\d+$/D`, dan casten naar `(int)` en het bereik
   controleren. Decimalen (`'400.5'`, `400.5`) worden geweigerd, niet afgerond.
 - *Bool-velden (`flow_enabled`):* `true`/`false`, `1`/`0` of `'1'`/`'0'`; al het andere wordt geweigerd. Een
   ontbrekend vinkje in het admin-formulier telt als `false`.
 - *Enum-velden (`gutter`, `popout_space`, `flow_space`, `flow_heading_space`):* alleen een tokennaam die de
   **nieuwe** config oplevert: de 9 stappen, de 8 one-up-paren en de custom paren uit de nieuwe `space_pairs`.
-- *`space_pairs`:* one-up-paren en dubbele entries worden **stil weggelaten** (lean cut). Elke andere ongeldige entry
-  (onbekende naam, verkeerde volgorde, meer dan 10) laat de **hele save** weigeren.
+- *`space_pairs` (`normalize_pairs()`, `:203-225`):* spaties en tabs rond een paar worden weggehaald (`trim( $p, " \t" )`,
+  `:213`), dus `' s-l '` en `"\txs-xl\t"` zijn geldig. Een **newline** blijft ongeldig: de regex gebruikt `/D`, waardoor
+  `"s-l\n"` niet matcht. One-up-paren en dubbele entries worden **stil weggelaten** (lean cut). Elke andere ongeldige
+  entry (onbekende naam, verkeerde volgorde, meer dan 10) laat de **hele save** weigeren.
 - *Onbekende sleutels* (ook de oude naam `feature_space`) vallen weg; via MCP weigert het schema ze al (§6).
+- *Opgeslagen waarden* worden bij elk gebruik opnieuw gevalideerd (`config()`, `:94-111`): een oude of corrupte waarde
+  valt per veld terug op zijn default, geldige velden blijven.
 
 | Sleutel | Type | Default | Bereik | Source |
 |---------|------|---------|--------|--------|
@@ -292,12 +299,12 @@ blijven het oude bestand en de oude Oxygen-variabelen staan.
 | `lh_body_ratio` | float | **1.3** | 1.0–2.0, max. 2 decimalen | V13 (2026-11-10) |
 | `leading_heading` | float rem | 0.25 | 0–2 | verzoek "fluid line-height op basis van de font-size"; gebruikersantwoord OQ-CSS-02 (2026-11-09) |
 | `leading_body` | float rem | **0.25** | 0–2 | idem; default verlaagd van 0.5 door V13 (2026-11-10) |
-| `site_width` | float **rem** | **90** | 20–240 | V6, V8 (2026-11-09): 90rem = 1440px bij een root van 16px. Dit is de breedte van de **wide-baan** (V10); de gutter komt er buiten, in de full-sporen |
+| `site_width` | float **rem** | **90** | 20–240 | V6, V8 (2026-11-09): 90rem = 1440px bij een root van 16px. Dit is de breedte van de **wide-baan** (V10) en de bovengrens van alle binnenbanen (D32); de gutter komt er buiten, in de full-sporen |
 | `measure` | float **ch** | **65** | 20–120, max. 2 decimalen | V8 (2026-11-09). Gemeten in de basis-font-size van de section (V12) |
 | `gutter` | enum ruimte-token | `s-m` | tokennaam van de nieuwe config | gebruikersantwoord OQ-CSS-02 (2026-11-09) |
 | `popout_space` | enum ruimte-token | `2xl` | idem | gebruikersantwoord OQ-CSS-02 (2026-11-09); hernoemd van `feature_space` door V8 (D-L3) |
 | `grid_min` | float **ch** | **30** | 10–80, max. 2 decimalen | verzoek "zonder magic numbering": de enige drempel, instelbaar; V14 (2026-11-10): ch in plaats van rem, schaalt mee met de fluid tekst |
-| `space_pairs` | string[] | `['s-l']` | `a-b` met a, b uit de t-shirtreeks, a vóór b, max. 10 | verzoek "Zoals utopia.fyi"; gebruikersantwoord OQ-CSS-02 (2026-11-09) |
+| `space_pairs` | string[] | `['s-l']` | `a-b` met a, b uit de t-shirtreeks, a vóór b, max. 10; spaties/tabs eromheen worden weggehaald | verzoek "Zoals utopia.fyi"; gebruikersantwoord OQ-CSS-02 (2026-11-09) |
 | `flow_enabled` | bool | `true` | — | V7 |
 | `flow_space` | enum ruimte-token | `s` | tokennaam van de nieuwe config | V7 |
 | `flow_heading_space` | enum ruimte-token | `l` | idem | V7 |
@@ -308,14 +315,15 @@ Getallen in tokens (`site_width`, `measure`, `grid_min`, leadings, ratio's) volg
 achteraan weg. Voorbeelden: `90` → `90rem`, `75.5` → `75.5rem`, `65` → `65ch`, `60.25` → `60.25ch`, `30` → `30ch`,
 `30.5` → `30.5ch`, `1.10` → `1.1`. De ratio-tokens zijn eenheidloos.
 
-Losse optie (geen instelling): `pdk_css_framework_built` = de pluginversie waarmee `css-framework.css` het laatst is
-gegenereerd (D-P2).
+Losse opslag (geen instellingen):
+- optie `pdk_css_framework_built` = de pluginversie waarmee `css-framework.css` het laatst is gegenereerd (D-P2);
+- transient `pdk_css_framework_write_failed` (10 minuten) na een mislukte schrijfpoging in `register()` (D33).
 
 ### 3a. Veldbeschrijvingen — normatieve tekst (V14, D29)
 
-Eén bron in de code: `PDK_CSS_Framework::fields()` (statische methode) geeft per sleutel
-`['label' => …, 'unit' => …, 'help' => …, 'group' => …]` terug, in deze volgorde. De backend-dev neemt de teksten
-hieronder **letterlijk** over (in `__()`, textdomain `pdk-theme-options`).
+Eén bron in de code: `PDK_CSS_Framework::fields()` (statische methode, `:552-587`) geeft per sleutel
+`['label' => …, 'unit' => …, 'help' => …, 'group' => …]` terug, in deze volgorde. De teksten hieronder zijn letterlijk
+die van de code (in `__()`, textdomain `pdk-theme-options`).
 
 - De **admin-tab** toont de velden per groep, in de groepsvolgorde Viewport → Typografie → Regelhoogte → Ruimte →
   Layout → Flow → Grid. Per veld staan het label, de eenheid en de help-tekst erbij.
@@ -341,7 +349,7 @@ hieronder **letterlijk** over (in `__()`, textdomain `pdk-theme-options`).
 | `gutter` | Ruimte | Zijmarge | ruimtetoken | Minimale ruimte tussen de inhoud en de schermrand, en de tussenruimte in .pdk-grid. Bijvoorbeeld s-m. |
 | `popout_space` | Ruimte | Uitsteek popout | ruimtetoken | Hoe ver .pdk-popout aan elke kant buiten de tekstkolom steekt. Bijvoorbeeld 2xl. |
 | `site_width` | Layout | Sitebreedte | rem | Maximale breedte van de inhoud; elk direct kind van een section staat standaard op deze breedte. Bijvoorbeeld 90 (= 1440px). |
-| `measure` | Layout | Leesbreedte | ch | Breedte van de tekstkolom .pdk-content; 60–75 is prettig leesbaar. Bijvoorbeeld 65. |
+| `measure` | Layout | Leesbreedte | ch | Breedte van de tekstkolom .pdk-content; 60–75 is prettig leesbaar. Bijvoorbeeld 65. 1ch is de breedte van een 0 in de basisgrootte van de section (step-0). |
 | `flow_enabled` | Flow | Verticale ritmiek | aan/uit | Zet automatische ruimte tussen opeenvolgende koppen, alinea's en lijsten aan. Bijvoorbeeld aan. |
 | `flow_space` | Flow | Ruimte tussen tekstblokken | ruimtetoken | Ruimte boven een tekstelement dat direct op een ander volgt. Bijvoorbeeld s. |
 | `flow_heading_space` | Flow | Ruimte boven tussenkoppen | ruimtetoken | Ruimte boven een h2–h4 die direct op tekst volgt. Bijvoorbeeld l. |
@@ -356,13 +364,13 @@ waarden voor `group`: `Viewport`, `Typografie`, `Regelhoogte`, `Ruimte`, `Layout
 
 **Geen cascade layers (D-L1). Alleen logische eigenschappen (V11).** Het bestand bevat geen enkele `@layer` en geen
 fysieke eigenschap (`left`, `right`, `width`, `margin-top`, `padding-left`, …) waar een logische variant bestaat. Het
-bestaat uit vier blokken, in deze vaste volgorde: (1) tokens op `:root`, (2) basisregels op kale elementselectors,
-(3) flow-regels, (4) layoutregels. Elke selector in blok 3 en 4 heeft specificiteit 0 (alles wat een klasse of
-element noemt, staat in `:where()`).
+bestaat uit vier blokken, in deze vaste volgorde (`generate()`, `:294-357`): (1) tokens op `:root`, (2) basisregels op
+kale elementselectors, (3) flow-regels, (4) layoutregels. Elke selector in blok 3 en 4 heeft specificiteit 0 (alles
+wat een klasse, attribuut of element noemt, staat in `:where()`).
 
-Normatieve vorm bij de defaults (`clamp()`-waarden staan volledig in §1d). Afkorting in dit document:
-`T` = `h1, h2, h3, h4, h5, h6, p, ul, ol, blockquote, figure, pre, table`, en `S` = `section:not(.pdk-off)`. In het
-bestand staan beide voluit.
+Normatieve vorm bij de defaults (`clamp()`-waarden staan volledig in §1d). Afkortingen in dit document:
+`T` = `h1, h2, h3, h4, h5, h6, p, ul, ol, blockquote, figure, pre, table`; `S` = `section:not(.pdk-off):not([hidden])`;
+`K` = `section:not(.pdk-off):not([hidden]):not(.pdk-grid)`. In het bestand staan alle drie voluit.
 
 ```css
 /* (1) Tokens */
@@ -376,10 +384,10 @@ bestand staan beide voluit.
   --pdk-gutter: var(--pdk-space-s-m);
   --pdk-popout-space: var(--pdk-space-2xl);
   --pdk-grid-min: 30ch;
-  --pdk-lh-heading: 1.1;
-  --pdk-lh-body: 1.3;
   --pdk-leading-body: 0.25rem;
   --pdk-leading-heading: 0.25rem;
+  --pdk-lh-heading: 1.1;
+  --pdk-lh-body: 1.3;
   --pdk-flow-space: var(--pdk-space-s);
   --pdk-flow-heading-space: var(--pdk-space-l);
 }
@@ -395,16 +403,16 @@ p { font-size: var(--pdk-step-0); line-height: calc(var(--pdk-lh-body) * 1em + v
 :where(T) + :where(h2, h3, h4) { margin-block-start: var(--pdk-flow-heading-space); }
 :where(.pdk-grid, .pdk-flow-off) > * { margin-block: 0; }
 
-/* (4) Layout (D-L1, V10, V11, V12): de section is het grid. Alles specificiteit 0, ná normalize, basis en flow. */
+/* (4) Layout (D-L1, V10, V11, V12, D30–D32): de section is het grid. Alles specificiteit 0. */
 :where(.pdk-container) { container-type: inline-size; }
 :where(S) {
-  --pdk-bo-content: min(var(--pdk-measure), 100% - var(--pdk-gutter) * 2);
-  --pdk-bo-popout: minmax(0, var(--pdk-popout-space));
+  --pdk-bo-content: min(var(--pdk-measure), var(--pdk-site-width), 100% - var(--pdk-gutter) * 2);
+  --pdk-bo-popout: minmax(0, min(var(--pdk-popout-space), max(0px, (var(--pdk-site-width) - var(--pdk-measure)) / 2)));
   --pdk-bo-wide: minmax(0, max(0px, (var(--pdk-site-width) - var(--pdk-measure)) / 2 - var(--pdk-popout-space)));
   --pdk-bo-full: minmax(var(--pdk-gutter), 1fr);
-  font-size: var(--pdk-step-0);
   container-type: inline-size;
   display: grid;
+  font-size: var(--pdk-step-0);
   grid-template-columns:
     [full-start] var(--pdk-bo-full)
     [wide-start] var(--pdk-bo-wide)
@@ -414,16 +422,16 @@ p { font-size: var(--pdk-step-0); line-height: calc(var(--pdk-lh-body) * 1em + v
     var(--pdk-bo-wide) [wide-end]
     var(--pdk-bo-full) [full-end];
 }
-:where(S) > * { grid-column: wide; }
-:where(S) > :where(.pdk-content) { grid-column: content; }
-:where(S) > :where(.pdk-popout) { grid-column: popout; }
-:where(S) > :where(.pdk-popout-start) { grid-column: popout-start / content-end; }
-:where(S) > :where(.pdk-popout-end) { grid-column: content-start / popout-end; }
-:where(S) > :where(.pdk-wide-start) { grid-column: wide-start / content-end; }
-:where(S) > :where(.pdk-wide-end) { grid-column: content-start / wide-end; }
-:where(S) > :where(.pdk-full) { grid-column: full; }
-:where(S) > :where(.pdk-full-start) { grid-column: full-start / wide-end; }
-:where(S) > :where(.pdk-full-end) { grid-column: wide-start / full-end; }
+:where(K) > * { grid-column: wide; }
+:where(K) > :where(.pdk-content) { grid-column: content; }
+:where(K) > :where(.pdk-popout) { grid-column: popout; }
+:where(K) > :where(.pdk-popout-start) { grid-column: popout-start / content-end; }
+:where(K) > :where(.pdk-popout-end) { grid-column: content-start / popout-end; }
+:where(K) > :where(.pdk-wide-start) { grid-column: wide-start / content-end; }
+:where(K) > :where(.pdk-wide-end) { grid-column: content-start / wide-end; }
+:where(K) > :where(.pdk-full) { grid-column: full; }
+:where(K) > :where(.pdk-full-start) { grid-column: full-start / wide-end; }
+:where(K) > :where(.pdk-full-end) { grid-column: wide-start / full-end; }
 
 :where(.pdk-grid) {
   display: grid;
@@ -431,6 +439,8 @@ p { font-size: var(--pdk-step-0); line-height: calc(var(--pdk-lh-body) * 1em + v
   grid-template-columns: repeat(auto-fit, minmax(min(var(--pdk-grid-min), 100%), 1fr));
 }
 ```
+
+(Bron: `generate()` `:318-354`. De section-regel staat op `:320-336`, de tien kindregels op `:337-346`.)
 
 Let op de twee soorten namen: `full-start` (zonder `pdk-`) is een **gridlijn**, `.pdk-full-start` is een **klasse**
 voor een kind. De klasse loopt van de lijn `full-start` tot de lijn `wide-end`.
@@ -473,24 +483,42 @@ voor een kind. De klasse loopt van de lijn `full-start` tot de lijn `wide-end`.
     krijgt dus de line-height van de ouder in px, niet een herberekende. Uitweg: een klasse op dat kind met een eigen
     `line-height` (bijvoorbeeld een eenheidloze waarde), want elke klasse wint van de kale elementselector.
   - De section zelf krijgt geen line-height (Oxygens `html{line-height:1.4}` blijft gelden voor losse tekst).
-- **De section is het grid (V10):** elke `section` zonder `.pdk-off` is een grid met zeven sporen en vier banen, van
-  buiten naar binnen:
+- **De section is het grid (V10):** elke `section` zonder `.pdk-off` en zonder `hidden`-attribuut is een grid met
+  zeven sporen en vier banen, van buiten naar binnen:
 
   | Baan | Breedte | Klasse op het kind |
   |------|---------|--------------------|
   | `full` | rand tot rand van de section | `.pdk-full` |
   | `wide` | `site_width`, gecentreerd; minimaal `gutter` vrij aan elke kant | standaard voor elk direct kind |
-  | `popout` | content + aan elke kant `popout_space` | `.pdk-popout` |
-  | `content` | `min(measure, 100% − 2 × gutter)` | `.pdk-content` |
+  | `popout` | content + aan elke kant `min(popout_space, max(0, (site_width − measure) / 2))` | `.pdk-popout` |
+  | `content` | `min(measure, site_width, 100% − 2 × gutter)` | `.pdk-content` |
 
-  - Het wide-spoor is `(site_width − measure) / 2 − popout_space`, ondergrens 0. Content + 2 × popout + 2 × wide is
-    dus precies `site_width`.
+  - **Begrensd door de sitebreedte (D32):** het content-spoor is ook door `site_width` begrensd, en het popout-spoor
+    door de helft van wat `site_width` boven `measure` overlaat. Het wide-spoor is
+    `max(0, (site_width − measure) / 2 − popout_space)`. Daardoor is **content + 2 × popout + 2 × wide nooit breder dan
+    `site_width`**, ook niet bij een kleine sitebreedte:
+    - `site_width ≥ measure + 2 × popout_space` (de defaults): content = `measure`, popout = `popout_space`, wide = de
+      rest; samen precies `site_width`;
+    - `measure ≤ site_width < measure + 2 × popout_space`: content = `measure`, popout krijgt het restant
+      (`(site_width − measure) / 2`), wide = 0;
+    - `site_width < measure`: content = `site_width`, popout = wide = 0.
+
+    Zonder die begrenzing zou een popout of een smalle sitebreedte breder uitvallen dan de wide-baan, en dus breder dan
+    de sitebreedte.
   - Op een smal scherm krimpen het popout- en het wide-spoor naar 0 (`minmax(0, …)`). De full-sporen houden minimaal
     `gutter` (`minmax(gutter, 1fr)`). Er staat geen `@media` in.
   - **Gevolg:** een gewone Oxygen-opbouw `section > div` ziet eruit als met de oude max-width-regel: de div staat op
     `wide`, maximaal de sitebreedte en gecentreerd, met de gutter gegarandeerd in de full-sporen. Er is geen padding
     en geen `box-sizing` meer nodig (de box-sizing-kwestie vervalt, V10).
   - Een achtergrond op de section loopt vanzelf rand tot rand; het kind hoeft daar niets voor te doen.
+  - **`[hidden]` (D30):** de section-selector sluit `[hidden]` uit. De browser verbergt `hidden` met `display: none`
+    uit zijn eigen (user-agent) stylesheet; een auteursregel met `display: grid` wint daar altijd van, ook op
+    specificiteit 0. Zonder de uitsluiting zou een `section hidden` dus zichtbaar worden. `:not([hidden])` staat binnen
+    `:where()`, dus de specificiteit blijft 0.
+  - **`.pdk-grid` op een section (D31):** zet je `.pdk-grid` op een section zelf, dan vervangen de auto-fit-kolommen
+    (`:where(.pdk-grid)` komt later) de benoemde sporen. De kind- en baanregels sluiten daarom `.pdk-grid` uit
+    (selector `K`): een kind krijgt dan geen `grid-column: wide` (die zou naar een niet-bestaande lijn wijzen), en
+    baanklassen doen binnen een `.pdk-grid`-section niets. De kinderen worden gewoon kaarten.
 - **Eenzijdige varianten (D21, V11):** `-start` breekt uit naar de **start-kant**, `-end` naar de **eindkant** (in LTR
   links en rechts, in RTL andersom; gridlijnen volgen `direction` vanzelf). De andere kant lijnt uit op de baan waar het
   kind normaal naast staat:
@@ -545,6 +573,7 @@ voor een kind. De klasse loopt van de lijn `full-start` tot de lijn `wide-end`.
   - Buiten een section volgt `ch` de geërfde font-size van het grid-element (meestal die van `body`/root), en is de
     drempel dus niet fluid (R-CSS-17).
   - Een `.pdk-grid` als direct kind van een section staat gewoon op `wide` (of een andere baan via een tweede klasse).
+    Een `.pdk-grid` óp een section: zie D31 hierboven.
 - **Opt-out en uitwegen (OQ-CSS-03):**
   - `.pdk-off` op de section: geen grid, geen `container-type`, geen basis-font-size; kinderen krijgen geen baan. De
     flow-regel geldt wel (die hangt niet aan de section).
@@ -617,72 +646,98 @@ voor een kind. De klasse loopt van de lijn `full-start` tot de lijn `wide-end`.
   > browser weghaalt; de flow-regel bouwt daarop). Zet hem aan via Oxygen → Settings → Advanced → Modern Normalize →
   > Enable. Let op: op een bestaande site verschuift daardoor content die op browsermarges leunt."*
 
-  De check staat achter `function_exists` en in een `try/catch ( \Throwable )` (`get_bool_setting()` kan gooien,
-  `options.php:238-240`). Bij een fout of met Oxygen inactief: geen melding. De check is alleen-lezen en wijzigt niets
-  aan de Oxygen-optie. Dezelfde check levert `oxygen.modern_normalize` in de MCP-uitvoer (§6, D26).
+  De check (`modern_normalize_state()`, `:535-544`) staat achter `function_exists` en in een `try/catch ( \Throwable )`
+  (`get_bool_setting()` kan gooien, `options.php:238-240`). Bij een fout of met Oxygen inactief: geen melding. De check
+  is alleen-lezen en wijzigt niets aan de Oxygen-optie. Dezelfde check levert `oxygen.modern_normalize` in de
+  MCP-uitvoer (§6, D26).
 
-**Opslag en laden:**
+**Opslag en laden (`register()` `:54-79`, `write_file()` `:363-368`, `save()` `:375-398`):**
 - Het bestand wordt **direct geschreven** naar `PDK_STORAGE_DIR . 'css-framework.css'`, na
-  `pdk_ensure_storage_dir()`, en dus niet via `pdk_write_storage_file()` (die eist de code-cap en schrijft
-  `.bak`/hash, `helpers.php:75-78`, `:106-116`). De inhoud komt volledig uit gevalideerde getallen (D3).
+  `pdk_ensure_storage_dir()`, met `file_put_contents( …, LOCK_EX )`, en dus niet via `pdk_write_storage_file()` (die
+  eist de code-cap en schrijft `.bak`/hash, `helpers.php:75-78`, `:106-116`). De inhoud komt volledig uit gevalideerde
+  getallen (D3).
 - Opnieuw gegenereerd (D4, D-P2):
   - bij elke geslaagde save (admin-tab of MCP);
   - bij de registratie als het bestand ontbreekt;
   - bij de registratie als de optie `pdk_css_framework_built` niet gelijk is aan `PDK_PLUGIN_VERSION`. Na een
     plugin-update krijgt het bestand zo de nieuwe generatorlogica, zonder dat iemand hoeft op te slaan.
 
-  Na elke regeneratie wordt `pdk_css_framework_built` op `PDK_PLUGIN_VERSION` gezet; `uninstall.php` verwijdert de
-  optie. Er wordt niet bij elke request gegenereerd.
+  Na elke geslaagde automatische regeneratie in `register()` wordt `pdk_css_framework_built` op `PDK_PLUGIN_VERSION`
+  gezet en volgt **ook de Oxygen-sync** (`:62-69`), in een `try/catch ( \Throwable )`, nooit fataal en zonder uitvoer op
+  de frontend. Zo volgen de Oxygen-variabelen een plugin-update. `uninstall.php` verwijdert de optie. Er wordt niet bij
+  elke request gegenereerd.
+- **Schrijffout (D33):** lukt het schrijven in `register()` niet (bijvoorbeeld uploads niet schrijfbaar), dan zet
+  `register()` de transient `pdk_css_framework_write_failed` (10 minuten, `:70-72`) en probeert het niet bij elk request
+  opnieuw. Een geslaagde `save()` wist de transient (`:386-388`). In `save()` geeft een mislukte schrijfactie
+  `saved: false` met de fout onder de sleutel `file` (`:382-384`); er wordt dan niets opgeslagen en niet gesynchroniseerd.
 - Register op `wp_enqueue_scripts` prioriteit **9**, enqueue op prioriteit **20**, handle `pdk-css-framework`,
-  versie `filemtime` (D5). De handle wordt alleen geregistreerd als het bestand bestaat (na eventuele regeneratie).
-  Zo kan custom-style nooit afhangen van een handle die er niet is, want WordPress slaat een stylesheet met een
-  ontbrekende dependency over. Het builder-canvas is een frontend-request (`?breakdance_iframe`), dus het stylesheet
+  versie `filemtime` (D5). De handle wordt alleen geregistreerd als het bestand bestaat (na eventuele regeneratie,
+  `:74-76`). Zo kan custom-style nooit afhangen van een handle die er niet is, want WordPress slaat een stylesheet met
+  een ontbrekende dependency over. Het builder-canvas is een frontend-request (`?breakdance_iframe`), dus het stylesheet
   hoort daar ook te laden. AC-CSS-017 controleert dat (door de gebruiker handmatig bevestigd, V14).
 
 ---
 
 ## 5. Oxygen-sync (Slice 2)
 
-- **Wanneer:** na elke geslaagde save (admin of MCP), dus pas nadat de instellingen en het bestand zijn opgeslagen.
-  Alleen als `pdk_oxygen6_active()` én `function_exists( '\Breakdance\Variables\saveVariables' )` en
-  `function_exists( '\Breakdance\Data\get_global_option' )` (OQ-CSS-04). Anders: status `skipped`, met de melding
-  "Oxygen 6 niet actief — alleen het CSS-bestand bijgewerkt".
+Bron: `sync_oxygen()` (`:483-528`) en de pure `merge_oxygen_variables()` (`:413-460`).
+
+- **Wanneer:**
+  - na elke geslaagde save (admin of MCP), dus pas nadat de instellingen en het bestand zijn opgeslagen (`:397`);
+  - na elke geslaagde **automatische regeneratie** in `register()` (bestand ontbrak of nieuwe pluginversie; §4,
+    `:62-69`).
+
+  Alleen als `pdk_oxygen6_active()` én `function_exists()` op `\Breakdance\Variables\saveVariables`,
+  `\Breakdance\Data\get_global_option` en `\Breakdance\Data\global_option_exists` (OQ-CSS-04). Anders: status `skipped`,
+  met de melding "Oxygen 6 niet actief — alleen het CSS-bestand bijgewerkt" (of, als de functies ontbreken, "Oxygen-
+  variabelen niet beschikbaar in deze Oxygen-versie — alleen het CSS-bestand bijgewerkt").
 - **Bron voor de merge:** de **ruwe** optie via `\Breakdance\Data\get_global_option( 'variables_json_string' )`, niet
   de gefilterde `getVariables()` (anders schrijven we variabelen van andere filters de database in). Is het resultaat
   een string (oud formaat, `variables.php:68-72`), dan wordt die nog eens JSON-gedecodeerd. Geldt
   `global_option_exists()` niet, dan is het startpunt `[]`. Bestaat de optie wel maar is het resultaat geen array,
   dan krijgt de sync status `error` en wordt er **niets** geschreven.
-- **Wat:** elk token uit het `:root`-blok van §4 wordt een variabele `{id, cssVariableName: 'pdk-step-0', label: 'PDK
-  step 0', type: 'unit', value: {number: <expr>, unit: 'custom', style: <expr>}, collection: 'PDK Framework'}`. Dat
-  zijn: steps, spaces, paren, `site-width`, `measure`, `gutter`, `popout-space`, `grid-min` (nu `30ch`), de twee
-  line-height-ratio's (`lh-heading`, `lh-body`), de twee leadings en de twee flow-spaces. Ook de eenheidloze ratio's
-  gaan als `unit` met `unit: 'custom'` mee (één vorm voor alle tokens; `style` wordt letterlijk uitgevoerd,
-  `macro.twig:6`). De interne spoorvariabelen `--pdk-bo-*` staan op de section, niet op `:root`, en worden **niet**
-  gesynchroniseerd. De vorm volgt `css-utils.php:325`. Een nieuwe variabele krijgt `id = wp_generate_uuid4()`, de naam
-  staat **zonder** voorloop-`--` (zoals Oxygens eigen insert, `variables.php:487-490`, `:566-573`). Er is geen
-  `dynamicData`-sleutel. De tokenlijst voor het bestand, Oxygen en MCP komt uit één bron.
-- **Idempotent (pure merge, testbaar zonder Oxygen):** overschrijf op `cssVariableName` met **behoud van het
-  bestaande id**, voeg nieuwe toe aan het eind, laat vreemde variabelen en hun volgorde ongemoeid, en voeg de collectie
-  `PDK Framework` toe als die ontbreekt. Roep `saveVariables()` alleen aan als het resultaat verschilt van wat er
-  staat. Een tweede sync zonder wijziging schrijft dus niets.
-- **Bescherming tegen stil wissen (M3):** `saveVariables()` controleert zijn invoer niet (§1b). Daarom eerst:
-  1. `$payload = wp_json_encode( [ 'variables' => …, 'collections' => … ] )`; is dat `false`, dan status `error` en
-     niet aanroepen;
-  2. de payload bevat **nooit** `{}`: onze entries hebben geen lege objecten en lege lijsten worden als `[]`
-     gecodeerd. Bevat hij toch `{}`, dan status `error` en niet aanroepen;
-  3. simuleer wat Oxygen doet, `json_decode( str_replace( '{}', 'null', $payload ), true )`, en eis dat het resultaat
-     een array is met `variables` en `collections`, allebei arrays. Anders status `error` en niet aanroepen;
-  4. pas dan `saveVariables( $payload )`.
+- **Collecties (leniënt):** `variables_collections_json_string` wordt op dezelfde manier gelezen. Ontbreekt die lijst,
+  is hij leeg of geen array, dan worden de collecties gezaaid uit de `collection`-velden van de bestaande variabelen,
+  zoals Oxygen zelf doet (`variables.php:94-107`; code `:495-502`). Alleen de variabelenlijst zelf is streng.
+- **Wat:** elk token uit het `:root`-blok van §4: steps, spaces, paren, `site-width`, `measure`, `gutter`,
+  `popout-space`, `grid-min`, de twee leadings, de twee line-height-ratio's (`lh-heading`, `lh-body`) en de twee
+  flow-spaces. Ook de eenheidloze ratio's gaan als `unit` met `unit: 'custom'` mee (één vorm voor alle tokens; `style`
+  wordt letterlijk uitgevoerd, `macro.twig:6`). De interne spoorvariabelen `--pdk-bo-*` staan op de section, niet op
+  `:root`, en worden **niet** gesynchroniseerd. De tokenlijst voor het bestand, Oxygen en MCP komt uit één bron
+  (`tokens()`).
+- **Merge, niet vervangen (D34):**
+  - Een **bestaande** variabele (match op `cssVariableName`) krijgt alleen een nieuwe `type` (`unit`) en `value`
+    (`{number, unit: 'custom', style}`). `id`, `label`, `collection` en alle **extra sleutels** blijven zoals ze zijn
+    (`:427-439`). Een gebruiker die in Oxygen een eigen label of collectie gaf, houdt die.
+  - Heeft een bestaande variabele geen (of een leeg) `id`, dan krijgt hij `wp_generate_uuid4()` (`:431-433`).
+  - Een **nieuwe** variabele komt aan het eind: `{id: wp_generate_uuid4(), cssVariableName: 'pdk-step-0', label:
+    'PDK step 0', type: 'unit', value: {…}, collection: 'PDK Framework'}` (`:441-448`). De naam staat **zonder**
+    voorloop-`--` (zoals Oxygens eigen insert, `variables.php:487-490`, `:566-573`); er is geen `dynamicData`-sleutel.
+  - Vreemde variabelen blijven ongemoeid en in dezelfde volgorde. De collectie `PDK Framework` wordt toegevoegd als die
+    ontbreekt.
+  - `changed` is alleen waar als een waarde, een type of een id echt verschilt (vergelijking `!=`, sleutelvolgorde
+    mag afwijken, `:436`). Is er niets veranderd, dan status `unchanged` en wordt `saveVariables()` niet aangeroepen.
+- **Bescherming tegen stil wissen (M3, `:508-523`):** `saveVariables()` controleert zijn invoer niet (§1b). Daarom eerst:
+  1. `$payload = wp_json_encode( [ 'variables' => …, 'collections' => … ] )`; is dat `false` of leeg, dan status
+     `error` en niet aanroepen. (De echte `wp_json_encode()` saneert ongeldige UTF-8 zelf en geeft dan meestal geen
+     `false`; de guard blijft als vangnet.)
+  2. **Bevat de payload ergens `{}`, dan stopt de sync** met status `error` (`:515-517`). `saveVariables()` vervangt
+     élke `{}` in de payload door `null`, ook letterlijk in een label of in een leeg object van een andere variabele;
+     doorschrijven zou die variabelen beschadigen (R-CSS-19).
+  3. Controleer de decode: `json_decode( $payload, true )` moet een array zijn met `variables` en `collections`, allebei
+     arrays. Zonder `{}` verandert Oxygens `str_replace` niets, dus dit is precies wat Oxygen leest.
+  4. Pas dan `saveVariables( $payload )`.
 - **Guards (OQ-CSS-04):** stappen 1–4 en het lezen staan in een `try { … } catch ( \Throwable $e )`. Een `\Exception`
   of `\Error` (bijv. `TypeError`) daarbinnen geeft status `error` met de foutmelding. De instellingen en het bestand
   blijven opgeslagen. Admin: redirect met `saved=1&warning=<rawurlencode(melding)>`, getoond als `notice-warning`
-  ("Instellingen opgeslagen, Oxygen-sync mislukt: …"). MCP: `oxygen.status = 'error'` met `oxygen.message`.
+  ("Instellingen opgeslagen, Oxygen-sync mislukt: …"). MCP: `oxygen.status = 'error'` met `oxygen.message`. In
+  `register()` wordt de uitkomst niet getoond (frontend-request).
 - **Verouderd** (bijv. `steps_up` 5 → 3, waardoor `pdk-step-4`/`-5` niet meer gegenereerd worden): blijft in Oxygen
   staan en wordt **nooit** verwijderd, maar ook niet gemeld (lean cut). Verwijderen zou `{var-<id>}`-verwijzingen in de
   builder stil breken.
-- **Richting:** eenrichtingsverkeer, PDK is de bron. Een waarde die in de builder is aangepast wint op de frontend
-  (Oxygens `:root` komt later, bij gelijke specificiteit) tot de volgende PDK-save hem overschrijft. Dat staat in de
-  admin-tekst.
+- **Richting:** eenrichtingsverkeer, PDK is de bron voor de waarde. Een waarde die in de builder is aangepast wint op de
+  frontend (Oxygens `:root` komt later, bij gelijke specificiteit) tot de volgende PDK-save of automatische regeneratie
+  hem overschrijft. Label en collectie in Oxygen blijven van de gebruiker (D34). Dat staat in de admin-tekst.
 - **Module uit:** de variabelen in Oxygen blijven staan (de module-code wordt dan niet eens geladen,
   `class-pdk-plugin.php:92-94`); pagina's houden hun tokenwaarden, alleen de layoutklassen, basisregels en flow
   verdwijnen. Verwijderen kan via Oxygens eigen UI of `oxygen/delete-css-variables`.
@@ -691,20 +746,27 @@ voor een kind. De klasse loopt van de lijn `full-start` tot de lijn `wide-end`.
 
 ## 6. MCP-abilities (Slice 2)
 
-Ze staan in de module agent-abilities en worden alleen geregistreerd als `class_exists( 'PDK_CSS_Framework' )`,
-hetzelfde patroon als de Element Studio-abilities (`class-pdk-agent-abilities.php:118-121`). Beide modules moeten
-dus aan staan; staat er één uit, dan bestaat de ability niet. `meta`: `show_in_rest`, `mcp.public`.
+Ze staan in de module agent-abilities (`class-pdk-agent-abilities.php:140-232`) en worden alleen geregistreerd als
+`class_exists( 'PDK_CSS_Framework' )`, hetzelfde patroon als de Element Studio-abilities (`:118-121`). Beide modules
+moeten dus aan staan; staat er één uit, dan bestaat de ability niet. `meta`: `show_in_rest`, `mcp.public`.
 
 | Ability | Input | Output | Annotaties |
 |---------|-------|--------|-----------|
 | `pdk-theme-options/get-css-framework` | `{}` (geen `properties`-sleutel, `additionalProperties: false`) | `{config: {…§3}, fields: {sleutel: {label, unit, help, group}}, tokens: [{name: '--pdk-step-0', value: 'clamp(…)'}], classes: [...], css_url, oxygen: {active: bool, modern_normalize: bool\|null}}` | readonly, niet-destructief, idempotent |
-| `pdk-theme-options/update-css-framework` | `{config: object}` volgens het schema hieronder; ontbrekende sleutels houden hun huidige waarde | `{saved: true, config, tokens, oxygen: {status: 'synced'\|'unchanged'\|'skipped'\|'error', message?: string}}` of `WP_Error 'pdk_invalid_config'` met per veld de fout | niet-readonly, **destructief** (overschrijft Oxygen-variabelen), idempotent |
+| `pdk-theme-options/update-css-framework` | `{config: object}` volgens het schema hieronder; ontbrekende sleutels houden hun huidige waarde | `{saved: true, config, tokens, oxygen: {status: 'synced'\|'unchanged'\|'skipped'\|'error', message?: string}}`, of een `WP_Error` (zie hieronder) | niet-readonly, **destructief** (overschrijft Oxygen-variabelen), idempotent |
+
+**Fouten van `update-css-framework` (`:220-231`):**
+- `WP_Error 'pdk_invalid_config'` ("Ongeldige configuratie, niets opgeslagen.") met `['errors' => veld => melding]`,
+  gelijk aan `validate()`, bij een ongeldige config;
+- `WP_Error 'pdk_file_write_failed'` met data `['status' => 500, 'errors' => […]]` als de enige fout de mislukte
+  bestandsschrijfactie is (sleutel `file`, D33). Er is dan niets opgeslagen en niet gesynchroniseerd.
 
 `fields` is exact `PDK_CSS_Framework::fields()` (§3a, de 21 sleutels).
 
-`classes` is precies (13): `pdk-off`, `pdk-container`, `pdk-content`, `pdk-popout`, `pdk-popout-start`,
-`pdk-popout-end`, `pdk-wide-start`, `pdk-wide-end`, `pdk-full`, `pdk-full-start`, `pdk-full-end`, `pdk-grid`,
-`pdk-flow-off`. Geen enkele klassenaam bevat `left` of `right` (V11).
+`classes` is exact de constante **`PDK_CSS_Framework::CLASSES`** (`:41`, één bron voor tab en MCP, D35), precies 13:
+`pdk-off`, `pdk-container`, `pdk-content`, `pdk-popout`, `pdk-popout-start`, `pdk-popout-end`, `pdk-wide-start`,
+`pdk-wide-end`, `pdk-full`, `pdk-full-start`, `pdk-full-end`, `pdk-grid`, `pdk-flow-off`. Geen enkele klassenaam bevat
+`left` of `right` (V11). De tab toont dezelfde lijst (`render_inline()`, `:654-662`).
 
 **`oxygen.modern_normalize` (D26):** de sleutel staat er **altijd**. Waarde `true`/`false` is de stand van
 `modern_normalize_enabled`. De waarde is `null` als Oxygen inactief is, of als `get_bool_setting()` ontbreekt of gooit
@@ -715,10 +777,11 @@ properties: {config: {type: object, additionalProperties: false, properties: {mi
 steps_up, steps_down: {type: integer}; font_min, font_max, ratio_min, ratio_max, lh_heading_ratio, lh_body_ratio,
 leading_body, leading_heading, grid_min, site_width, measure: {type: number}; gutter, popout_space, flow_space,
 flow_heading_space: {type: string}; flow_enabled: {type: boolean}; space_pairs: {type: array, items: {type: string},
-maxItems: 10}}}}}`. **Elke eigenschap onder `config` krijgt `description` = de `help` uit `fields()`** (§3a), zodat een
-agent dezelfde uitleg ziet als de beheerder (D29). De oude sleutel `feature_space` staat er niet in en wordt dus door
-het schema geweigerd. Het schema is de eerste poort. De servervalidatie uit §3 draait daarna altijd nog (het schema
-alleen wordt niet vertrouwd; bijvoorbeeld de 2-decimalenregel staat alleen in de servervalidatie).
+maxItems: 10}}}}}`. **Elke eigenschap onder `config` krijgt `description` = de `help` uit `fields()`** (§3a,
+`with_help()`), zodat een agent dezelfde uitleg ziet als de beheerder (D29). De oude sleutel `feature_space` staat er
+niet in en wordt dus door het schema geweigerd. Het schema is de eerste poort. De servervalidatie uit §3 draait daarna
+altijd nog (het schema alleen wordt niet vertrouwd; bijvoorbeeld de 2-decimalenregel en het trimmen van `space_pairs`
+staan alleen in de servervalidatie).
 
 **Rechten: `current_user_can( 'manage_options' )`** voor beide abilities. Waarom niet `PDK_CAP_EDIT_CODE`: dit zijn
 instellingen, geen code. Het is dezelfde poort als de admin-tab (`class-pdk-admin.php:306`) en als Oxygens eigen
@@ -757,16 +820,20 @@ eigenschappen (`inline-size`).
   - `max_viewport = '1440.5'` en `steps_up = 2.5` (decimaal in een int-veld);
   - `gutter = 'huge'`; `gutter = 's-l'` met `space_pairs = []` (het token bestaat in de nieuwe config niet);
   - `popout_space = 's-l'` met `space_pairs = []`;
-  - `space_pairs = ['s-l', 'l-s']` en `['x-y']` en `['<script>']`: de hele save wordt geweigerd.
+  - `space_pairs = ['s-l', 'l-s']` en `['x-y']` en `['<script>']`: de hele save wordt geweigerd;
+  - `space_pairs = ["s-l\n"]` (afsluitende newline): geweigerd.
 
   Daarnaast:
   - `space_pairs = ['m-l', 's-l', 's-l']` slaagt en wordt opgeslagen als `['s-l']` (one-up en dubbel stil weggelaten);
+  - `space_pairs = [' s-l ', "\txs-xl\t"]` slaagt en wordt opgeslagen als `['s-l', 'xs-xl']` (spaties en tabs
+    weggehaald), via `validate()`, via een admin-POST én via `update-css-framework`;
   - `site_width = 75.5` en `measure = 60.25` slagen en geven de tokens `--pdk-site-width: 75.5rem` en
     `--pdk-measure: 60.25ch`;
   - `grid_min = 30.5` slaagt en geeft `--pdk-grid-min: 30.5ch`; `grid_min = 10` en `grid_min = 80` slagen (randen);
   - `lh_heading_ratio = 1.15` en `lh_body_ratio = 2` slagen en geven `--pdk-lh-heading: 1.15` en `--pdk-lh-body: 2`;
   - numerieke strings (`'18'`) worden als getal geaccepteerd;
-  - onbekende sleutels, waaronder `feature_space`, vallen weg.
+  - onbekende sleutels, waaronder `feature_space`, vallen weg;
+  - een corrupte opgeslagen waarde (bijv. `site_width = 1440`) valt in `config()` terug op de default (90), zonder fout.
 
 **FR-CSS-02 Fluid tokens volgens Utopia** (Must) — Source: verzoek "fluid Font-size met clamp", "Fluid margin/paddings", "Zoals utopia.fyi"; V2
 - **AC-CSS-003** (H): met de defaults (400→1440, 18→20, 1,2→1,25) levert de generator voor **elke** rij in de drie
@@ -776,10 +843,10 @@ eigenschappen (`inline-size`).
   (De tester controleert de tabel op utopia.fyi met dezelfde invoer; die toont `vi`/`vw` waar wij `cqi` schrijven.)
 - **AC-CSS-004** (H): de `:root`-tokenset bij de defaults is precies `step--2…step-5`, 9 ruimte-stappen,
   8 one-up-paren, `space-s-l` en de **11** vaste tokens uit §4: `--pdk-site-width: 90rem`, `--pdk-measure: 65ch`,
-  `--pdk-gutter`, `--pdk-popout-space`, `--pdk-grid-min: 30ch`, `--pdk-lh-heading: 1.1`, `--pdk-lh-body: 1.3`,
-  `--pdk-leading-body: 0.25rem`, `--pdk-leading-heading: 0.25rem`, en de twee flow-spaces (die laatste twee ook met
-  `flow_enabled = false`). Elke naam komt één keer voor; er is geen `--pdk-feature-space` en geen `--pdk-bo-*` op
-  `:root`; `--pdk-grid-min` eindigt nooit op `rem`; `--pdk-step-0` is
+  `--pdk-gutter`, `--pdk-popout-space`, `--pdk-grid-min: 30ch`, `--pdk-leading-body: 0.25rem`,
+  `--pdk-leading-heading: 0.25rem`, `--pdk-lh-heading: 1.1`, `--pdk-lh-body: 1.3`, en de twee flow-spaces (die
+  laatste twee ook met `flow_enabled = false`). Elke naam komt één keer voor; er is geen `--pdk-feature-space` en geen
+  `--pdk-bo-*` op `:root`; `--pdk-grid-min` eindigt nooit op `rem`; `--pdk-step-0` is
   `clamp(1.125rem, 1.0769rem + 0.1923cqi, 1.25rem)`; de CSS bevat geen `vw`, `vi` of `@media` (V2, "zonder magic
   numbering").
 
@@ -810,16 +877,23 @@ eigenschappen (`inline-size`).
   `margin-block-start` 0px. In de run met de default normalize wordt de marge niet gecontroleerd; die blijft `.67em`
   (D-L2, R-CSS-13).
 
-**FR-CSS-04 Layout: de section als grid** (Must) — Source: verzoek "section > div max-width met een fullwidth overwrite", "grid template area met … breakout naar links en rechts", "Automatische grid responsive fallback"; V6; V8; V10; V11; V12; V14; OQ-CSS-03; D-L1
+**FR-CSS-04 Layout: de section als grid** (Must) — Source: verzoek "section > div max-width met een fullwidth overwrite", "grid template area met … breakout naar links en rechts", "Automatische grid responsive fallback"; V6; V8; V10; V11; V12; V14; OQ-CSS-03; D-L1; D30–D32
 - **AC-CSS-006** (H): het layoutblok staat ná het flow-blok, zonder `@layer`, en bevat letterlijk de regels uit §4:
   - `:where(.pdk-container)` met alleen `container-type: inline-size`;
-  - `:where(section:not(.pdk-off))` met precies: de vier variabelen `--pdk-bo-content`, `--pdk-bo-popout`,
-    `--pdk-bo-wide` en `--pdk-bo-full` letterlijk zoals §4, **`font-size: var(--pdk-step-0)`** (V12),
-    `container-type: inline-size`, `display: grid`, en de `grid-template-columns` met de lijnnamen `full-`, `wide-`,
+  - de section-regel met precies de selector **`:where(section:not(.pdk-off):not([hidden]))`** en precies: de vier
+    variabelen letterlijk zoals §4 —
+    `--pdk-bo-content: min(var(--pdk-measure), var(--pdk-site-width), 100% - var(--pdk-gutter) * 2)`,
+    `--pdk-bo-popout: minmax(0, min(var(--pdk-popout-space), max(0px, (var(--pdk-site-width) - var(--pdk-measure)) / 2)))`,
+    `--pdk-bo-wide: minmax(0, max(0px, (var(--pdk-site-width) - var(--pdk-measure)) / 2 - var(--pdk-popout-space)))` en
+    `--pdk-bo-full: minmax(var(--pdk-gutter), 1fr)` —, `container-type: inline-size`, `display: grid`,
+    **`font-size: var(--pdk-step-0)`** (V12), en de `grid-template-columns` met de lijnnamen `full-`, `wide-`,
     `popout-` en `content-start`/`-end`, in die volgorde;
-  - `:where(section:not(.pdk-off)) > *` met `grid-column: wide`, en daarna de negen kindregels uit §4 in die volgorde
-    (`content`, `popout`, `popout-start`, `popout-end`, `wide-start`, `wide-end`, `full`, `full-start`, `full-end`),
-    elk als `:where(section:not(.pdk-off)) > :where(.pdk-…)` met exact de `grid-column` uit de tabel in §4;
+  - de tien kindregels, elk met de sectionselector **`:where(section:not(.pdk-off):not([hidden]):not(.pdk-grid))`**:
+    eerst `… > *` met `grid-column: wide`, daarna de negen baanregels in die volgorde (`content`, `popout`,
+    `popout-start`, `popout-end`, `wide-start`, `wide-end`, `full`, `full-start`, `full-end`), elk als
+    `… > :where(.pdk-…)` met exact de `grid-column` uit de tabel in §4;
+  - de section-regel en alle tien kindregels (elf regels) bevatten `:not([hidden])` (D30), en de tien kindregels
+    bevatten `:not(.pdk-grid)` (D31);
   - `:where(.pdk-grid)` met `repeat(auto-fit, minmax(min(var(--pdk-grid-min), 100%), 1fr))`;
   - het bestand bevat **niet**: `pdk-breakout`, `pdk-feature`, `--pdk-bo-feature`, `max-inline-size`, `box-sizing`,
     `padding-inline` of `min-inline-size`;
@@ -834,6 +908,10 @@ eigenschappen (`inline-size`).
     `#ch` en `#m` staan in een kind van de section, erven dus de font-size van de section, en zitten in een
     `overflow:hidden`-wrapper zodat een maat breder dan de wide-baan geen horizontale scroll geeft. `font-style:normal`
     voorkomt dat de cursieve `<i>` een andere `ch` meet. `#gr` zit in `#d` en erft dus dezelfde font-size als `#ch`;
+  - een tweede section `<section id="s2" style="--pdk-site-width: 40rem"><div id="d2"></div><div id="c2" class="pdk-content"></div><div id="po2" class="pdk-popout"></div></section>`
+    en een derde `<section id="s3" style="--pdk-site-width: calc(var(--pdk-measure) + 2rem)"><div id="d3"></div><div id="c3" class="pdk-content"></div><div id="po3" class="pdk-popout"></div></section>`
+    (begrenzing door de sitebreedte, D32);
+  - een `<section hidden id="h">…</section>` en een `<section id="gs" class="pdk-grid"><div id="gs1" class="pdk-full">…</div><div>…</div></section>`;
   - een `<p id="p0">` buiten elke section;
   - een `<section class="pdk-off"><div id="o">…</div></section>`.
 
@@ -851,8 +929,17 @@ eigenschappen (`inline-size`).
     - popout: `w(#po)` = `w(#c) + 2 × w(#ps)`, gecentreerd; `#pst` van `L(#po)` tot `R(#c)`;
     - wide-varianten: `#wst` van `L(#d)` tot `R(#c)`; `#wen` van `L(#c)` tot `R(#d)`;
     - full: `w(#f)` = `w(#s)`; `#fst` van `L(#s)` tot `R(#d)`; `#fen` van `L(#d)` tot `R(#s)`.
+  - **Begrenzing door de sitebreedte (D32), venster 1600:**
+    - `#s2` (sitebreedte 40rem = 640px, kleiner dan de maat): `w(#c2)` = `w(#po2)` = `w(#d2)` = 640 (content gelijk
+      aan de sitebreedte; popout en wide 0);
+    - `#s3` (sitebreedte = maat + 2rem): `w(#c3)` = `w(#m)` (de maat), `w(#po3)` = `w(#c3) + 32` (popout = het restant
+      van 16px per kant, niet `popout_space`), en `w(#d3)` = `w(#po3)` (wide 0);
+    - in alle drie de sections is `w(#po*) ≤ w(#d*)`: de popout is nooit breder dan de wide-baan.
   - **Venster 400:** `w(#c)` = `w(#po)` = `w(#d)` = `w(#s) − 2 × w(#g)` (popout- en wide-sporen zijn 0, de maat past
     niet), en `w(#f)` = `w(#s)`.
+  - **`[hidden]` (D30):** `#h` heeft `display: none` en hoogte 0.
+  - **`.pdk-grid`-section (D31):** `#gs` heeft de auto-fit-kolommen van `.pdk-grid`; `#gs1` (met `.pdk-full`) is even
+    breed als een gewone kaart, niet rand tot rand.
   - **Auto-grid (V14):** met `gap` = de berekende `column-gap` van `#gr` en `k` = 30 × `w(#ch)` is het aantal kolommen
     van `#gr` bij 400 én 1600 gelijk aan `min( 4, max( 1, floor( (w(#gr) + gap) / (k + gap) ) ) )`. Bij 400 is dat 1.
   - **Opt-out:** de `.pdk-off`-section heeft `display: block`, `container-type: normal` en een `font-size` gelijk aan
@@ -906,7 +993,7 @@ eigenschappen (`inline-size`).
     `wp eval 'var_dump( \Breakdance\Settings\get_bool_setting( "modern_normalize_enabled" ) );'` bevestigt telkens de
     stand. Met Oxygen gedeactiveerd: geen melding. (Door de gebruiker handmatig bevestigd, V14.)
 
-**FR-CSS-05 Bestand, enqueue, admin-tab** (Must) — Source: V1; `class-pdk-custom-css.php:14`, `:29-34`; B1; D-P2
+**FR-CSS-05 Bestand, enqueue, admin-tab** (Must) — Source: V1; `class-pdk-custom-css.php:14`, `:29-34`; B1; D-P2; D33
 - **AC-CSS-008** (H):
   - een save als gebruiker **zonder** `PDK_CAP_EDIT_CODE` (met `manage_options`) schrijft
     `PDK_STORAGE_DIR/css-framework.css` met exact de generator-uitvoer; er ontstaat geen `.bak` en geen hash in
@@ -915,6 +1002,12 @@ eigenschappen (`inline-size`).
   - is `pdk_css_framework_built` leeg of ongelijk aan `PDK_PLUGIN_VERSION`, dan wordt het bestand bij de registratie
     opnieuw gegenereerd en staat de optie daarna op `PDK_PLUGIN_VERSION`. Is hij gelijk en bestaat het bestand, dan
     wordt er niets geschreven (de `filemtime` blijft gelijk) (D-P2);
+  - een geslaagde automatische regeneratie in `register()` roept met Oxygen actief ook de Oxygen-sync aan (precies één
+    `saveVariables`-aanroep in de stub) (§5);
+  - **schrijffout (D33):** mislukt de schrijfactie in `register()`, dan staat daarna de transient
+    `pdk_css_framework_write_failed`, wordt er geen handle geregistreerd, en probeert een tweede `register()` het niet
+    opnieuw (ook niet als schrijven inmiddels zou lukken). Een geslaagde `save()` verwijdert de transient. Een
+    mislukte schrijfactie in `save()` geeft `saved: false` met een fout onder `file`, en laat config en Oxygen ongemoeid;
   - een ongeldige save laat het bestand byte-gelijk;
   - `uninstall.php` bevat `delete_option( 'pdk_css_framework_built' )`.
 - **AC-CSS-009** (H + L):
@@ -934,8 +1027,8 @@ eigenschappen (`inline-size`).
   gebruiker handmatig als duidelijk bevestigd, V14). De tab toont:
   - per token de naam, min px, max px en de `clamp()`-waarde;
   - de velden per groep met label, eenheid en help-tekst (AC-CSS-025);
-  - de banen van de section met hun klassen (de 13 uit §6, met de uitleg dat `-start`/`-end` in RTL omdraaien) en de
-    uitweg-snippet (§4).
+  - de banen van de section met hun klassen uit `PDK_CSS_Framework::CLASSES` (met de uitleg dat `-start`/`-end` in RTL
+    omdraaien) en de uitweg-snippet (§4).
 
 **FR-CSS-09 Veldbeschrijvingen uit één bron** (Must) — Source: V14 (2026-11-10); §3a
 - **AC-CSS-025** (H + L):
@@ -953,11 +1046,11 @@ eigenschappen (`inline-size`).
     in de HTML (ge-escaped), en het veld staat onder de kop van zijn groep.
   - **L (Oxygen actief):** op de tab staan de groepen en per veld label + eenheid + uitleg zichtbaar; bijvoorbeeld bij
     "Leesbreedte" de eenheid "ch" en de tekst "Breedte van de tekstkolom .pdk-content; 60–75 is prettig leesbaar.
-    Bijvoorbeeld 65."
+    Bijvoorbeeld 65. 1ch is de breedte van een 0 in de basisgrootte van de section (step-0)."
 
 ### Slice 2 — MCP, Oxygen, release
 
-**FR-CSS-06 MCP-abilities** (Must) — Source: V1; V14; `class-pdk-agent-abilities.php:118-121`, `:109`
+**FR-CSS-06 MCP-abilities** (Must) — Source: V1; V14; `class-pdk-agent-abilities.php:118-121`, `:109`, `:140-232`
 - **AC-CSS-011** (H): met `PDK_CSS_Framework` geladen registreert `register_abilities()` `get-css-framework`
   (readonly) en `update-css-framework` (destructief, niet readonly), beide met een permission callback die `false`
   geeft zonder `manage_options` en `true` met `manage_options`, ook zonder code-cap. Het input-schema van
@@ -967,15 +1060,19 @@ eigenschappen (`inline-size`).
 - **AC-CSS-012** (H):
   - `get-css-framework` geeft `config`, `fields` (AC-CSS-025), `tokens` (elk alleen `name` en `value`; `--pdk-step-0`
     met de waarde uit AC-CSS-004, `--pdk-site-width` = `90rem`, `--pdk-measure` = `65ch`, `--pdk-grid-min` = `30ch`,
-    `--pdk-lh-heading` = `1.1`, `--pdk-lh-body` = `1.3`), `classes` (precies de 13 uit §6, geen enkele met `left` of
-    `right`) en `css_url`.
+    `--pdk-lh-heading` = `1.1`, `--pdk-lh-body` = `1.3`), `classes` (gelijk aan `PDK_CSS_Framework::CLASSES`: precies
+    de 13 uit §6, geen enkele met `left` of `right`) en `css_url`.
   - `oxygen.modern_normalize` bestaat altijd: `true`/`false` volgens de stub met Oxygen actief, en `null` met Oxygen
     inactief of als de stub gooit (D26).
   - `update-css-framework` met `{config: {steps_up: 3}}` slaat op, regenereert het bestand en geeft tokens zonder
     `step-4`/`step-5`; met `{config: {lh_heading_ratio: 1.2}}` geeft hij `--pdk-lh-heading` = `1.2`; met
-    `{config: {grid_min: 24}}` geeft hij `--pdk-grid-min` = `24ch`.
-  - Met een ongeldige config (zoals in AC-CSS-002) geeft hij `WP_Error 'pdk_invalid_config'` met de fout per veld.
-    Config en bestand blijven dan ongewijzigd.
+    `{config: {grid_min: 24}}` geeft hij `--pdk-grid-min` = `24ch`; ontbrekende sleutels houden hun eerder opgeslagen
+    waarde; een tweede identieke update slaagt opnieuw.
+  - Met een ongeldige config (zoals in AC-CSS-002, inclusief `space_pairs: ["s-l\n"]`) geeft hij
+    `WP_Error 'pdk_invalid_config'` met dezelfde fouten per veld als `validate()`. Config en bestand blijven dan
+    ongewijzigd.
+  - **Schrijffout (D33):** kan het bestand niet worden geschreven (in de test: een map op de bestandsnaam), dan geeft
+    hij `WP_Error 'pdk_file_write_failed'` met status 500, **niet** `pdk_invalid_config`.
 - **AC-CSS-013** (L, Oxygen inactief):
   - `wp eval 'echo wp_json_encode( wp_get_ability( "pdk-theme-options/get-css-framework" )->execute( [] ) );' --user=pdkmin`
     geeft JSON met `tokens` en `fields`.
@@ -983,31 +1080,50 @@ eigenschappen (`inline-size`).
     geeft een `<id>`. Hetzelfde `wp eval` met `--user=<id>` wordt geweigerd. Daarna `wp user delete <id> --yes`.
   - Met de module uit bestaat de ability niet.
 
-**FR-CSS-07 Oxygen-variabelen** (Must) — Source: V4, OQ-CSS-04; §1b, §5
+**FR-CSS-07 Oxygen-variabelen** (Must) — Source: V4, OQ-CSS-04; §1b, §5; D34
 - **AC-CSS-014** (H): de pure merge:
   - een lege lijst → alle `:root`-tokens toegevoegd (incl. `pdk-site-width`, `pdk-measure`, `pdk-popout-space`,
     `pdk-grid-min`, `pdk-lh-heading`, `pdk-lh-body`; geen `pdk-bo-*`) met een UUID4-id, een naam zonder `--`,
-    `type 'unit'`, value `{number, unit: 'custom', style}`, collectie `PDK Framework`, en geen `dynamicData`;
-  - de merge nogmaals op zijn eigen uitvoer → identieke array en `changed === false`;
-  - een bestaande `pdk-step-0` met id `abc` → id `abc` blijft, de waarde wordt bijgewerkt;
+    `type 'unit'`, value `{number, unit: 'custom', style}`, collectie `PDK Framework`, label `PDK step 0` /
+    `PDK site width` enz., en precies de sleutels `id`, `cssVariableName`, `label`, `type`, `value`, `collection`
+    (geen `dynamicData`);
+  - de merge nogmaals op zijn eigen uitvoer → identieke array, `changed === false`, en geen nieuwe uuid;
+  - een bestaande `pdk-step-0` met id `abc` → id `abc` blijft, de waarde wordt bijgewerkt, zelfde plek;
+  - **merge, niet vervangen (D34):** een bestaande `pdk-space-s` met id `x1`, label `Mijn label`, collectie `Brand` en
+    een extra sleutel `foo: 1` behoudt id, label, collectie en `foo`; alleen `value` verandert. Met al een gelijke
+    waarde blijft de variabele ongewijzigd en is `changed === false`;
+  - een bestaande `pdk-gutter` **zonder** `id` krijgt een UUID4-id, zonder PHP-waarschuwing;
   - een bestaande `pdk-grid-min` met `style` `16rem` (oude waarde) → id blijft, `style` wordt `30ch`;
-  - vreemde variabelen blijven staan, in dezelfde volgorde;
+  - vreemde variabelen en collecties blijven staan, in dezelfde volgorde, ongewijzigd; de collectie komt niet dubbel;
   - een `pdk-step-5` die niet meer gegenereerd wordt, blijft onveranderd staan.
 - **AC-CSS-015** (H): in elk geval hieronder zijn de instellingen opgeslagen, is het bestand geregenereerd, en komt er
   geen uncaught exception uit de save:
-  - zonder actieve Oxygen, of zonder `saveVariables`: status `skipped`, `saveVariables` wordt niet aangeroepen;
+  - zonder actieve Oxygen, of zonder `saveVariables` of `get_global_option`: status `skipped`, `saveVariables` wordt
+    niet aangeroepen;
+  - een lege optie: status `synced`, de payload bevat alle tokens, collectie `PDK Framework` en geen `{}`; een tweede
+    save zonder wijziging geeft `unchanged` en roept `saveVariables` niet opnieuw aan;
+  - de sync leest de ruwe optie (`get_global_option`), nooit `getVariables()`;
+  - ruwe variabelen met collectie `Brand` en een ontbrekende, `null`- of `false`-collectielijst: payload-collecties
+    `['Brand', 'PDK Framework']`, geen error (collecties leniënt gezaaid);
+  - een oud formaat (JSON-string) wordt gedecodeerd en samengevoegd;
   - een `saveVariables`-stub die een `\Exception` gooit: status `error`, en `message` bevat de exceptietekst;
   - een stub die een `\Error` (`TypeError`) gooit: hetzelfde;
-  - een vreemde variabele met een ongeldige UTF-8-label (`"\xB1"`), waardoor `wp_json_encode` `false` geeft: status
-    `error`, `saveVariables` wordt **niet** aangeroepen;
-  - een ruwe optie die bestaat maar geen array oplevert: status `error`, `saveVariables` wordt niet aangeroepen;
-  - de admin-redirect bevat in de foutgevallen `saved=1` én `warning=…`, en `render_notices()` toont een `notice-warning`.
+  - een vreemde variabele met een ongeldige UTF-8-label (`"\xB1"`): status `error`, `saveVariables` wordt **niet**
+    aangeroepen;
+  - **`{}`-stop (R-CSS-19):** een vreemde variabele met een leeg object (`stdClass`), of met letterlijk `{}` in een label
+    (`'a {} b'`): status `error`, `saveVariables` wordt niet aangeroepen;
+  - een ruwe optie die bestaat maar geen array oplevert (een getal, tekst die geen JSON is, de JSON-tekst `"5"`): status
+    `error`, `saveVariables` wordt niet aangeroepen;
+  - een ongeldige save: geen sync;
+  - de admin-redirect bevat in de foutgevallen `saved=1` én `warning=…`, en `render_notices()` toont een
+    `notice-warning` (ge-escaped); zonder fout geen `warning`.
 - **AC-CSS-016** (L, Oxygen actief):
   - Na een save is in `wp option get oxygen_variables_json_string --format=json` de `style` van `pdk-step-0`
     byte-gelijk aan `clamp(1.125rem, 1.0769rem + 0.1923cqi, 1.25rem)`, die van `pdk-site-width` aan `90rem`, die van
     `pdk-measure` aan `65ch`, die van `pdk-grid-min` aan `30ch`, en die van `pdk-lh-heading` / `pdk-lh-body` aan `1.1`
     / `1.3`.
   - Een tweede save zonder wijziging levert dezelfde id's en hetzelfde aantal entries op.
+  - Een label dat de gebruiker in de builder aan een `pdk-*`-variabele gaf, staat er na een PDK-save nog (D34).
   - Oxygens variabelenbestand op de frontend bevat `--pdk-step-0:`. De tekst wordt niet byte-vergeleken, want Oxygen
     minifiet (`format-css.php:12-22`).
   - De uiteindelijke waarde wordt gecontroleerd via het effect: met css-framework.css geblokkeerd in DevTools (alleen
@@ -1023,13 +1139,14 @@ eigenschappen (`inline-size`).
 **Release-check (geen AC, wel blokkerend):**
 - 2.13.0 op `pdk-theme-options-plugin.php:6` en `:24`;
 - CHANGELOG-kop `## [2.13.0] — <releasedatum>`, met de nieuwe dependency van `pdk-custom-style` vermeld;
-- `docs/modules/css-framework.md` in de stijl van de andere moduledocs (inclusief de veldtabel uit §3a, de banen van
-  de section en hun klassen met de bron van het patroon, de eenzijdige varianten met hun RTL-gedrag (D21, V11), de
-  basis-font-size van de section en wat die betekent voor geneste sections (V12), de line-height-formule met de waarden
-  uit §1d en de erfenis-kanttekening (V13), de `ch`-kaartbreedte van het auto-grid (V14), de `ch`- en
-  `cqi`-kanttekeningen, de opt-out- en uitweg-snippet, de laadvolgorde zonder lagen (incl. de footer-plek van de
-  global styles met Oxygen), de flow-regel, de Modern Normalize-aanname met de waarschuwing dat bestaande sites
-  verschuiven, de Utopia-formules met de tabel uit §1d, en het Oxygen-risico);
+- `docs/modules/css-framework.md` in de stijl van de andere moduledocs (inclusief de verwijzing naar `fields()` voor de
+  veldteksten, de banen van de section en hun klassen met de bron van het patroon, de begrenzing door `site_width`,
+  `[hidden]` en `.pdk-grid` op een section, de eenzijdige varianten met hun RTL-gedrag (D21, V11), de basis-font-size
+  van de section en wat die betekent voor geneste sections (V12), de line-height-formule met de waarden uit §1d en de
+  erfenis-kanttekening (V13), de `ch`-kaartbreedte van het auto-grid (V14), de `ch`- en `cqi`-kanttekeningen, de
+  opt-out- en uitweg-snippet, de laadvolgorde zonder lagen (incl. de footer-plek van de global styles met Oxygen), de
+  regeneratie met de schrijffout-transient, de flow-regel, de Modern Normalize-aanname met de waarschuwing dat
+  bestaande sites verschuiven, de Utopia-formules, de merge-regels en de `{}`-stop van de sync, en het Oxygen-risico);
 - de `other_output`-regel in `get-site-info`;
 - de Baseline-tabel uit §1e is op webstatus.dev gecontroleerd en de datum staat in de PR.
 
@@ -1048,21 +1165,21 @@ deze brief en er komt geen `docs/use-cases.md`.
 
 **UC-CSS-01 | Actor: ROLE-001 | Framework instellen**
 - Trigger: de beheerder zet de module aan en opent de tab CSS Framework.
-- Hoofdstroom: (1) per groep de velden lezen (label, eenheid, uitleg met voorbeeld) en waarden aanpassen, ook de line-height-ratio's en de kaartbreedte (2) opslaan (3) bestand gegenereerd, tokentabel bijgewerkt (4) met Oxygen actief: variabelen gesynchroniseerd.
-- Alternatief: A1 (4) Oxygen inactief → sync overgeslagen, met melding; A2 (1) Oxygen actief en Modern Normalize uit → waarschuwing met het pad naar de Oxygen-instelling; A3 na een plugin-update → het bestand wordt vanzelf opnieuw gegenereerd (D-P2).
-- Foutpad: E1 (2) ongeldig veld → foutmelding, niets veranderd; E2 (4) sync faalt, gooit een exceptie of zou de variabelen wissen → niet geschreven, save blijft geslaagd, waarschuwingsmelding.
+- Hoofdstroom: (1) per groep de velden lezen (label, eenheid, uitleg met voorbeeld) en waarden aanpassen, ook de line-height-ratio's en de kaartbreedte (2) opslaan (3) bestand gegenereerd, tokentabel bijgewerkt (4) met Oxygen actief: variabelen samengevoegd (eigen labels en collecties in Oxygen blijven).
+- Alternatief: A1 (4) Oxygen inactief → sync overgeslagen, met melding; A2 (1) Oxygen actief en Modern Normalize uit → waarschuwing met het pad naar de Oxygen-instelling; A3 na een plugin-update → het bestand wordt vanzelf opnieuw gegenereerd en de Oxygen-variabelen volgen (D-P2).
+- Foutpad: E1 (2) ongeldig veld → foutmelding, niets veranderd; E2 (4) sync faalt, gooit een exceptie of zou de variabelen beschadigen (`{}`) → niet geschreven, save blijft geslaagd, waarschuwingsmelding; E3 (3) uploads niet schrijfbaar → niets opgeslagen, foutmelding; bij de registratie geen nieuwe poging gedurende 10 minuten.
 - Covers: AC-CSS-001, AC-CSS-002, AC-CSS-008, AC-CSS-010, AC-CSS-015, AC-CSS-016, AC-CSS-018, AC-CSS-023, AC-CSS-025
 
 **UC-CSS-02 | Actor: ROLE-001 | Pagina opbouwen met tokens en de banen van de section**
 - Trigger: de beheerder bouwt in Oxygen (of in eigen HTML) een section met content.
 - Hoofdstroom: (1) koppen, `p` en losse tekst in de section schalen fluid, met een line-height die nooit kleiner is dan de inkt, ook met Oxygens normalize (2) elk direct kind van de section staat vanzelf op de wide-baan: maximaal de sitebreedte, gecentreerd, met gutter (3) tekst krijgt vanzelf verticale ritmiek via de flow-regel (4) waar nodig een kind op `.pdk-content` (leesbreedte, groeit mee met de tekst), `.pdk-popout`, `.pdk-full` of een eenzijdige variant (`-start`/`-end`), en `.pdk-grid` voor kaarten (kaartbreedte in ch, groeit mee met de tekst) (5) overige ruimte via `var(--pdk-space-*)` of de Oxygen-variabelen.
-- Alternatief: A1 (2) een section moet vrij blijven → `.pdk-off`; A2 (2) een section van een andere plugin → de uitweg-snippet in `custom-style.css`; A3 (2) eigen `display: flex` op de section in Oxygen → de banen vervallen, bewust; A4 (4) een RTL-site → `-start` staat vanzelf rechts; A5 (1) eigen kopstijl, eigen font-size of eigen line-height → `custom-style.css` of de Oxygen-klasse wint; A6 (3) een flex-container met `gap` → `.pdk-flow-off`.
+- Alternatief: A1 (2) een section moet vrij blijven → `.pdk-off`; A2 (2) een section van een andere plugin → de uitweg-snippet in `custom-style.css`; A3 (2) eigen `display: flex` op de section in Oxygen → de banen vervallen, bewust; A4 (4) een RTL-site → `-start` staat vanzelf rechts; A5 (1) eigen kopstijl, eigen font-size of eigen line-height → `custom-style.css` of de Oxygen-klasse wint; A6 (3) een flex-container met `gap` → `.pdk-flow-off`; A7 (2) een section met `hidden` blijft verborgen; A8 (4) `.pdk-grid` op de section zelf → de kinderen worden kaarten, baanklassen doen niets; A9 (2) een kleine sitebreedte → content en popout worden nooit breder dan de sitebreedte.
 - Postconditie: builder en frontend zien er hetzelfde uit; geen horizontale scroll op 320px.
 - Covers: AC-CSS-003, AC-CSS-004, AC-CSS-005, AC-CSS-006, AC-CSS-007, AC-CSS-009, AC-CSS-017, AC-CSS-019, AC-CSS-020, AC-CSS-021, AC-CSS-022, AC-CSS-024
 
 **UC-CSS-03 | Actor: ROLE-002 | Config lezen en aanpassen via MCP**
 - Hoofdstroom: (1) `get-css-framework`, inclusief `fields` met de uitleg per instelling (2) `update-css-framework` met een gedeeltelijke config; het schema beschrijft elk veld met dezelfde uitleg (3) bestand en Oxygen bijgewerkt.
-- Foutpad: E1 (2) ongeldig of onbekende sleutel → `pdk_invalid_config` of schemafout, niets veranderd; E2 geen `manage_options` → geweigerd.
+- Foutpad: E1 (2) ongeldig of onbekende sleutel → `pdk_invalid_config` of schemafout, niets veranderd; E2 geen `manage_options` → geweigerd; E3 (3) bestand niet schrijfbaar → `pdk_file_write_failed` (500), niets opgeslagen.
 - Covers: AC-CSS-011, AC-CSS-012, AC-CSS-013, AC-CSS-025
 
 ---
@@ -1073,16 +1190,16 @@ deze brief en er komt geen `docs/use-cases.md`.
 |----|---------|
 | D1 | Voorvoegsel `pdk-` voor variabelen en klassen; interne spoorvariabelen `--pdk-bo-*` op de section. Vast in de code, geen instelling, en los van Oxygens eigen `css_prefix`. Geen cascade layers (D-L1). Omkeerbaar tot de release; daarna breaking (major) |
 | D2 | Modulesleutel `css_framework`, label/tab "CSS Framework", standaard uit, géén Oxygen-afhankelijkheid |
-| D3 | Bestand `css-framework.css` direct geschreven, niet via `pdk_write_storage_file()`, niet in de integriteitscontrole: de inhoud is volledig afgeleid van gevalideerde getallen |
-| D4 | Regenereren bij elke save, bij een ontbrekend bestand en bij een nieuwe pluginversie (D-P2); niet per request |
+| D3 | Bestand `css-framework.css` direct geschreven (met `LOCK_EX`), niet via `pdk_write_storage_file()`, niet in de integriteitscontrole: de inhoud is volledig afgeleid van gevalideerde getallen |
+| D4 | Regenereren bij elke save, bij een ontbrekend bestand en bij een nieuwe pluginversie (D-P2); niet per request; na een automatische regeneratie volgt ook de Oxygen-sync |
 | D5 | Register op `wp_enqueue_scripts` 9, enqueue op 20, handle `pdk-css-framework`, versie `filemtime`; `pdk-custom-style` krijgt hem als dependency zodra hij geregistreerd is (B1) |
 | D6 | Line-height = `ratio × font-size + leading` (V13, D27), aparte ratio en leading voor koppen en `p`, op kale elementselectors (B1). De section krijgt geen line-height |
 | D7 | Kopstijl-mapping afgeleid van `steps_up`, geen instelling. `h1`–`h6` en `p` krijgen font-size en line-height (verzoek: "voor headings en P"), met specificiteit 0,0,1: ze winnen van normalize en theme.json, en verliezen van `custom-style.css`, Oxygen-ontwerpinstellingen en alles met een klasse. Daarnaast krijgt de section een basis-font-size op specificiteit 0 (V12, D25) |
-| D8 | 1rem = 16px; notatie volgens §1d (4 decimalen, PHP `round()`, nooit `-0`, helling als `+ x`/`- x`); ruimte-stappen afgerond op hele px (Utopia) |
+| D8 | 1rem = 16px; notatie volgens §1d (4 decimalen, PHP `round()`, nooit `-0`, helling als `+ x`/`- x`, locale-onafhankelijk); ruimte-stappen afgerond op hele px (Utopia) |
 | D9 | Eén read- en één write-ability; geen aparte tokens-ability, geen `min_px`/`max_px` in de MCP-uitvoer (lean cut; de admin-tab toont ze wel) |
 | D10 | De abilities staan in agent-abilities, voorwaardelijk op `class_exists( 'PDK_CSS_Framework' )` |
 | D11 | Permission `manage_options` (§6) |
-| D12 | Oxygen-sync via `saveVariables()` (OQ-CSS-04), niet via de filter `oxygen_variables`: een gefilterde variabele komt via een builder-save (`save.php:52`) en via Oxygens eigen insert-ability (`variables.php:441`, `:631`) toch in de optie terecht, en het cachebestand ontstaat alleen bij `generateCacheForGlobalSettings()`. De merge leest de ruwe optie. Alleen `:root`-tokens, geen `--pdk-bo-*`. Verder: eenrichtingsverkeer, overschrijven op naam met behoud van id, nooit verwijderen (ook niet verouderd, en geen melding daarvan), niets opruimen als de module uitgaat |
+| D12 | Oxygen-sync via `saveVariables()` (OQ-CSS-04), niet via de filter `oxygen_variables`: een gefilterde variabele komt via een builder-save (`save.php:52`) en via Oxygens eigen insert-ability (`variables.php:441`, `:631`) toch in de optie terecht, en het cachebestand ontstaat alleen bij `generateCacheForGlobalSettings()`. De merge leest de ruwe optie. Alleen `:root`-tokens, geen `--pdk-bo-*`. Verder: eenrichtingsverkeer voor de waarde, samenvoegen volgens D34, nooit verwijderen (ook niet verouderd, en geen melding daarvan), niets opruimen als de module uitgaat |
 | D13 | **Ruimte (bevestigd door de gebruiker, V9, 2026-11-09):** margin en padding lopen via `var(--pdk-space-*)` of de Oxygen-variabelen, plus de flow-regel (D17) voor de verticale ritmiek van tekst, **zonder** spacing-utilityklassen (geen `.p-s`, `.mt-l`). Containers: de section automatisch (opt-out `.pdk-off`), de rest opt-in via `.pdk-container` |
 | D14 | Min/max-viewport: statische defaults (400 uit Oxygens ingebouwde breakpoints, 1440 px); eigen Oxygen-breakpoints worden niet gevolgd (R-CSS-08). `max_viewport` staat los van `site_width` (V8) |
 | D15 | Opt-out-klasse heet `.pdk-off`: geen grid, geen `container-type`, geen basis-font-size. Alle section-regels hebben specificiteit 0 (OQ-CSS-03, V10) |
@@ -1090,27 +1207,33 @@ deze brief en er komt geen `docs/use-cases.md`.
 | D17 | Flow-regel (V7, bevestigd met V9): alles in `:where()` (specificiteit 0), geprint ná de normalize en vóór de layout. Alleen `margin-block-start` tussen **aangrenzende tekstelementen** (lijst `T`). De tussenkopregel geldt alleen na een tekst-voorganger (niet na `*`). Reset binnen `.pdk-grid` en `.pdk-flow-off`. Standaard aan (`flow_enabled`), tokens `s` / `l` |
 | D18 | Modern Normalize (V7): het framework gaat ervan uit; de plugin levert geen eigen normalize en zet de Oxygen-optie niet aan. Alleen een waarschuwing op de tab, bij Oxygen actief en de optie uit (§4a) |
 | D19 | Breedtes (V8): `site_width` in rem (float, default 90) = breedte van de wide-baan; `measure` in ch (float, default 65, max. 2 decimalen) = de content-baan, gemeten in de basis-font-size van de section (V12); `popout_space` als ruimte-token (default `2xl`). Bij een root van 16px is 90rem = 1440px = `max_viewport` |
-| D20 | **De section is het grid (V10).** Elke `section:not(.pdk-off)` krijgt `container-type`, `display: grid` en zeven sporen (full / wide / popout / content, volgens Ryan Mulligan). Elk direct kind staat standaard op `wide`, waardoor `section > div` eruitziet als met de oude max-width-regel, zonder padding of box-sizing. Vervallen: de `section > div`-regel, de `.pdk-full`-override op div/section, `.pdk-breakout` en de box-sizing-afweging daarvan |
+| D20 | **De section is het grid (V10).** Elke `section:not(.pdk-off):not([hidden])` krijgt `container-type`, `display: grid` en zeven sporen (full / wide / popout / content, volgens Ryan Mulligan). Elk direct kind staat standaard op `wide`, waardoor `section > div` eruitziet als met de oude max-width-regel, zonder padding of box-sizing. Vervallen: de `section > div`-regel, de `.pdk-full`-override op div/section, `.pdk-breakout` en de box-sizing-afweging daarvan |
 | D21 | **Eenzijdige varianten (V11 voor de namen):** `-start` = X-start tot de binnenrand van de referentiebaan, `-end` = vanaf die binnenrand tot X-end. Referentiebaan voor `full` = `wide` (de standaardbaan; full-varianten staan tussen wide-blokken), voor `wide` en `popout` = `content` (beelden naast lopende tekst). Geen `content-start`/`-end` (content is de binnenste baan; niets om op uit te lijnen) en geen `.pdk-wide` (dat is de standaard) |
 | D22 | **Naamgeving:** de baan heet `wide` (was feature); de spoorvariabele heet `--pdk-bo-wide` (was `--pdk-bo-feature`), de lijnnamen `wide-start`/`wide-end`. Geen `.pdk-feature*`-klassen meer. Niet breaking (nooit uitgebracht) |
 | D23 | **Geen `min-inline-size: 0` op de kinderen:** de automatische minimumgrootte van grid-items geldt alleen bij een spoor met `auto` als minimum, en die hebben we niet (`min()`, `minmax(0, …)`, `minmax(gutter, 1fr)`). Een kind groeit dus niet door zijn inhoud over zijn baan heen. Te brede inhoud loopt zichtbaar over; dat is aan de gebruiker (`overflow-wrap`/`overflow`) |
 | D24 | **Logisch, niet fysiek (V11):** klassen heten `-start`/`-end`, nooit `-left`/`-right`. In de CSS staan alleen logische eigenschappen (`inline-size`, `margin-block*`, `container-type`, `grid-column` met benoemde lijnen); geen `left`, `right`, `width` of fysieke marges/padding. Gridlijnen volgen `direction`, dus RTL werkt zonder extra regel (AC-CSS-024). Niet breaking: de `-left`/`-right`-namen zijn nooit uitgebracht |
-| D25 | **Basis-font-size op de section (V12, 2026-11-10):** `:where(section:not(.pdk-off))` krijgt `font-size: var(--pdk-step-0)` op specificiteit 0. De maat in `ch` wordt daardoor fluid, en losse tekst krijgt de basisgrootte. De `cqi` in die font-size wordt gemeten op de dichtstbijzijnde container **boven** de section (small viewport op topniveau, de buitenste section bij nesting). Elke typografie-klasse wint. Vervangt de opt-in-tip uit de vorige versie van R-CSS-14 |
+| D25 | **Basis-font-size op de section (V12, 2026-11-10):** de section krijgt `font-size: var(--pdk-step-0)` op specificiteit 0. De maat in `ch` wordt daardoor fluid, en losse tekst krijgt de basisgrootte. De `cqi` in die font-size wordt gemeten op de dichtstbijzijnde container **boven** de section (small viewport op topniveau, de buitenste section bij nesting). Elke typografie-klasse wint. Vervangt de opt-in-tip uit de vorige versie van R-CSS-14 |
 | D26 | **`oxygen.modern_normalize` in de MCP-uitvoer:** de sleutel staat er altijd; `true`/`false` is de stand van de Oxygen-optie, `null` betekent onbekend (Oxygen inactief, functie ontbreekt of gooit). Zelfde guarded check als de tab-melding (§4a) |
 | D27 | **Line-height met ratio (V13, 2026-11-10):** `h1`–`h6`: `calc(var(--pdk-lh-heading) * 1em + var(--pdk-leading-heading))`; `p`: `calc(var(--pdk-lh-body) * 1em + var(--pdk-leading-body))`. Nieuwe instellingen `lh_heading_ratio` (1.1) en `lh_body_ratio` (1.3), bereik 1.0–2.0, max. 2 decimalen, als eenheidloze `:root`-tokens `--pdk-lh-heading`/`--pdk-lh-body` (gesynchroniseerd als `unit` met `custom`-stijl, zoals de andere tokens). `leading_body` 0.5 → 0.25rem. Reden: met `calc(1em + leading)` was een `h1` 1,07 × zijn font-size en vielen descenders over de volgende regel (live gemeten); een ratio ≥ 1,1 plus de constante houdt de regelbox altijd groter dan de inkt (≈ 1,17em), en de constante houdt kleine letters luchtig en grote compact |
-| D28 | **`grid_min` in ch (V14, 2026-11-10):** float, default 30, bereik 10–80, max. 2 decimalen; token `--pdk-grid-min: 30ch`. In een section is de font-size `step-0`, dus de kaartbreedte schaalt mee met de fluid tekst, net als `measure`, en tekstkaarten breken op een zinnige tekstbreedte. Niet breaking: de rem-variant is nooit uitgebracht; de sync overschrijft een bestaande `pdk-grid-min` op naam (AC-CSS-014) |
+| D28 | **`grid_min` in ch (V14, 2026-11-10):** float, default 30, bereik 10–80, max. 2 decimalen; token `--pdk-grid-min: 30ch`. In een section is de font-size `step-0`, dus de kaartbreedte schaalt mee met de fluid tekst, net als `measure`, en tekstkaarten breken op een zinnige tekstbreedte. Niet breaking: de rem-variant is nooit uitgebracht; de sync werkt een bestaande `pdk-grid-min` op naam bij (AC-CSS-014) |
 | D29 | **Veldbeschrijvingen uit één bron (V14, 2026-11-10):** `PDK_CSS_Framework::fields()` levert per instelling `label`, `unit`, `help` en `group` (tekst in §3a). De admin-tab groepeert en beschrijft de velden daarmee, het MCP-schema gebruikt `help` als `description` per eigenschap, en `get-css-framework` geeft het geheel terug als `fields`. Eén plek, zodat beheerder en agent nooit verschillende uitleg zien |
+| D30 | **`[hidden]` uitgesloten (PR #10):** de section-selector is `section:not(.pdk-off):not([hidden])`, en alle kindregels nemen dat over. De `display: none` van `hidden` komt uit het user-agent-stylesheet, en een auteursregel met `display: grid` wint daar altijd van, ook op specificiteit 0; zonder uitsluiting zou een verborgen section zichtbaar worden. De uitsluiting staat in `:where()`, dus de specificiteit blijft 0 |
+| D31 | **Baanregels niet op een `.pdk-grid`-section (PR #10):** de kind- en baanregels gebruiken `section:not(.pdk-off):not([hidden]):not(.pdk-grid)`. Op een section met `.pdk-grid` vervangen de auto-fit-kolommen de benoemde sporen; een `grid-column: wide` of een baanklasse zou dan naar niet-bestaande lijnen wijzen. Baanklassen doen binnen een `.pdk-grid`-section dus niets; de kinderen worden kaarten |
+| D32 | **Sporen begrensd door de sitebreedte (PR #10):** `--pdk-bo-content: min(var(--pdk-measure), var(--pdk-site-width), 100% - var(--pdk-gutter) * 2)` en `--pdk-bo-popout: minmax(0, min(var(--pdk-popout-space), max(0px, (var(--pdk-site-width) - var(--pdk-measure)) / 2)))`; `--pdk-bo-wide` ongewijzigd. Zo is content + 2 × popout + 2 × wide nooit breder dan `site_width`: bij een sitebreedte kleiner dan de maat is content gelijk aan de sitebreedte en zijn popout en wide 0; tussen `measure` en `measure + 2 × popout_space` krijgt popout het restant en is wide 0 |
+| D33 | **Schrijffout (PR #10):** lukt het schrijven in `register()` niet, dan zet het de transient `pdk_css_framework_write_failed` (10 minuten) en probeert het in die tijd niet bij elk request opnieuw (geen schrijfstorm op een site met een niet-schrijfbare uploads-map). Een geslaagde `save()` wist de transient. `save()` geeft bij een schrijffout `saved: false` met de fout onder `file`; `update-css-framework` vertaalt dat naar `WP_Error 'pdk_file_write_failed'` (status 500), zodat een agent een serverfout kan onderscheiden van een ongeldige config |
+| D34 | **Merge in plaats van vervangen (PR #10):** de sync werkt van een bestaande `pdk-*`-variabele alleen `type` en `value` bij; `id`, `label`, `collection` en extra sleutels blijven. Een bestaande variabele zonder id krijgt `wp_generate_uuid4()`. `changed` alleen bij een echt verschil. Zo blijven een eigen label of collectie uit de builder staan, en blijven `{var-<id>}`-verwijzingen werken |
+| D35 | **`PDK_CSS_Framework::CLASSES` als enige bron (PR #10):** de 13 klassen staan als constante in de klasse (`:41`); de tab (`render_inline()`) en `get-css-framework` (`classes`) lezen allebei die constante |
 | D-L1 | **Geen cascade layers** (live-bevinding Slice 1). Modern Normalize `*{margin:0;padding:0}` is unlayered en wint van elke gelaagde regel; gemeten in Slice 1: een gelaagde layoutregel deed niets (marge 0, links 0 bij 1600px). Tokens op `:root`; basisregels op kale elementen (0,0,1); flow en layout unlayered op specificiteit 0, geprint ná de normalize en in de volgorde tokens → basis → flow → layout. Elke klasse wint van flow en layout |
 | D-L2 | Met de **default** normalize (Modern Normalize uit) blijft de `h1`-marge `.67em`: `h1{margin:.67em 0}` (0,0,1) wint van de flow-reset in `:where()` (0). Geaccepteerd, omdat V7 Modern Normalize aanneemt. AC-CSS-020 controleert in dat geval alleen font-size en line-height (R-CSS-13) |
 | D-L3 | `feature_space` heet `popout_space`. Niet breaking: de naam is nooit uitgebracht (alleen in Slice 1 op dev.local); de oude sleutel valt bij validatie stil weg en het MCP-schema weigert hem |
-| D-P2 | **Regenereren bij een nieuwe pluginversie:** de losse optie `pdk_css_framework_built` bewaart de `PDK_PLUGIN_VERSION` van de laatste generatie. Is die bij de registratie anders (of leeg), dan wordt `css-framework.css` opnieuw gegenereerd en de optie bijgewerkt. Zo krijgt een site na een update de nieuwe generatorlogica zonder handmatig opslaan. `uninstall.php` verwijdert de optie |
+| D-P2 | **Regenereren bij een nieuwe pluginversie:** de losse optie `pdk_css_framework_built` bewaart de `PDK_PLUGIN_VERSION` van de laatste generatie. Is die bij de registratie anders (of leeg), dan wordt `css-framework.css` opnieuw gegenereerd, de optie bijgewerkt en de Oxygen-sync uitgevoerd. Zo krijgt een site na een update de nieuwe generatorlogica zonder handmatig opslaan. `uninstall.php` verwijdert de optie |
 
 ---
 
 ## 10. Open vragen
 
 Alle vier beantwoord door de gebruiker op 2026-11-09 en verwerkt. V7–V14 zijn besluiten van de gebruiker, en
-D-L1–D-L3 en D-P2 zijn live-bevindingen of implementatiekeuzes; geen van beide zijn open vragen.
+D-L1–D-L3, D-P2 en D30–D35 zijn live-bevindingen, implementatiekeuzes of review-fixes; geen van alle zijn open vragen.
 
 | ID | Vraag | Antwoord | Verwerkt in |
 |----|-------|----------|-------------|
@@ -1125,12 +1248,12 @@ D-L1–D-L3 en D-P2 zijn live-bevindingen of implementatiekeuzes; geen van beide
 
 | ID | Risico | Mitigatie / verificatie |
 |----|--------|-------------------------|
-| R-CSS-01 | **Interne Oxygen-API.** `saveVariables()` controleert zijn invoer niet en kan **alle variabelen stil wissen** (`save.php:35-52`); de optievorm en de `unit`-waardevorm zijn niet gedocumenteerd en kunnen in een Oxygen-update veranderen | Bewust gekozen (OQ-CSS-04). De vier stappen uit §5 (encode ≠ false, geen `{}`, simulatie van Oxygens decode, dan pas aanroepen) plus `function_exists` en `catch ( \Throwable )`. De sync draait pas ná het opslaan, dus een fout blokkeert nooit de instellingen of het bestand; de admin krijgt een waarschuwing (AC-CSS-015). Het CSS-bestand definieert alle tokens zelf ook. Live getest op 6.2-rc.1 (AC-CSS-016); na elke Oxygen-update AC-CSS-016 opnieuw draaien |
-| R-CSS-02 | **Elke section wordt een grid en een container, met een basis-font-size (V10, V12).** Gevolgen: (a) een section met eigen `display: flex` in Oxygen wint en heeft dan geen banen meer (keuze van de gebruiker); (b) floats werken niet op de kinderen; (c) marges tussen de kinderen klappen niet samen; (d) inline-size-containment laat een section zonder eigen breedte in een flex-rij of als inline-block inklappen; (e) markup van plugins (WooCommerce, formulieren) met `<section>` krijgt ook banen en de basisgrootte; (f) geneste sections zijn opnieuw een grid, met een dubbele gutter; (g) mogelijk effect op `position: fixed` of sticky binnen de section; (h) omdat de layout specificiteit 0 heeft (D-L1), wint een **later** geprinte `*`-reset van een andere plugin er ook van | Geaccepteerd als gekozen gedrag. (a) en (e): `.pdk-off` per section, of een klasse-regel in `custom-style.css` voor sections van derden (§4, ook `font-size: inherit`). (c): de flow gebruikt alleen `margin-block-start`, dus niets verdubbelt (AC-CSS-022). (f): `.pdk-off` of `.pdk-full` op de binnenste section. Geverifieerd in AC-CSS-007 (banen, basisgrootte, opt-out, fixed), AC-CSS-024 (RTL) en AC-CSS-019 (uitweg-snippet); in de moduledoc beschreven |
+| R-CSS-01 | **Interne Oxygen-API.** `saveVariables()` controleert zijn invoer niet en kan **alle variabelen stil wissen** (`save.php:35-52`); de optievorm en de `unit`-waardevorm zijn niet gedocumenteerd en kunnen in een Oxygen-update veranderen | Bewust gekozen (OQ-CSS-04). De vier stappen uit §5 (encode ≠ false, geen `{}`, controle van de decode, dan pas aanroepen) plus `function_exists` en `catch ( \Throwable )`. De sync draait pas ná het opslaan, dus een fout blokkeert nooit de instellingen of het bestand; de admin krijgt een waarschuwing (AC-CSS-015). Het CSS-bestand definieert alle tokens zelf ook. Live getest op 6.2-rc.1 (AC-CSS-016); na elke Oxygen-update AC-CSS-016 opnieuw draaien |
+| R-CSS-02 | **Elke section wordt een grid en een container, met een basis-font-size (V10, V12).** Gevolgen: (a) een section met eigen `display: flex` in Oxygen wint en heeft dan geen banen meer (keuze van de gebruiker); (b) floats werken niet op de kinderen; (c) marges tussen de kinderen klappen niet samen; (d) inline-size-containment laat een section zonder eigen breedte in een flex-rij of als inline-block inklappen; (e) markup van plugins (WooCommerce, formulieren) met `<section>` krijgt ook banen en de basisgrootte; (f) geneste sections zijn opnieuw een grid, met een dubbele gutter; (g) mogelijk effect op `position: fixed` of sticky binnen de section; (h) omdat de layout specificiteit 0 heeft (D-L1), wint een **later** geprinte `*`-reset van een andere plugin er ook van | Geaccepteerd als gekozen gedrag. (a) en (e): `.pdk-off` per section, of een klasse-regel in `custom-style.css` voor sections van derden (§4, ook `font-size: inherit`). (c): de flow gebruikt alleen `margin-block-start`, dus niets verdubbelt (AC-CSS-022). (f): `.pdk-off` of `.pdk-full` op de binnenste section. `hidden` en `.pdk-grid` op een section zijn afgevangen (D30, D31). Geverifieerd in AC-CSS-007 (banen, begrenzing, `hidden`, `.pdk-grid`-section, basisgrootte, opt-out, fixed), AC-CSS-024 (RTL) en AC-CSS-019 (uitweg-snippet); in de moduledoc beschreven |
 | R-CSS-03 | **De line-height erft als lengte (V13).** `calc(var(--pdk-lh-…) * 1em + …)` wordt op `h1`–`h6` en `p` berekend tot een vaste lengte, en die lengte erft door. Een kind met een andere `font-size` (een `<small>`, een `<span style="font-size:2em">`, een icoon met eigen grootte) krijgt dus de line-height van de ouder in px, niet een die bij zijn eigen grootte past. Een veel groter kind kan dan buiten de regelbox steken | Geaccepteerd: alleen gezet op `h1`–`h6` en `p` (D7), en inline kinderen zijn meestal kleiner (dan is het effect ruimer, niet afgekapt). **Uitweg:** een klasse op dat kind met een eigen `line-height` (bijvoorbeeld een eenheidloze waarde als `1.2`); elke klasse wint van de kale elementselector. Vermeld in de moduledoc |
 | R-CSS-04 | **Baseline-status uit eigen kennis** (§1e), niet live gecontroleerd | Release-check: elke regel controleren op webstatus.dev. Er staat geen feature onder Widely/2023 in de lijst, dus het restrisico is laag |
-| R-CSS-05 | **Utopia-formules en de verwachte strings uit eigen kennis** (§1d, AC-CSS-003) | De tester rekent de tabel na op utopia.fyi (400→1440, 18→20, 1,2→1,25) voordat AC-CSS-003 telt. Let op het halve geval `step--2` min 0,78125: wij ronden met PHP `round()` naar `0.7813` |
-| R-CSS-06 | **Tokens op twee plekken** (bestand + Oxygen). Een aanpassing in de builder wint op de frontend tot de volgende PDK-save | Bewust (D12); de admintekst zegt "pas tokens hier aan, niet in Oxygen" |
+| R-CSS-05 | **Utopia-formules en de verwachte strings uit eigen kennis** (§1d, AC-CSS-003) | De tester rekent de tabel na op utopia.fyi (400→1440, 18→20, 1,2→1,25) voordat AC-CSS-003 telt. Let op het halve geval `step--2` min 0,78125: wij ronden met PHP `round()` naar `0.7813`. De zelftest rekent de tabel ook onafhankelijk na uit de formule |
+| R-CSS-06 | **Tokens op twee plekken** (bestand + Oxygen). Een aanpassing van een **waarde** in de builder wint op de frontend tot de volgende PDK-save of automatische regeneratie | Bewust (D12); de admintekst zegt "pas tokens hier aan, niet in Oxygen". Labels en collecties in Oxygen blijven wel van de gebruiker (D34) |
 | R-CSS-07 | **Builder-canvas laadt het stylesheet niet** | AC-CSS-017, door de gebruiker handmatig bevestigd (V14). Faalt die na een Oxygen-update, dan volgt eerst onderzoek naar de iframe-hook; de tokens zelf komen via de sync toch in de builder |
 | R-CSS-08 | **Eigen Oxygen-breakpoints** worden niet gevolgd (D14) | Min/max zijn instelbaar op de tab. Geaccepteerd |
 | R-CSS-09 | **Gelijktijdige save** van builder-variabelen en PDK-sync: de laatste schrijver wint | Kleine kans (alleen beheerders); geaccepteerd. Oxygens design-lock (`design-lock.php:34-41`) bestaat alleen met Oxygen-MCP |
@@ -1142,7 +1265,9 @@ D-L1–D-L3 en D-P2 zijn live-bevindingen of implementatiekeuzes; geen van beide
 | R-CSS-15 | **Verwarring tussen gridlijn en klasse.** `full-start` is een lijnnaam, `.pdk-full-start` een klasse; wie zelf `grid-column: full-start` schrijft, krijgt alleen de lijn (één rand), niet de baan | Benoemd in §4 en in de moduledoc ("lijn `full-start`" vs. "klasse `.pdk-full-start`"). Geaccepteerd: de namen volgen bewust het patroon van Ryan Mulligan |
 | R-CSS-16 | **Inktmaat verschilt per font (V13).** De ondergrens "regelbox ≥ inkt" gaat uit van ascent + descent ≈ 1,17em. Een font met lange ascenders/descenders (scriptfonts, sommige displayfonts) kan met ratio 1,1 alsnog net buiten de regelbox komen bij grote koppen | De ratio's zijn instelbaar (`lh_heading_ratio` tot 2.0), en de help-tekst noemt het (§3a). AC-CSS-020 controleert met het standaardfont dat `h1` > 1,15 × font-size blijft. Geaccepteerd; in de moduledoc staat het advies om de ratio te verhogen bij zulke fonts |
 | R-CSS-17 | **`grid_min` in ch buiten een section (V14).** `ch` wordt opgelost tegen de font-size van het `.pdk-grid`-element. Buiten een section is dat de geërfde (niet-fluid) letter, dus de kaartbreedte schaalt daar niet mee. Een font met een brede of smalle `0` geeft ook een andere kaartbreedte dan dezelfde waarde in rem | Geaccepteerd: in een section (het normale gebruik) schaalt hij wel mee, en per grid is hij te overschrijven met `style="--pdk-grid-min: 20ch"` of een klasse. AC-CSS-007 meet het aantal kolommen met een `1ch`-probe in dezelfde context, dus de test hangt niet van het font af. In de moduledoc beschreven |
-| R-CSS-18 | **Veldteksten lopen uiteen** (tab, schema, documentatie) als er later een tweede kopie ontstaat | D29: één bron `fields()`. AC-CSS-025 vergelijkt schema-`description`, `get`-uitvoer en tab-HTML met `fields()`, zodat een afwijkende kopie de zelftest laat falen. De moduledoc neemt de tabel uit §3a over |
+| R-CSS-18 | **Veldteksten lopen uiteen** (tab, schema, documentatie) als er later een tweede kopie ontstaat | D29: één bron `fields()`. AC-CSS-025 vergelijkt schema-`description`, `get`-uitvoer en tab-HTML met `fields()`, zodat een afwijkende kopie de zelftest laat falen. De moduledoc verwijst naar `fields()` in plaats van de teksten te herhalen |
+| R-CSS-19 | **De `{}`-stop en `{}` → `[]`.** (a) Bevat de payload ergens `{}` (een leeg object in een andere Oxygen-variabele dat als object binnenkomt, of letterlijk `{}` in een label), dan stopt de sync met status `error` en schrijft niets. Een site met zo'n variabele krijgt de PDK-tokens dus niet in Oxygen, tot die variabele is aangepast. (b) Lege JSON-objecten in andere variabelen worden bij het lezen (`get_global_option` decodeert als array, `helpers.php:41`) een PHP-array en dus bij het terugschrijven `[]` in plaats van `{}` | (a) Bewust: doorschrijven zou die variabelen beschadigen, omdat `saveVariables()` élke `{}` door `null` vervangt (`save.php:35`). De fout is zichtbaar als waarschuwing (admin) of `oxygen.status = 'error'` (MCP); de instellingen en het CSS-bestand zijn wel opgeslagen, en de frontend werkt via het eigen bestand. Getest in AC-CSS-015. (b) Geaccepteerd: Oxygen doet hetzelfde in zijn eigen save-pad (`save.php:38` decodeert ook als array), dus dit is geen nieuw effect van de plugin |
+| R-CSS-20 | **Schrijffout blijft 10 minuten "plakken".** Is de uploads-map tijdelijk niet schrijfbaar, dan probeert `register()` het 10 minuten niet opnieuw; ontbreekt het bestand in die tijd, dan laadt de frontend geen framework-CSS | Bewust (D33): geen schrijfpoging per request op een kapotte site. Een geslaagde save wist de transient direct; anders verloopt hij vanzelf. De Oxygen-variabelen leveren de tokens in die tijd wel. Getest in AC-CSS-008 |
 
 ---
 
@@ -1158,7 +1283,8 @@ D-L1–D-L3 en D-P2 zijn live-bevindingen of implementatiekeuzes; geen van beide
 - `min-inline-size: 0` op de kinderen van de section (D23).
 - Een extra wrapper of container om de section, zodat de section zijn eigen breedte zou kunnen bevragen (R-CSS-14).
 - Vrije CSS of vrije tokennamen via de tab of MCP (veiligheidsgrens, §6).
-- Bidirectionele sync, verwijderen of melden van verouderde Oxygen-variabelen, of opruimen bij module uit (D12).
+- Bidirectionele sync, het overschrijven van labels of collecties die de gebruiker in Oxygen gaf, het verwijderen of melden van verouderde Oxygen-variabelen, of opruimen bij module uit (D12, D34).
+- Het automatisch "repareren" van andere Oxygen-variabelen met `{}` zodat de sync toch kan doorgaan (R-CSS-19).
 - `min_px`/`max_px` in de MCP-uitvoer (D9).
 - Een instelbare lijst met uitgezonderde selectors voor sections van derden: een klasse-regel in `custom-style.css` dekt dat (OQ-CSS-03).
 - Een migratie van `feature_space` naar `popout_space` of van `grid_min` in rem naar ch (nooit uitgebracht, D-L3, D28).
@@ -1177,12 +1303,16 @@ AC-CSS-020). Met Modern Normalize aan krijgt tekst een fluid verticale ritmiek u
 een waarschuwing zodra Modern Normalize uit staat (AC-CSS-022, AC-CSS-023). Elke section is een grid: een gewone
 `section > div` staat op de wide-baan (maximaal 90rem, gecentreerd, met gutter), en kinderen kunnen naar de
 content-baan (65ch, meegroeiend met de tekst), de popout- of de full-baan, ook eenzijdig naar de start- of eindkant, en
-dat klopt in LTR én RTL (AC-CSS-024). Er is een `.pdk-off`-opt-out en een uitweg-snippet (AC-CSS-019), en het
-auto-grid werkt zonder `@media`, met een kaartbreedte van 30ch die meegroeit met de tekst. Na een plugin-update wordt
-het bestand vanzelf opnieuw gegenereerd (AC-CSS-008). Met Oxygen geactiveerd staan dezelfde tokens als variabelen in de
-builder en laadt het canvas de klassen (AC-CSS-016, AC-CSS-017), en een AI-agent kan via MCP de config lezen en
-wijzigen, met dezelfde veldbeschrijvingen als de beheerder (AC-CSS-013, AC-CSS-025). `php tests/run.php` is groen
-voor AC-CSS-001 t/m -006, -008, -011, -012, -014, -015, -021, -025, en de H-helft van -009 en -023.
+dat klopt in LTR én RTL (AC-CSS-024). Content en popout worden nooit breder dan de sitebreedte, een section met
+`hidden` blijft verborgen en een `.pdk-grid`-section maakt van zijn kinderen kaarten (AC-CSS-006, AC-CSS-007). Er is
+een `.pdk-off`-opt-out en een uitweg-snippet (AC-CSS-019), en het auto-grid werkt zonder `@media`, met een
+kaartbreedte van 30ch die meegroeit met de tekst. Na een plugin-update wordt het bestand vanzelf opnieuw gegenereerd en
+volgen de Oxygen-variabelen; een niet-schrijfbare uploads-map veroorzaakt geen schrijfpoging per request (AC-CSS-008).
+Met Oxygen geactiveerd staan dezelfde tokens als variabelen in de builder, met behoud van eigen labels en collecties,
+en laadt het canvas de klassen (AC-CSS-014, AC-CSS-016, AC-CSS-017). Een AI-agent kan via MCP de config lezen en
+wijzigen, met dezelfde veldbeschrijvingen als de beheerder en een eigen foutcode bij een schrijffout (AC-CSS-012,
+AC-CSS-013, AC-CSS-025). `php tests/run.php` is groen voor AC-CSS-001 t/m -006, -008, -011, -012, -014, -015, -021,
+-025, en de H-helft van -009 en -023.
 Externe afhankelijkheden: Oxygen 6.2-rc.1 op dev.local (lokaal, geen account) en de Abilities API van WordPress.
 Geen enkele AC vereist een externe dienst.
 
@@ -1191,3 +1321,26 @@ de tokens op `:root`**. Hij leest `--pdk-step-*` en `--pdk-space-*` (parseert de
 `--pdk-leading-*`, `--pdk-measure`, `--pdk-site-width` en `--pdk-grid-min`, en vergelijkt de gemeten waarden daarmee.
 Na een wijziging op de tab klopt de demo dus vanzelf met de nieuwe instellingen, zonder dat de verwachte getallen in de
 demo hoeven te worden aangepast. Dit is een hulpmiddel voor de handmatige controle en geen framework-AC.
+
+---
+
+## 14. Review PR #10 — bevindingen en status
+
+De externe review van PR #10 leverde de bevindingen hieronder op. Alle zijn **opgelost** in de code en gedekt door het
+blok "PR #10 review fixes" in `tests/test-css-framework-slice2.php` of door de section-checks in
+`tests/test-css-framework.php`.
+
+| # | Bevinding | Oplossing | Code | Besluit / AC |
+|---|-----------|-----------|------|--------------|
+| 1 | Een `section` met `hidden` werd zichtbaar: auteurs-`display: grid` won van de `display: none` van de browser | Sectionselector sluit `[hidden]` uit, in alle 11 section-regels | `:320`, `:337-346` | D30 · AC-CSS-006, -007 |
+| 2 | `.pdk-grid` op een section: `grid-column: wide` en baanklassen wezen naar niet-bestaande lijnen | Kind- en baanregels sluiten `.pdk-grid` uit | `:337-346` | D31 · AC-CSS-006, -007 |
+| 3 | Content en popout konden breder worden dan de sitebreedte (kleine `site_width`, of `site_width` < `measure + 2 × popout_space`) | Content- en popout-spoor begrensd door `site_width` | `:321-322` | D32 · AC-CSS-006, -007 |
+| 4 | De sync verving bestaande `pdk-*`-variabelen geheel, waardoor een eigen label, collectie of extra sleutel uit de builder verloren ging | Merge: alleen `type` en `value`; id/label/collectie/extra sleutels blijven; zonder id een uuid4 | `:427-439` | D34 · AC-CSS-014, -016 |
+| 5 | Een bestaande variabele zonder `id` gaf een PHP-waarschuwing | Krijgt `wp_generate_uuid4()`, geen waarschuwing | `:431-433` | D34 · AC-CSS-014 |
+| 6 | `space_pairs` met spaties of tabs (bijv. uit een formulier) werd geweigerd | Spaties en tabs worden weggehaald; een newline blijft ongeldig (`/D`) | `:212-214` | §3 · AC-CSS-002, -012 |
+| 7 | Na een automatische regeneratie (plugin-update, ontbrekend bestand) bleven de Oxygen-variabelen achter | `register()` roept na een geslaagde schrijfactie ook `sync_oxygen()` aan, in een `try/catch` | `:62-69` | D-P2, D4 · AC-CSS-008 |
+| 8 | Bij een niet-schrijfbare uploads-map probeerde `register()` het bij elk request opnieuw | Transient `pdk_css_framework_write_failed` (10 minuten); een geslaagde save wist hem | `:44`, `:59-72`, `:386-388` | D33 · AC-CSS-008, R-CSS-20 |
+| 9 | Een schrijffout in `update-css-framework` kwam terug als `pdk_invalid_config` | Eigen `WP_Error 'pdk_file_write_failed'` (status 500) | `class-pdk-agent-abilities.php:222-224` | D33 · AC-CSS-012 |
+| 10 | De klassenlijst stond op twee plekken (tab en MCP) | Constante `PDK_CSS_Framework::CLASSES`, gelezen door tab en `get-css-framework` | `:41`, `:654-662`; `class-pdk-agent-abilities.php:211` | D35 · AC-CSS-010, -012 |
+| 11 | De payload met `{}` (Oxygens `str_replace`) en lege objecten van andere variabelen | `{}`-stop vastgelegd en getest; `{}` → `[]` als risico vastgelegd | `:508-517` | R-CSS-19 · AC-CSS-015 |
+| 12 | Getalvelden op de tab hadden geen handige stapgrootte | `data-pdk-step*`-attributen per veldtype (hele getallen 1; factoren 0,1 / Ctrl 0,01 / Alt 0,01; overige decimale velden 1 / Ctrl 0,1 / Alt 0,01), met `step="any"` als basis zodat handmatige waarden geldig blijven | `:612-616`, `:636-652` | geen framework-AC; zelftest "stap-attributen op de tab" |
