@@ -244,6 +244,31 @@ class PDK_Settings {
 			'oxygen_elements' => [
 				'enabled' => false,
 			],
+			// CSS Framework: fluid tokens, basisstijlen en layoutklassen (docs/css-framework-brief.md §3).
+			'css_framework' => [
+				'enabled'            => false,
+				'min_viewport'       => 400,
+				'max_viewport'       => 1440,
+				'font_min'           => 18,
+				'font_max'           => 20,
+				'ratio_min'          => 1.2,
+				'ratio_max'          => 1.25,
+				'steps_up'           => 5,
+				'steps_down'         => 2,
+				'leading_body'       => 0.25,
+				'leading_heading'    => 0.25,
+				'lh_heading_ratio'   => 1.1,
+				'lh_body_ratio'      => 1.3,
+				'site_width'         => 90,
+				'measure'            => 65,
+				'gutter'             => 's-m',
+				'popout_space'       => '2xl',
+				'grid_min'           => 30,
+				'space_pairs'        => [ 's-l' ],
+				'flow_enabled'       => true,
+				'flow_space'         => 's',
+				'flow_heading_space' => 'l',
+			],
 			// Uitgeschakelde maten (blocklist, zie PDK_Image_Sizes::disabled()) en
 			// eigen maten (sleutel => breedte/hoogte/crop, altijd voorvoegsel `pdk_`).
 			'image_sizes' => [
@@ -277,6 +302,7 @@ class PDK_Settings {
 			'imgx'                    => __( 'IMGX — WebP/AVIF afbeeldingen', 'pdk-theme-options' ),
 			'image_sizes'             => __( 'Afbeeldingsmaten', 'pdk-theme-options' ),
 			'oxygen_elements'         => __( 'Oxygen Element Studio', 'pdk-theme-options' ),
+			'css_framework'           => __( 'CSS Framework', 'pdk-theme-options' ),
 		];
 	}
 
@@ -299,6 +325,7 @@ class PDK_Settings {
 			'imgx'                    => __( 'WebP- en AVIF-versies naast je bestaande JPEG- en PNG-bestanden zetten en uitserveren via <picture>. De originelen worden nooit gewijzigd.', 'pdk-theme-options' ),
 			'image_sizes'             => __( 'Geregistreerde afbeeldingsmaten bekijken, aan/uit zetten en eigen maten aanmaken. Uitzetten stopt alleen nieuwe generatie — bestaande bestanden blijven staan.', 'pdk-theme-options' ),
 			'oxygen_elements'         => __( 'Eigen opslaglocatie "PDK Elementen" voor Element Studio in Oxygen 6: elementen, macro\'s en presets die je in de builder maakt, komen in wp-content/uploads/pdk-theme-options/oxygen-elements/ (net als custom-functions.php) en overleven plugin- en Oxygen-updates.', 'pdk-theme-options' ),
+			'css_framework'           => __( 'Fluid typografie en ruimte (Utopia-stijl, clamp en cqi), basisstijlen voor koppen en p, flow-regel en layoutklassen (section-breedte, breakout, auto-grid) als één gegenereerd CSS-bestand.', 'pdk-theme-options' ),
 		];
 	}
 }

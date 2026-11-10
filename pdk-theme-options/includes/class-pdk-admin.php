@@ -34,6 +34,7 @@ class PDK_Admin {
 		'imgx'             => 'IMGX',
 		'image_sizes'      => 'Afbeeldingsmaten',
 		'oxygen_elements'  => 'Element Studio',
+		'css_framework'    => 'CSS Framework',
 	];
 
 	/** Tabs met een code-editor → het bestand in de storage-map. */
@@ -338,6 +339,11 @@ class PDK_Admin {
 					$this->save_oxygen_element_file(); // doet zelf altijd een redirect.
 				}
 				break;
+			case 'css_framework':
+				if ( class_exists( 'PDK_CSS_Framework' ) ) {
+					$this->save_css_framework(); // bij een fout een redirect met error.
+				}
+				break;
 			case 'security':
 				$this->save_security();
 				break;
@@ -357,6 +363,46 @@ class PDK_Admin {
 			admin_url( 'admin.php' )
 		) );
 		exit;
+	}
+
+	private function save_css_framework(): void {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput
+		$post  = isset( $_POST['css_framework'] ) && is_array( $_POST['css_framework'] ) ? wp_unslash( $_POST['css_framework'] ) : [];
+		$input = $post;
+
+		// Een vinkje dat ontbreekt is false; lege paren-velden doen niet mee.
+		$input['flow_enabled'] = ( isset( $post['flow_enabled'] ) && '' !== $post['flow_enabled'] ) ? $post['flow_enabled'] : '0';
+		$pairs                 = $post['space_pairs'] ?? [];
+		$input['space_pairs']  = is_array( $pairs )
+			? array_values( array_filter( $pairs, static fn( $p ) => ! is_string( $p ) || '' !== trim( $p, " 	" ) ) )
+			: $pairs;
+
+		$result = PDK_CSS_Framework::save( $input );
+		if ( $result['errors'] ) {
+			$delen = [];
+			foreach ( $result['errors'] as $veld => $melding ) {
+				$delen[] = $veld . ' ' . $melding;
+			}
+			wp_safe_redirect( add_query_arg(
+				[ 'page' => self::PAGE_SLUG, 'tab' => 'css_framework', 'error' => rawurlencode( __( 'Niets opgeslagen: ', 'pdk-theme-options' ) . implode( ' ', $delen ) ) ],
+				admin_url( 'admin.php' )
+			) );
+			exit;
+		}
+
+		// Opgeslagen, maar de Oxygen-sync faalde: saved=1 plus een waarschuwing (D16).
+		if ( 'error' === ( $result['oxygen']['status'] ?? '' ) ) {
+			wp_safe_redirect( add_query_arg(
+				[
+					'page'    => self::PAGE_SLUG,
+					'tab'     => 'css_framework',
+					'saved'   => '1',
+					'warning' => rawurlencode( __( 'Instellingen opgeslagen, Oxygen-sync mislukt: ', 'pdk-theme-options' ) . ( $result['oxygen']['message'] ?? '' ) ),
+				],
+				admin_url( 'admin.php' )
+			) );
+			exit;
+		}
 	}
 
 	private function save_modules(): void {
@@ -727,8 +773,11 @@ class PDK_Admin {
 		if ( ! empty( $_GET['saved'] ) ) {
 			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Instellingen opgeslagen.', 'pdk-theme-options' ) . '</p></div>';
 		}
-		if ( ! empty( $_GET['error'] ) ) {
+		if ( ! empty( $_GET['error'] ) && is_string( $_GET['error'] ) ) {
 			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( rawurldecode( $_GET['error'] ) ) . '</p></div>';
+		}
+		if ( ! empty( $_GET['warning'] ) && is_string( $_GET['warning'] ) ) {
+			echo '<div class="notice notice-warning is-dismissible"><p>' . esc_html( rawurldecode( $_GET['warning'] ) ) . '</p></div>';
 		}
 		// phpcs:enable
 	}
@@ -759,6 +808,7 @@ class PDK_Admin {
 			'imgx'             => __( 'IMGX', 'pdk-theme-options' ),
 			'image_sizes'      => __( 'Afbeeldingsmaten', 'pdk-theme-options' ),
 			'oxygen_elements'  => __( 'Element Studio', 'pdk-theme-options' ),
+			'css_framework'    => __( 'CSS Framework', 'pdk-theme-options' ),
 		];
 
 		foreach ( $module_tab_labels as $module => $label ) {
@@ -834,6 +884,11 @@ class PDK_Admin {
 				break;
 			case 'oxygen_elements':
 				$this->render_tab_oxygen_elements();
+				break;
+			case 'css_framework':
+				if ( class_exists( 'PDK_CSS_Framework' ) ) {
+					PDK_CSS_Framework::render_inline();
+				}
 				break;
 		}
 	}

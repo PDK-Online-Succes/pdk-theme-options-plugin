@@ -2,6 +2,20 @@
 
 Alle noemenswaardige wijzigingen in PDK Theme Options worden hier bijgehouden.
 
+## [2.13.0] — 2026-11-10
+
+### Nieuwe module: CSS Framework
+
+- **Module CSS Framework** (standaard uit, eigen tab). Genereert `uploads/pdk-theme-options/css-framework.css`: fluid typografie en ruimte volgens Utopia (`clamp()` met `cqi`), basisstijlen voor `h1`–`h6` en `p` (fluid line-height), een flow-regel voor verticale ritmiek tussen tekstelementen en een layout waarin de `section` zelf het grid is (banen full / wide / popout / content, met `-start`/`-end`-varianten die in RTL omdraaien, plus `.pdk-grid`, `.pdk-container`, `.pdk-off` en `.pdk-flow-off`). Geen `@layer`, alleen logische eigenschappen. Het framework gaat uit van Oxygens Modern Normalize; de tab waarschuwt als die uit staat. Zie `docs/modules/css-framework.md`
+- **Regelhoogte.** Koppen en `p` krijgen `line-height: calc(verhouding * 1em + leading)` met de nieuwe instellingen `lh_heading_ratio` (standaard 1,1) en `lh_body_ratio` (standaard 1,3), en de tokens `--pdk-lh-heading` en `--pdk-lh-body`; `leading_body` staat standaard op 0,25rem. Zo raken letterstaarten de volgende regel niet
+- **Instellingen met uitleg.** De tab toont de velden gegroepeerd (Viewport, Typografie, Regelhoogte, Ruimte, Layout, Flow, Grid), met per veld label, eenheid en uitleg met voorbeeld. Dezelfde tekst staat als `description` bij elke eigenschap in het MCP-schema van `update-css-framework`, en `get-css-framework` geeft hem terug als `fields`
+- **`grid_min` in `ch`.** De minimale kaartbreedte van `.pdk-grid` is nu in `ch` (standaard 30, bereik 10–80, token `--pdk-grid-min: 30ch`) in plaats van `rem`. Een eerder ingestelde waarde blijft een geldig getal maar wordt nu als `ch` gelezen
+- **Robuuster.** De Oxygen-variabelen volgen ook een plugin-update (sync bij regenereren); een bestaande `pdk-*` variabele behoudt label, collectie en id (alleen de waarde wordt bijgewerkt); `site_width` begrenst nu ook content en popout; een `section[hidden]` blijft verborgen; een `.pdk-grid` op een section werkt als auto-grid; bij een niet-schrijfbare uploads-map geeft MCP `pdk_file_write_failed`
+- **MCP-abilities.** `pdk-theme-options/get-css-framework` en `update-css-framework` (alleen met de modules CSS Framework en AI-agent toegang aan; `manage_options`), met een getypeerd schema en een `pdk_invalid_config`-fout per veld
+- **Oxygen-variabelen.** Met Oxygen 6 actief worden de tokens na elke save gesynchroniseerd naar de variabelencollectie "PDK Framework", via de interne `saveVariables()` met bescherming tegen stil wissen. Een mislukte sync blokkeert het opslaan niet; de admin toont een waarschuwing
+- **Wijziging aan Custom CSS.** `pdk-custom-style` heeft nu `pdk-css-framework` als dependency zodra die handle geregistreerd is, zodat eigen CSS altijd van het framework wint. Zonder de module is er niets veranderd
+- **Regenereren.** Het bestand wordt ook opnieuw gegenereerd na een plugin-update (optie `pdk_css_framework_built`)
+
 ## [2.12.4] — 2026-10-30
 
 ### IMGX: LQIP respecteert padding
