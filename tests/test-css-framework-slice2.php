@@ -180,6 +180,8 @@ namespace {
 		require_once $pdk . '/modules/css-framework/class-pdk-css-framework.php';
 	}
 
+	defined( 'MINUTE_IN_SECONDS' ) || define( 'MINUTE_IN_SECONDS', 60 );
+	defined( 'HOUR_IN_SECONDS' ) || define( 'HOUR_IN_SECONDS', 3600 );
 	$fouten = 0;
 	function check( string $naam, bool $ok, string $extra = '' ): void {
 		global $fouten;
@@ -556,6 +558,132 @@ namespace {
 	} );
 	safe( 'render_notices(): zonder warning geen notice-warning', static function () use ( $notices ) {
 		$_GET = [ 'saved' => '1' ]; return ! str_contains( $notices(), 'notice-warning' ) ? true : 'wel notice-warning';
+	} );
+
+	// ============================================================================
+	echo "\nPR #10 review fixes\n";
+	// ============================================================================
+	function get_transient( $k ) { return $GLOBALS['transients'][ $k ] ?? false; }
+	function set_transient( $k, $v, $e = 0 ) { $GLOBALS['transients'][ $k ] = $v; return true; }
+	function delete_transient( $k ) { unset( $GLOBALS['transients'][ $k ] ); return true; }
+	/** Voert $fn uit met PHP-waarschuwingen onderdrukt maar geteld (bijv. file_put_contents op een map). */
+	function quiet( callable $fn, int &$warnings = 0 ) {
+		$h = set_error_handler( static function () use ( &$warnings ) { $warnings++; return true; } );
+		try { return $fn(); } finally { restore_error_handler(); }
+	}
+	$UUID = '/^00000000-0000-4000-8000-\d{12}$/';
+	$tok1 = array_values( array_filter( $TOK, static fn( $t ) => '--pdk-space-s' === $t['name'] ) );
+	$val1 = $tok1[0]['value'];
+	$ex   = [ 'id' => 'x1', 'cssVariableName' => 'pdk-space-s', 'label' => 'Mijn label', 'type' => 'unit', 'value' => [ 'number' => 'old', 'unit' => 'custom', 'style' => 'old' ], 'collection' => 'Brand', 'foo' => 1 ];
+
+	// 1. merge behoudt label, collectie en extra sleutels; alleen value verandert
+	safe( 'merge: bestaande pdk-space-s behoudt id, label, collectie en extra sleutel foo; alleen value verandert', static function () use ( $tok1, $val1, $ex ) {
+		$r = PDK_CSS_Framework::merge_oxygen_variables( [ $ex ], [ 'Brand', 'PDK Framework' ], $tok1 );
+		$v = $r['variables'][0] ?? [];
+		return 1 === count( $r['variables'] ) && 'x1' === ( $v['id'] ?? null ) && 'Mijn label' === ( $v['label'] ?? null ) && 'Brand' === ( $v['collection'] ?? null ) && 1 === ( $v['foo'] ?? null )
+			&& ( $v['value'] ?? null ) === [ 'number' => $val1, 'unit' => 'custom', 'style' => $val1 ] && true === $r['changed'] ? true : json_encode( $v );
+	} );
+	safe( 'merge: gelijke waarde met eigen label/collectie/foo: variabele ongewijzigd en changed false', static function () use ( $tok1, $val1, $ex ) {
+		$gelijk = array_merge( $ex, [ 'value' => [ 'number' => $val1, 'unit' => 'custom', 'style' => $val1 ] ] );
+		$r = PDK_CSS_Framework::merge_oxygen_variables( [ $gelijk ], [ 'Brand', 'PDK Framework' ], $tok1 );
+		return $r['variables'] === [ $gelijk ] && false === $r['changed'] ? true : 'changed=' . var_export( $r['changed'], true ) . ' ' . json_encode( $r['variables'] );
+	} );
+
+	// 2. bestaande variabele zonder id-sleutel
+	safe( 'merge: bestaande pdk-gutter zonder id krijgt een uuid4-id en geeft geen PHP-waarschuwing', static function () use ( $TOK, $UUID ) {
+		$zonder = [ 'cssVariableName' => 'pdk-gutter', 'label' => 'G', 'type' => 'unit', 'value' => [ 'number' => 'old', 'unit' => 'custom', 'style' => 'old' ], 'collection' => 'PDK Framework' ];
+		$w = 0;
+		$r = quiet( static fn() => PDK_CSS_Framework::merge_oxygen_variables( [ $zonder ], [ 'PDK Framework' ], $TOK ), $w );
+		$v = find_var( $r['variables'], 'pdk-gutter' );
+		return 0 === $w && preg_match( $UUID, (string) ( $v['id'] ?? '' ) ) ? true : "waarschuwingen={$w} id=" . json_encode( $v['id'] ?? null );
+	} );
+
+	// 3. spaties en tabs rond een paar: getrimd en geaccepteerd; afsluitende newline blijft geweigerd
+	safe( 'validate(): space_pairs [" s-l ", "\txs-xl\t"] geldig en getrimd naar [s-l, xs-xl]', static function () {
+		$v = PDK_CSS_Framework::validate( [ 'space_pairs' => [ ' s-l ', "\txs-xl\t" ] ] );
+		return ! isset( $v['errors']['space_pairs'] ) && [ 's-l', 'xs-xl' ] === $v['config']['space_pairs'] ? true : json_encode( $v['errors'] ) . ' ' . json_encode( $v['config']['space_pairs'] );
+	} );
+	safe( 'validate(): "s-l\n" blijft geweigerd', static function () {
+		return isset( PDK_CSS_Framework::validate( [ 'space_pairs' => [ "s-l\n" ] ] )['errors']['space_pairs'] ) ? true : 'geaccepteerd';
+	} );
+	safe( 'admin POST: [" s-l ", "\txs-xl\t"] wordt opgeslagen als [s-l, xs-xl]', static function () {
+		reset_world(); module_aan(); set_oxygen( false );
+		$url = post_en_redirect( form( [ 'space_pairs' => [ ' s-l ', "\txs-xl\t" ] ] ) );
+		return str_contains( $url, 'saved=1' ) && [ 's-l', 'xs-xl' ] === ( opgeslagen()['space_pairs'] ?? null ) ? true : $url . ' ' . json_encode( opgeslagen()['space_pairs'] ?? null );
+	} );
+	safe( 'admin POST: "s-l\n" geeft een error-redirect en slaat niets op', static function () {
+		reset_world(); module_aan(); set_oxygen( false );
+		$url = post_en_redirect( form( [ 'space_pairs' => [ "s-l\n" ] ] ) );
+		return str_contains( $url, 'error=' ) && ! str_contains( $url, 'saved=1' ) ? true : $url;
+	} );
+	safe( 'MCP update: [" s-l ", "\txs-xl\t"] slaagt met [s-l, xs-xl]; "s-l\n" geeft pdk_invalid_config', static function () use ( $upd ) {
+		reset_world(); module_aan(); set_oxygen( false );
+		$o = $upd( [ 'config' => [ 'space_pairs' => [ ' s-l ', "\txs-xl\t" ] ] ] );
+		if ( is_wp_error( $o ) || [ 's-l', 'xs-xl' ] !== $o['config']['space_pairs'] ) { return 'trim: ' . ( is_wp_error( $o ) ? $o->get_error_code() : json_encode( $o['config']['space_pairs'] ) ); }
+		$f = $upd( [ 'config' => [ 'space_pairs' => [ "s-l\n" ] ] ] );
+		return is_wp_error( $f ) && 'pdk_invalid_config' === $f->get_error_code() ? true : 'newline geaccepteerd';
+	} );
+
+	// 4. register(): sync na regenereren, en een transient bij een mislukte schrijfactie
+	safe( 'register() met versieverschil en geslaagde schrijfactie roept de Oxygen-sync aan', static function () {
+		reset_world(); module_aan(); set_oxygen( true );
+		update_option( 'pdk_css_framework_built', '0.0.1' );
+		( new PDK_CSS_Framework( new PDK_Loader() ) )->register();
+		return file_exists( css_pad() ) && 1 === count( saves() ) && PDK_PLUGIN_VERSION === get_option( 'pdk_css_framework_built' ) ? true : 'saves=' . count( saves() );
+	} );
+	safe( 'register() met mislukte schrijfactie: transient pdk_css_framework_write_failed gezet, tweede register() probeert niet opnieuw', static function () {
+		reset_world(); module_aan(); set_oxygen( false ); $GLOBALS['transients'] = [];
+		$mod = new PDK_CSS_Framework( new PDK_Loader() );
+		mkdir( css_pad() );   // een map op de bestandsnaam: file_put_contents faalt
+		try {
+			quiet( static fn() => $mod->register() );
+			if ( false === get_transient( 'pdk_css_framework_write_failed' ) ) { return 'transient niet gezet'; }
+			rmdir( css_pad() );   // nu zou een schrijfpoging slagen
+			$GLOBALS['registered'] = [];
+			$mod->register();
+			return ! file_exists( css_pad() ) && ! isset( $GLOBALS['registered']['pdk-css-framework'] ) ? true : 'tweede register() schreef toch';
+		} finally { is_dir( css_pad() ) && rmdir( css_pad() ); }
+	} );
+	safe( 'een geslaagde save() verwijdert de transient pdk_css_framework_write_failed', static function () {
+		reset_world(); module_aan(); set_oxygen( false ); $GLOBALS['transients'] = [];
+		set_transient( 'pdk_css_framework_write_failed', 1, 60 );
+		$r = PDK_CSS_Framework::save( [] );
+		return true === $r['saved'] && false === get_transient( 'pdk_css_framework_write_failed' ) ? true : 'transient bleef staan';
+	} );
+
+	// 5. mislukte schrijfactie in de MCP-update: eigen foutcode
+	safe( 'update-css-framework met mislukte bestandsschrijfactie: WP_Error pdk_file_write_failed, niet pdk_invalid_config', static function () use ( $upd ) {
+		reset_world(); module_aan(); set_oxygen( false );
+		mkdir( css_pad() );
+		try { $o = quiet( static fn() => $upd( [ 'config' => [ 'steps_up' => 4 ] ] ) ); } finally { is_dir( css_pad() ) && rmdir( css_pad() ); }
+		return is_wp_error( $o ) && 'pdk_file_write_failed' === $o->get_error_code() ? true : ( is_wp_error( $o ) ? $o->get_error_code() : 'geen WP_Error' );
+	} );
+
+	// 6. PDK_CSS_Framework::CLASSES
+	safe( 'PDK_CSS_Framework::CLASSES bestaat, bevat precies de 13 klassen en is gelijk aan get-css-framework classes', static function () use ( $get ) {
+		$c = ( new ReflectionClass( 'PDK_CSS_Framework' ) )->getConstants()['CLASSES'] ?? null;
+		if ( ! is_array( $c ) ) { return 'constante ontbreekt'; }
+		$a = $c; $b = CLASSES13; sort( $a ); sort( $b );
+		if ( $a !== $b ) { return 'andere klassen: ' . json_encode( $c ); }
+		reset_world(); module_aan();
+		return $get( [] )['classes'] === $c ? true : 'get-css-framework classes wijkt af van CLASSES';
+	} );
+
+	// 7. stap-attributen op de tab
+	safe( 'tab: int-velden hebben lege data-pdk-step-ctrl/-alt; factorvelden 0.01/0.01; overige decimale velden 0.1/0.01', static function () use ( $DEF ) {
+		reset_world(); module_aan(); set_oxygen( false );
+		$a = new PDK_Admin( new PDK_Loader() ); $m = new ReflectionMethod( 'PDK_Admin', 'render_tab_content' );
+		ob_start(); try { $m->invoke( $a, 'css_framework' ); } finally { $html = (string) ob_get_clean(); }
+		$int = [ 'min_viewport', 'max_viewport', 'steps_up', 'steps_down' ]; $factor = [ 'lh_heading_ratio', 'lh_body_ratio', 'ratio_min', 'ratio_max' ];
+		foreach ( array_diff( array_keys( $DEF ), [ 'enabled', 'gutter', 'popout_space', 'flow_space', 'flow_heading_space', 'flow_enabled', 'space_pairs' ] ) as $k ) {
+			if ( ! preg_match( '#<input type="number"[^>]*name="css_framework\[' . $k . '\]"[^>]*>#', $html, $im ) ) { return "{$k}: geen number-input"; }
+			$tag = $im[0];
+			$ctrl = preg_match( '/data-pdk-step-ctrl="([^"]*)"/', $tag, $c ) ? $c[1] : null;
+			$alt  = preg_match( '/data-pdk-step-alt="([^"]*)"/', $tag, $d ) ? $d[1] : null;
+			$verw = in_array( $k, $int, true ) ? [ '', '' ] : ( in_array( $k, $factor, true ) ? [ '0.01', '0.01' ] : [ '0.1', '0.01' ] );
+			if ( [ $ctrl, $alt ] !== $verw ) { return "{$k}: ctrl/alt " . json_encode( [ $ctrl, $alt ] ) . ' verwacht ' . json_encode( $verw ); }
+		}
+		return true;
 	} );
 
 	// ============================================================================

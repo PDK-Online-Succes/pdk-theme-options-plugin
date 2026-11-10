@@ -37,6 +37,12 @@ class PDK_CSS_Framework {
 		'leading_body' => [ 0, 2 ], 'leading_heading' => [ 0, 2 ], 'grid_min' => [ 10, 80 ],
 		'site_width' => [ 20, 240 ], 'measure' => [ 20, 120 ], 'lh_heading_ratio' => [ 1, 2 ], 'lh_body_ratio' => [ 1, 2 ],
 	];
+	/** De 13 klassen die het framework definieert of verwacht; één bron voor tab en MCP. */
+	const CLASSES = [ 'pdk-off', 'pdk-container', 'pdk-content', 'pdk-popout', 'pdk-popout-start', 'pdk-popout-end', 'pdk-wide-start', 'pdk-wide-end', 'pdk-full', 'pdk-full-start', 'pdk-full-end', 'pdk-grid', 'pdk-flow-off' ];
+
+	/** Transient: na een mislukte schrijfpoging (uploads niet schrijfbaar) niet elk request opnieuw proberen. */
+	const WRITE_FAILED_TRANSIENT = 'pdk_css_framework_write_failed';
+
 	const ENUM_FIELDS  = [ 'gutter', 'popout_space', 'flow_space', 'flow_heading_space' ];
 
 	public function __construct( PDK_Loader $loader ) {
@@ -50,9 +56,19 @@ class PDK_CSS_Framework {
 
 		// Regenereren als het bestand ontbreekt of als de plugin is bijgewerkt (D-P2):
 		// zo komt gewijzigde generator-uitvoer ook zonder nieuwe save op de site.
-		if ( ! file_exists( $file ) || get_option( self::BUILT_OPTION ) !== PDK_PLUGIN_VERSION ) {
-			if ( self::write_file( self::config() ) ) {
+		$failed = function_exists( 'get_transient' ) && get_transient( self::WRITE_FAILED_TRANSIENT );
+		if ( ! $failed && ( ! file_exists( $file ) || get_option( self::BUILT_OPTION ) !== PDK_PLUGIN_VERSION ) ) {
+			$config = self::config();
+			if ( self::write_file( $config ) ) {
 				update_option( self::BUILT_OPTION, PDK_PLUGIN_VERSION );
+				// De Oxygen-variabelen volgen ná een plugin-update; nooit fataal, geen uitvoer op de frontend.
+				try {
+					self::sync_oxygen( $config );
+				} catch ( \Throwable $e ) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+					unset( $e );
+				}
+			} elseif ( function_exists( 'set_transient' ) ) {
+				set_transient( self::WRITE_FAILED_TRANSIENT, 1, 10 * MINUTE_IN_SECONDS );
 			}
 		}
 		if ( ! file_exists( $file ) ) {
@@ -193,6 +209,8 @@ class PDK_CSS_Framework {
 		$one_up = self::one_up_pairs();
 		$out    = [];
 		foreach ( $raw as $p ) {
+			// Spaties en tabs rond een paar zijn onschuldig; een newline blijft ongeldig (de /D hieronder).
+			$p = is_string( $p ) ? trim( $p, " 	" ) : $p;
 			if ( ! is_string( $p ) || ! preg_match( '/^(3xs|2xs|xs|s|m|l|xl|2xl|3xl)-(3xs|2xs|xs|s|m|l|xl|2xl|3xl)$/D', $p, $m ) ) {
 				return null;
 			}
@@ -299,9 +317,9 @@ class PDK_CSS_Framework {
 		// (4) Layout: de section is het grid. Alles specificiteit 0, logische eigenschappen.
 		$css .= <<<'CSS'
 :where(.pdk-container) { container-type: inline-size; }
-:where(section:not(.pdk-off)) {
-	--pdk-bo-content: min(var(--pdk-measure), 100% - var(--pdk-gutter) * 2);
-	--pdk-bo-popout: minmax(0, var(--pdk-popout-space));
+:where(section:not(.pdk-off):not([hidden])) {
+	--pdk-bo-content: min(var(--pdk-measure), var(--pdk-site-width), 100% - var(--pdk-gutter) * 2);
+	--pdk-bo-popout: minmax(0, min(var(--pdk-popout-space), max(0px, (var(--pdk-site-width) - var(--pdk-measure)) / 2)));
 	--pdk-bo-wide: minmax(0, max(0px, (var(--pdk-site-width) - var(--pdk-measure)) / 2 - var(--pdk-popout-space)));
 	--pdk-bo-full: minmax(var(--pdk-gutter), 1fr);
 	container-type: inline-size;
@@ -316,16 +334,16 @@ class PDK_CSS_Framework {
 		var(--pdk-bo-wide) [wide-end]
 		var(--pdk-bo-full) [full-end];
 }
-:where(section:not(.pdk-off)) > * { grid-column: wide; }
-:where(section:not(.pdk-off)) > :where(.pdk-content) { grid-column: content; }
-:where(section:not(.pdk-off)) > :where(.pdk-popout) { grid-column: popout; }
-:where(section:not(.pdk-off)) > :where(.pdk-popout-start) { grid-column: popout-start / content-end; }
-:where(section:not(.pdk-off)) > :where(.pdk-popout-end) { grid-column: content-start / popout-end; }
-:where(section:not(.pdk-off)) > :where(.pdk-wide-start) { grid-column: wide-start / content-end; }
-:where(section:not(.pdk-off)) > :where(.pdk-wide-end) { grid-column: content-start / wide-end; }
-:where(section:not(.pdk-off)) > :where(.pdk-full) { grid-column: full; }
-:where(section:not(.pdk-off)) > :where(.pdk-full-start) { grid-column: full-start / wide-end; }
-:where(section:not(.pdk-off)) > :where(.pdk-full-end) { grid-column: wide-start / full-end; }
+:where(section:not(.pdk-off):not([hidden]):not(.pdk-grid)) > * { grid-column: wide; }
+:where(section:not(.pdk-off):not([hidden]):not(.pdk-grid)) > :where(.pdk-content) { grid-column: content; }
+:where(section:not(.pdk-off):not([hidden]):not(.pdk-grid)) > :where(.pdk-popout) { grid-column: popout; }
+:where(section:not(.pdk-off):not([hidden]):not(.pdk-grid)) > :where(.pdk-popout-start) { grid-column: popout-start / content-end; }
+:where(section:not(.pdk-off):not([hidden]):not(.pdk-grid)) > :where(.pdk-popout-end) { grid-column: content-start / popout-end; }
+:where(section:not(.pdk-off):not([hidden]):not(.pdk-grid)) > :where(.pdk-wide-start) { grid-column: wide-start / content-end; }
+:where(section:not(.pdk-off):not([hidden]):not(.pdk-grid)) > :where(.pdk-wide-end) { grid-column: content-start / wide-end; }
+:where(section:not(.pdk-off):not([hidden]):not(.pdk-grid)) > :where(.pdk-full) { grid-column: full; }
+:where(section:not(.pdk-off):not([hidden]):not(.pdk-grid)) > :where(.pdk-full-start) { grid-column: full-start / wide-end; }
+:where(section:not(.pdk-off):not([hidden]):not(.pdk-grid)) > :where(.pdk-full-end) { grid-column: wide-start / full-end; }
 
 :where(.pdk-grid) {
 	display: grid;
@@ -365,6 +383,10 @@ CSS;
 			return [ 'saved' => false, 'config' => self::config(), 'errors' => [ 'file' => __( 'het CSS-bestand kon niet worden geschreven.', 'pdk-theme-options' ) ] ];
 		}
 
+		if ( function_exists( 'delete_transient' ) ) {
+			delete_transient( self::WRITE_FAILED_TRANSIENT );
+		}
+
 		// Direct in de optie: PDK_Settings::update() merget recursief per index, en zou een
 		// kortere space_pairs-lijst dus niet vervangen. 'enabled' blijft zoals het was.
 		unset( $config['enabled'] );
@@ -400,23 +422,32 @@ CSS;
 		foreach ( $tokens as $t ) {
 			$name  = substr( $t['name'], 2 ); // zonder voorloop-'--', zoals Oxygens eigen insert.
 			$label = 'PDK ' . str_replace( '--', ' -', preg_replace( '/(?<=\w)-(?=\w)/', ' ', substr( $name, 4 ) ) );
-			$entry = [
-				'id'              => isset( $index[ $name ] ) ? $variables[ $index[ $name ] ]['id'] : wp_generate_uuid4(),
-				'cssVariableName' => $name,
-				'label'           => $label,
-				'type'            => 'unit',
-				'value'           => [ 'number' => $t['value'], 'unit' => 'custom', 'style' => $t['value'] ],
-				'collection'      => self::OXYGEN_COLLECTION,
-			];
+			$value = [ 'number' => $t['value'], 'unit' => 'custom', 'style' => $t['value'] ];
+
 			if ( isset( $index[ $name ] ) ) {
-				if ( $variables[ $index[ $name ] ] != $entry ) { // phpcs:ignore Universal.Operators.StrictComparisons -- sleutelvolgorde mag verschillen.
-					$variables[ $index[ $name ] ] = $entry;
+				// Bestaande variabele: alleen type en value bijwerken; id, label, collectie en extra sleutels blijven.
+				$old = $variables[ $index[ $name ] ];
+				$new = $old;
+				if ( ! isset( $old['id'] ) || ! is_string( $old['id'] ) || '' === $old['id'] ) {
+					$new['id'] = wp_generate_uuid4();
+				}
+				$new['type']  = 'unit';
+				$new['value'] = $value;
+				if ( $new != $old ) { // phpcs:ignore Universal.Operators.StrictComparisons -- sleutelvolgorde mag verschillen.
+					$variables[ $index[ $name ] ] = $new;
 					$changed                      = true;
 				}
 			} else {
-				$variables[]       = $entry;
-				$index[ $name ]    = array_key_last( $variables );
-				$changed           = true;
+				$variables[]    = [
+					'id'              => wp_generate_uuid4(),
+					'cssVariableName' => $name,
+					'label'           => $label,
+					'type'            => 'unit',
+					'value'           => $value,
+					'collection'      => self::OXYGEN_COLLECTION,
+				];
+				$index[ $name ] = array_key_last( $variables );
+				$changed        = true;
 			}
 		}
 
@@ -474,7 +505,8 @@ CSS;
 				return [ 'status' => 'unchanged' ];
 			}
 
-			// saveVariables() controleert niets en wist bij een kapotte payload alle variabelen.
+			// saveVariables() controleert niets en wist bij een kapotte payload alle variabelen. Het vervangt bovendien elke {} in de payload
+			// door null, ook in de teksten van andere variabelen: bevat de payload {}, dan schrijven we niet door.
 			// ponytail: wp_json_encode saneert ongeldige UTF-8 zelf (geeft dan geen false); de guard blijft als vangnet.
 			$payload = wp_json_encode( [ 'variables' => $merged['variables'], 'collections' => $merged['collections'] ] );
 			if ( false === $payload || '' === $payload ) {
@@ -483,7 +515,7 @@ CSS;
 			if ( str_contains( $payload, '{}' ) ) {
 				throw new \RuntimeException( 'payload bevat {} (Oxygen zou die stukmaken)' );
 			}
-			$check = json_decode( str_replace( '{}', 'null', $payload ), true );
+			$check = json_decode( $payload, true ); // geen {} aanwezig (zie hierboven), dus Oxygens str_replace verandert niets.
 			if ( ! is_array( $check ) || ! is_array( $check['variables'] ?? null ) || ! is_array( $check['collections'] ?? null ) ) {
 				throw new \RuntimeException( 'payload zou na Oxygens decode ongeldig zijn' );
 			}
@@ -620,7 +652,7 @@ CSS;
 }() );</script>";
 
 		echo '<h3>' . esc_html__( 'Banen van de section', 'pdk-theme-options' ) . '</h3><p>' . esc_html__( 'Elke section is een grid; een direct kind staat standaard op de wide-baan. -start en -end wijzen naar de start- en eindkant en draaien dus om in RTL.', 'pdk-theme-options' ) . '</p><ul style="list-style:disc;margin-left:1.5em">';
-		foreach ( [ 'pdk-content', 'pdk-popout', 'pdk-popout-start', 'pdk-popout-end', 'pdk-wide-start', 'pdk-wide-end', 'pdk-full', 'pdk-full-start', 'pdk-full-end' ] as $cls ) {
+		foreach ( array_diff( self::CLASSES, [ 'pdk-off', 'pdk-container', 'pdk-grid', 'pdk-flow-off' ] ) as $cls ) {
 			echo '<li><code>.' . esc_html( $cls ) . '</code></li>';
 		}
 		echo '</ul><h3>' . esc_html__( 'Overige klassen', 'pdk-theme-options' ) . '</h3><ul style="list-style:disc;margin-left:1.5em">';

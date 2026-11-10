@@ -70,7 +70,12 @@ Waarom geen lagen: Oxygens Modern Normalize zet `*{margin:0;padding:0}` unlayere
 
 ### De section is het grid
 
-Elke `section` zonder `.pdk-off` is een grid met zeven sporen en vier banen (`full`, `wide`, `popout`, `content`), met `container-type: inline-size` en `font-size: var(--pdk-step-0)`. Een direct kind staat standaard op `wide` (= `site_width`, gecentreerd, minimaal `gutter` vrij aan elke kant). Op een smal scherm krimpen popout en wide naar 0; de full-sporen houden minimaal `gutter`.
+Elke `section` zonder `.pdk-off` en zonder `hidden`-attribuut is een grid met zeven sporen en vier banen (`full`, `wide`, `popout`, `content`), met `container-type: inline-size` en `font-size: var(--pdk-step-0)`. Een direct kind staat standaard op `wide` (= `site_width`, gecentreerd, minimaal `gutter` vrij aan elke kant). Op een smal scherm krimpen popout en wide naar 0; de full-sporen houden minimaal `gutter`.
+
+De sporen zijn begrensd door `site_width`: `content = min(measure, site_width, 100% − 2 × gutter)`, `popout = minmax(0, min(popout_space, max(0, (site_width − measure) / 2)))` en `wide = minmax(0, max(0, (site_width − measure) / 2 − popout_space))`. Zo is content + 2 × popout + 2 × wide nooit breder dan `site_width`: is `site_width` kleiner dan `measure`, dan is content gelijk aan `site_width` en zijn popout en wide 0; ligt hij tussen `measure` en `measure + 2 × popout_space`, dan krijgt popout het restant en is wide 0.
+
+- **`hidden`:** een `section[hidden]` blijft verborgen. Auteurs-`display: grid` wint anders van de `display: none` van de browser (`[hidden]`), dus de selector sluit `[hidden]` uit (specificiteit blijft 0).
+- **`.pdk-grid` op een section:** de auto-fit-kolommen vervangen dan de benoemde sporen, dus de baanregels (`> *` op `wide` en de baanklassen) gelden niet op `section.pdk-grid`. Baanklassen doen binnen een `.pdk-grid`-section niets; de kinderen worden gewoon kaarten.
 
 | Klasse (op een direct kind) | Baan |
 |---|---|
@@ -144,8 +149,10 @@ Het stylesheet wordt alleen geregistreerd als het bestand bestaat, zodat `custom
 Het bestand wordt **direct** geschreven (`PDK_CSS_Framework::write_file()`, na `pdk_ensure_storage_dir()`), niet via `pdk_write_storage_file()`: de inhoud komt volledig uit gevalideerde getallen, dus geen code-cap, geen `.bak` en geen hash; het staat niet in `pdk_watched_files()`. Opnieuw gegenereerd wordt het:
 
 - bij elke geslaagde save (admin of MCP);
-- bij de registratie als het bestand ontbreekt;
+- bij de registratie als het bestand ontbreekt (na een geslaagde regeneratie volgt ook de Oxygen-sync, zodat de variabelen een plugin-update meemaken; nooit fataal en zonder uitvoer op de frontend);
 - bij de registratie als de optie `pdk_css_framework_built` niet gelijk is aan `PDK_PLUGIN_VERSION` (D-P2). Zo komt gewijzigde generator-uitvoer na een plugin-update vanzelf op de site, zonder dat iemand hoeft op te slaan. De optie wordt pas gezet als het schrijven lukte; bij een gelijke versie en een bestaand bestand gebeurt er geen schrijfactie.
+
+Kan het bestand niet worden geschreven (uploads niet schrijfbaar), dan zet `register()` de transient `pdk_css_framework_write_failed` (10 minuten) en probeert het niet bij elk request opnieuw; een geslaagde save wist de transient. `update-css-framework` geeft dan `WP_Error 'pdk_file_write_failed'` (status 500) in plaats van `pdk_invalid_config`.
 
 Bij verwijderen van de plugin blijft het bestand in uploads staan, net als de andere klantbestanden; `uninstall.php` verwijdert wel de optie `pdk_css_framework_built` (en, zoals altijd, `pdk_theme_options`).
 
@@ -168,7 +175,7 @@ Oxygen heeft **geen publieke PHP-API** voor het schrijven van variabelen. De syn
 
 1. Alleen als `pdk_oxygen6_active()` en `saveVariables`, `get_global_option` en `global_option_exists` bestaan; anders status `skipped` ("Oxygen 6 niet actief — alleen het CSS-bestand bijgewerkt").
 2. Lezen van de **ruwe** optie `variables_json_string` (en `variables_collections_json_string`) met `get_global_option()`, nooit de gefilterde `getVariables()` (dan zouden variabelen van andere filters in de database belanden). Een oud formaat (JSON-string) wordt gedecodeerd. Bestaat de optie maar geeft ze geen array, dan status `error` en wordt er niets geschreven.
-3. `merge_oxygen_variables()` (puur, testbaar zonder Oxygen): overschrijft op `cssVariableName` met behoud van id en plek, voegt nieuwe toe aan het eind (`id = wp_generate_uuid4()`, naam zonder voorloop-`--`, `type unit`, `value {number, unit: custom, style}`, label `PDK step 0`, collectie `PDK Framework`), laat vreemde variabelen met rust en verwijdert **nooit** iets (ook niet verouderde `pdk-step-5` na `steps_up` 3: dat zou `{var-<id>}`-verwijzingen breken).
+3. `merge_oxygen_variables()` (puur, testbaar zonder Oxygen): van een bestaande `pdk-*` variabele (match op `cssVariableName`) worden alleen `type` en `value` bijgewerkt; `id`, `label`, collectie en extra sleutels blijven staan, en een bestaande variabele zonder `id` krijgt `wp_generate_uuid4()`. Nieuwe tokens komen aan het eind (`id = wp_generate_uuid4()`, naam zonder voorloop-`--`, `type unit`, `value {number, unit: custom, style}`, label `PDK step 0`, collectie `PDK Framework`). Vreemde variabelen blijven ongemoeid en er wordt **nooit** iets verwijderd (ook niet een verouderde `pdk-step-5` na `steps_up` 3: dat zou `{var-<id>}`-verwijzingen breken). `changed` is alleen waar als een waarde of id echt verschilt.
 4. Is er niets veranderd, dan status `unchanged` en wordt `saveVariables()` niet aangeroepen.
 
 ### Risico en bescherming tegen stil wissen
@@ -176,8 +183,8 @@ Oxygen heeft **geen publieke PHP-API** voor het schrijven van variabelen. De syn
 `saveVariables()` controleert zijn invoer niet: het doet `str_replace( '{}', 'null', … )`, `json_decode` en schrijft het resultaat zonder controle, dus een kapotte payload wist **alle** variabelen zonder exceptie. Daarom vóór de aanroep, in een `try` met `catch ( \Throwable )`:
 
 1. `wp_json_encode()` mag niet `false` geven. NB: de echte `wp_json_encode()` saneert ongeldige UTF-8 zelf en geeft dan geen `false`; de guard blijft als vangnet (en omdat een kapotte string zo stil wordt "gerepareerd").
-2. De payload bevat nooit `{}` (ook niet letterlijk in een label).
-3. Simuleer Oxygens decode: `json_decode( str_replace( '{}', 'null', $payload ), true )` moet een array zijn met `variables` en `collections`, allebei arrays.
+2. De payload bevat nooit `{}` (ook niet letterlijk in een label). Reden: `saveVariables()` vervangt **elke** `{}` in de payload door `null`, ook in de teksten van andere variabelen; doorschrijven zou die beschadigen, dus de sync stopt met status `error`. **Risico:** lege JSON-objecten in andere Oxygen-variabelen worden na decode en encode `[]` en leiden zo (via de decode als array) tot deze fout; de sync schrijft dan niets.
+3. Controleer de decode: `json_decode( $payload, true )` (zonder `{}` verandert Oxygens `str_replace` niets) moet een array zijn met `variables` en `collections`, allebei arrays.
 4. Pas dan `saveVariables( $payload )`.
 
 Een fout geeft status `error` met de tekst; de instellingen en het bestand blijven opgeslagen. In de admin volgt een redirect met `saved=1&warning=…` en `render_notices()` toont een `notice-warning` ("Instellingen opgeslagen, Oxygen-sync mislukt: …"). Het restrisico (een interne API die in een Oxygen-update kan veranderen) is bewust genomen; draai na elke Oxygen-update de live-check opnieuw (`tests/live/css-framework-slice2.mjs`). Het CSS-bestand definieert alle tokens zelf ook, dus de frontend blijft werken.

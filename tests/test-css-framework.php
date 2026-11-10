@@ -246,7 +246,8 @@ namespace {
 			if ( ')' === $sel[ $i ] ) { if ( array_pop( $stack ) ) { continue; } }
 			$out .= $sel[ $i ];
 		}
-		return $out;
+		// :not([hidden]) en :not(.pdk-grid) zijn uitsluitingen op de section; de vormvergelijkingen hieronder gaan over de baan zelf (eigen checks verderop).
+		return str_replace( [ ':not([hidden])', ':not(.pdk-grid)' ], '', $out );
 	}
 	/** Selector zonder de inhoud van :where(...) en zonder combinatoren: leeg = specificiteit 0. */
 	function sel_buiten_where( string $sel ): string {
@@ -492,8 +493,8 @@ namespace {
 	$secb = compact_css( (string) ( $sec['body'] ?? '' ) );
 	check( 'section-regel bestaat (:where(section:not(.pdk-off)))', null !== $sec );
 	$BO = [
-		'--pdk-bo-content' => 'min(var(--pdk-measure), 100% - var(--pdk-gutter) * 2)',
-		'--pdk-bo-popout'  => 'minmax(0, var(--pdk-popout-space))',
+		'--pdk-bo-content' => 'min(var(--pdk-measure), var(--pdk-site-width), 100% - var(--pdk-gutter) * 2)',
+		'--pdk-bo-popout'  => 'minmax(0, min(var(--pdk-popout-space), max(0px, (var(--pdk-site-width) - var(--pdk-measure)) / 2)))',
 		'--pdk-bo-wide'    => 'minmax(0, max(0px, (var(--pdk-site-width) - var(--pdk-measure)) / 2 - var(--pdk-popout-space)))',
 		'--pdk-bo-full'    => 'minmax(var(--pdk-gutter), 1fr)',
 	];
@@ -521,7 +522,16 @@ namespace {
 	$verwacht_volgorde = array_map( 'compact_css', array_keys( $kinderen ) );
 	$pos = array_map( static fn( $x ) => array_search( $x, $plain_volgorde, true ), $verwacht_volgorde );
 	check( 'kindregels staan in de volgorde van §4 (> * eerst, baan-klassen erna)', ! in_array( false, $pos, true ) && $pos === array_values( array_unique( $pos ) ) && $pos === ( function ( $a ) { sort( $a ); return $a; } )( $pos ), json_encode( $pos ) );
-	check( 'kind-selectors hebben de vorm :where(section:not(.pdk-off)) > :where(.pdk-...)', css_find( $lay, ':where(section:not(.pdk-off)) > :where(.pdk-content)' ) !== null && css_find( $lay, ':where(section:not(.pdk-off)) > :where(.pdk-full-end)' ) !== null && css_find( $lay, ':where(section:not(.pdk-off)) > *' ) !== null );
+	check( 'kind-selectors hebben de vorm :where(section:not(.pdk-off)...) > :where(.pdk-...) (alles in :where)', css_plain_find( $lay, 'section:not(.pdk-off) > .pdk-content' ) !== null && css_plain_find( $lay, 'section:not(.pdk-off) > .pdk-full-end' ) !== null && css_plain_find( $lay, 'section:not(.pdk-off) > *' ) !== null && ! array_filter( $lay, static fn( $r ) => str_contains( $r['sel'], 'section' ) && ! str_starts_with( $r['sel'], ':where(section' ) ) );
+	// <section hidden>: de section-regel en alle kind-/baanregels sluiten [hidden] uit, zodat het hidden-attribuut (display: none) wint.
+	$sec_regels = array_values( array_filter( $lay, static fn( $r ) => str_starts_with( $r['sel'], ':where(section:not(.pdk-off)' ) ) );
+	check( 'hidden: de section-regel en alle 10 kindregels (11 regels) bevatten :not([hidden])', 11 === count( $sec_regels ) && ! array_filter( $sec_regels, static fn( $r ) => ! str_contains( $r['sel'], ':not([hidden])' ) ), (string) count( $sec_regels ) );
+	// section.pdk-grid: de baanplaatsing (kindregels) geldt er niet, anders krijgen de kaarten grid-column: wide (impliciete kolommen).
+	$kind_regels = array_values( array_filter( $sec_regels, static fn( $r ) => str_contains( $r['sel'], '>' ) ) );
+	$i_last_kind = max( array_keys( array_filter( $lay, static fn( $r ) => str_starts_with( $r['sel'], ':where(section:not(.pdk-off)' ) && str_contains( $r['sel'], '>' ) ) ) );
+	$reset = false;
+	foreach ( $lay as $i_r => $r_ ) { if ( str_contains( $r_['sel'], 'pdk-grid' ) && str_contains( $r_['sel'], 'section' ) && str_contains( $r_['sel'], '>' ) && css_has( $r_, 'grid-column: auto' ) && $i_r > $i_last_kind ) { $reset = true; } }
+	check( 'section.pdk-grid: de 10 kindregels sluiten :not(.pdk-grid) uit, of een latere reset zet grid-column: auto', 10 === count( $kind_regels ) && ( ! array_filter( $kind_regels, static fn( $r ) => ! str_contains( $r['sel'], ':not(.pdk-grid)' ) ) || $reset ) );
 	$grid = css_plain_find( $lay, '.pdk-grid' );
 	check( ':where(.pdk-grid): display grid, gap gutter, repeat(auto-fit, minmax(min(var(--pdk-grid-min), 100%), 1fr))',
 		css_has( $grid, 'display: grid' ) && css_has( $grid, 'gap: var(--pdk-gutter)' ) && css_has( $grid, 'grid-template-columns: repeat(auto-fit, minmax(min(var(--pdk-grid-min), 100%), 1fr))' ) );

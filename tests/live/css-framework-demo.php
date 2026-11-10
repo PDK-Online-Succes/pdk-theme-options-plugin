@@ -201,7 +201,7 @@ cw:t=>[t.firstElementChild.getBoundingClientRect().width,t.clientWidth],
 cols:t=>{const g=n(cs(t).columnGap),m=gmp(t),w=t.clientWidth;
  return[''+cols(t),''+Math.min(t.children.length,Math.max(1,Math.floor((w+g)/(Math.min(m,w)+g))))]},
 lane:(t,W,k)=>{const s=t.parentElement,S=s.clientWidth,pr=q=>s.querySelector('[data-pr='+q+']').getBoundingClientRect().width,
- g=pr('g'),a=S-2*g,c=Math.min(pr('c'),a),w=Math.min(pr('w'),a),p=c+2*Math.min(pr('p'),(a-c)/4),
+ g=pr('g'),a=S-2*g,c=Math.min(pr('c'),pr('w'),a),w=Math.min(pr('w'),a),p=c+2*Math.min(pr('p'),Math.max(0,(pr('w')-pr('c'))/2),(a-c)/4),
  T2={wide:[(S-w)/2,w],content:[(S-c)/2,c],popout:[(S-p)/2,p],'popout-start':[(S-p)/2,(p+c)/2],'popout-end':[(S-c)/2,(p+c)/2],
  'wide-start':[(S-w)/2,(w+c)/2],'wide-end':[(S-c)/2,(w+c)/2],full:[0,S],'full-start':[0,(S+w)/2],'full-end':[(S-w)/2,(S+w)/2]},
  r=t.getBoundingClientRect(),sr=s.getBoundingClientRect(),rtl=cs(s).direction=='rtl';

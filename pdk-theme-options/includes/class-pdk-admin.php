@@ -374,7 +374,7 @@ class PDK_Admin {
 		$input['flow_enabled'] = ( isset( $post['flow_enabled'] ) && '' !== $post['flow_enabled'] ) ? $post['flow_enabled'] : '0';
 		$pairs                 = $post['space_pairs'] ?? [];
 		$input['space_pairs']  = is_array( $pairs )
-			? array_values( array_filter( $pairs, static fn( $p ) => ! is_string( $p ) || '' !== trim( $p ) ) )
+			? array_values( array_filter( $pairs, static fn( $p ) => ! is_string( $p ) || '' !== trim( $p, " 	" ) ) )
 			: $pairs;
 
 		$result = PDK_CSS_Framework::save( $input );

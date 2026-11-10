@@ -218,6 +218,31 @@ async function ac007( browser ) {
 	await page.context().close();
 }
 
+// ---- Randgevallen van de section: [hidden], section.pdk-grid, site_width-begrenzing (AC-CSS-006/-007) ---------------------------
+const saveCfg = ( cfg ) => saveResult( wpEval( `$r=PDK_CSS_Framework::save(json_decode(base64_decode("${ Buffer.from( JSON.stringify( cfg ) ).toString( 'base64' ) }"),true)); echo wp_json_encode(["saved"=>$r["saved"],"errors"=>$r["errors"]]);` ) );
+async function acEdge( browser ) {
+	let page = await open( browser, 1600, '<section hidden id="hs"><div>verborgen</div></section><section id="vs"><div>zichtbaar</div></section>' );
+	check( '007', `<section hidden> heeft display none (${ await css( page, '#hs', 'display' ) }); een gewone section blijft grid`, await css( page, '#hs', 'display' ) === 'none' && await css( page, '#vs', 'display' ) === 'grid' );
+	await page.context().close();
+	page = await open( browser, 1600, '<section class="pdk-grid" id="gs"><div class="k">1</div><div class="k">2</div><div class="k">3</div></section>' );
+	const g = await page.evaluate( () => { const s = document.querySelector( '#gs' ), r = [ ...s.querySelectorAll( '.k' ) ].map( ( e ) => e.getBoundingClientRect() ); return { tops: r.map( ( x ) => Math.round( x.top ) ), lefts: [ ...new Set( r.map( ( x ) => Math.round( x.left ) ) ) ], cols: getComputedStyle( s ).gridTemplateColumns.split( ' ' ).filter( ( t ) => parseFloat( t ) > 0.5 ).length, gc: getComputedStyle( s.querySelector( '.k' ) ).gridColumnStart }; } );
+	check( '007', `section.pdk-grid met 3 kaarten @1600: naast elkaar (zelfde top, ${ g.lefts.length } verschillende lefts), 3 kolommen, geen baanplaatsing (${ JSON.stringify( g ) })`, new Set( g.tops ).size === 1 && g.lefts.length >= 3 && g.cols === 3 && g.gc === 'auto' );
+	await page.context().close();
+	// site_width 20rem (320px): wide, popout en content blijven binnen 320px; de config wordt tijdelijk gezet en direct teruggezet.
+	const orig = JSON.parse( wpEval( 'echo wp_json_encode( PDK_CSS_Framework::config() );' ) ).site_width;
+	try {
+		const r = saveCfg( { site_width: 20 } );
+		check( '007', 'tijdelijk site_width = 20 ingesteld', r.saved === true, JSON.stringify( r.errors ) );
+		page = await open( browser, 1600, MARKUP_007 );
+		const w = await Promise.all( [ '#d', '#po', '#c' ].map( ( x ) => rect( page, x ) ) );
+		check( '007', `site_width 20rem @1600: wide ${ w[ 0 ].width.toFixed( 2 ) }, popout ${ w[ 1 ].width.toFixed( 2 ) }, content ${ w[ 2 ].width.toFixed( 2 ) } allemaal <= 320.5`, w.every( ( x ) => x.width <= 320 + NEAR ) );
+		await page.context().close();
+	} finally {
+		const r2 = saveCfg( { site_width: orig } );
+		check( '007', `site_width teruggezet naar ${ orig }`, r2.saved === true, JSON.stringify( r2.errors ) );
+	}
+}
+
 // ---- AC-CSS-024 (Oxygen INACTIEF, <html dir="rtl">, 1600) --------------------------------
 async function ac024( browser ) {
 	const ltr = await open( browser, 1600, MARKUP_007 );
@@ -361,7 +386,7 @@ try {
 	if ( ! OXYGEN_OFF ) { console.log( 'note: Oxygen-inactief-cases overgeslagen (Oxygen blijft actief). Zet PDK_LIVE_OXYGEN_OFF=1 om Oxygen tijdelijk uit te zetten voor AC-007/-019/-020/-009 zonder Oxygen; de beginstand wordt in finally hersteld.' ); }
 	if ( OXYGEN_OFF && ( run( '007' ) || run( '024' ) || run( '019' ) || run( '020' ) || run( '009' ) ) ) {
 		setOxygen( false );
-		if ( run( '007' ) ) { await ac007( browser ); }
+		if ( run( '007' ) ) { await ac007( browser ); await acEdge( browser ); }
 		if ( run( '024' ) ) { await ac024( browser ); }
 		if ( run( '019' ) ) { await ac019( browser ); }
 		if ( run( '020' ) ) { await ac020( browser, 'Oxygen inactief' ); await ac020Custom( browser, 'Oxygen inactief' ); }
@@ -373,7 +398,7 @@ try {
 		try {
 			setModernNormalize( true );
 			console.log( 'note: AC-007/-024/-019 draaien hier met Oxygen actief en Modern Normalize aan (body-marge 0 door de reset)' );
-			if ( run( '007' ) ) { await ac007( browser ); }
+			if ( run( '007' ) ) { await ac007( browser ); await acEdge( browser ); }
 			if ( run( '024' ) ) { await ac024( browser ); }
 			if ( run( '019' ) ) { await ac019( browser ); }
 			if ( run( '020' ) ) { await ac020( browser, 'Oxygen actief, Modern Normalize aan (primair, V7)' ); await ac020Custom( browser, 'Oxygen actief, Modern Normalize aan' ); }

@@ -208,7 +208,7 @@ class PDK_Agent_Abilities {
 			'config'  => $config,
 			'fields'  => PDK_CSS_Framework::fields(),
 			'tokens'  => self::css_tokens( $config ),
-			'classes' => [ 'pdk-off', 'pdk-container', 'pdk-content', 'pdk-popout', 'pdk-popout-start', 'pdk-popout-end', 'pdk-wide-start', 'pdk-wide-end', 'pdk-full', 'pdk-full-start', 'pdk-full-end', 'pdk-grid', 'pdk-flow-off' ],
+			'classes' => PDK_CSS_Framework::CLASSES,
 			'css_url' => PDK_STORAGE_URL . 'css-framework.css',
 			'oxygen'  => [ 'active' => pdk_oxygen6_active(), 'modern_normalize' => PDK_CSS_Framework::modern_normalize_state() ],
 		];
@@ -219,6 +219,9 @@ class PDK_Agent_Abilities {
 		$new    = is_array( $input ) && is_array( $input['config'] ?? null ) ? $input['config'] : [];
 		$result = PDK_CSS_Framework::save( $new );
 
+		if ( ! $result['saved'] && isset( $result['errors']['file'] ) && 1 === count( $result['errors'] ) ) {
+			return new WP_Error( 'pdk_file_write_failed', $result['errors']['file'], [ 'status' => 500, 'errors' => $result['errors'] ] );
+		}
 		if ( ! $result['saved'] ) {
 			return new WP_Error(
 				'pdk_invalid_config',
