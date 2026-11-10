@@ -77,6 +77,7 @@ Niet uitschakelbaar; deze drie worden onvoorwaardelijk geladen.
 | [**IMGX**](docs/modules/imgx.md) | WebP- en AVIF-versies naast bestaande JPEG's en PNG's zetten en uitserveren via `<picture>`; originelen blijven ongewijzigd |
 | [**Afbeeldingsmaten**](docs/modules/image-sizes.md) | Geregistreerde afbeeldingsmaten bekijken, aan/uit zetten, eigen maten aanmaken en de mediabibliotheek in batches opnieuw genereren |
 | [**Oxygen Element Studio**](docs/modules/oxygen-elements.md) | Opslaglocatie "PDK Elementen" voor Element Studio (Oxygen 6): elementen, macro's en presets uit de builder komen in `wp-content/uploads/pdk-theme-options/oxygen-elements/` en overleven updates; de tab toont en bewerkt de bestanden (element.php, twig, css) |
+| [**CSS Framework**](docs/modules/css-framework.md) | Fluid typografie en ruimte (Utopia, `clamp()` + `cqi`), basisstijlen voor koppen en `p`, flow-marges en de section als grid met banen (wide, popout, content, full); sync naar Oxygen-variabelen en MCP-abilities |
 
 Modules met (WooCommerce) worden niet geladen zolang WooCommerce niet actief is, ook niet als de toggle aan staat. Hetzelfde geldt voor Oxygen Element Studio zonder actieve Oxygen 6.x.
 
@@ -93,6 +94,7 @@ Clientbestanden staan in `wp-content/uploads/pdk-theme-options/` en worden **nie
 | `custom-script.js` | Eigen JavaScript |
 | `libraries/` | Geüploade JS/CSS-bibliotheken |
 | `oxygen-elements/` | Element Studio-elementen, -macro's en -presets (Oxygen 6) |
+| `css-framework.css` | Gegenereerd door de module CSS Framework (wordt opnieuw gegenereerd, niet handmatig bewerken) |
 
 Fontbestanden staan in `wp-content/uploads/fonts/`:  
 Bestandsnaamconventie: `FamilyName-Weight.woff2` (bijv. `Raleway-Bold.woff2`)

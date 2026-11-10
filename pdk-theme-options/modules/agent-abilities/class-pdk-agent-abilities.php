@@ -115,10 +115,124 @@ class PDK_Agent_Abilities {
 			],
 		] );
 
+		// CSS Framework: alleen als die module draait.
+		if ( class_exists( 'PDK_CSS_Framework' ) ) {
+			$this->register_css_framework_abilities();
+		}
+
 		// Element Studio-bestanden: alleen als de module aan staat en Oxygen actief is.
 		if ( class_exists( 'PDK_Oxygen_Elements' ) ) {
 			$this->register_oxygen_abilities();
 		}
+	}
+
+	/**
+	 * CSS Framework: config en tokens lezen, config schrijven. Instellingen, geen code:
+	 * daarom manage_options (net als de admin-tab) en niet PDK_CAP_EDIT_CODE. Dat is
+	 * veilig omdat er alleen gevalideerde getallen en vaste namen in de CSS komen.
+	 */
+	private function register_css_framework_abilities(): void {
+		$perm = static fn(): bool => current_user_can( 'manage_options' );
+		$int  = [ 'type' => 'integer' ];
+		$num  = [ 'type' => 'number' ];
+		$str  = [ 'type' => 'string' ];
+
+		wp_register_ability( self::CATEGORY . '/get-css-framework', [
+			'label'               => __( 'CSS Framework lezen', 'pdk-theme-options' ),
+			'description'         => __( 'Geeft de instellingen, alle tokens (naam en waarde), de beschikbare layoutklassen en de CSS-URL van het CSS Framework terug, plus of Oxygen en Modern Normalize aan staan.', 'pdk-theme-options' ),
+			'category'            => self::CATEGORY,
+			'input_schema'        => [ 'type' => 'object', 'additionalProperties' => false ],
+			'output_schema'       => [ 'type' => 'object' ],
+			'permission_callback' => $perm,
+			'execute_callback'    => [ $this, 'get_css_framework' ],
+			'meta'                => [
+				'show_in_rest' => true,
+				'mcp'          => [ 'public' => true ],
+				'annotations'  => [ 'readonly' => true, 'destructive' => false, 'idempotent' => true ],
+			],
+		] );
+
+		wp_register_ability( self::CATEGORY . '/update-css-framework', [
+			'label'               => __( 'CSS Framework bijwerken', 'pdk-theme-options' ),
+			'description'         => __( 'Werkt (een deel van) de instellingen van het CSS Framework bij: valideert, regenereert css-framework.css en synchroniseert de tokens naar Oxygen-variabelen (overschrijft daar de pdk-* variabelen). Ontbrekende sleutels houden hun waarde; bij een ongeldige waarde wordt niets opgeslagen.', 'pdk-theme-options' ),
+			'category'            => self::CATEGORY,
+			'input_schema'        => [
+				'type'                 => 'object',
+				'additionalProperties' => false,
+				'required'             => [ 'config' ],
+				'properties'           => [
+					'config' => [
+						'type'                 => 'object',
+						'additionalProperties' => false,
+						'properties'           => self::with_help( [
+							'min_viewport' => $int, 'max_viewport' => $int, 'steps_up' => $int, 'steps_down' => $int,
+							'font_min' => $num, 'font_max' => $num, 'ratio_min' => $num, 'ratio_max' => $num,
+							'leading_body' => $num, 'leading_heading' => $num, 'grid_min' => $num, 'site_width' => $num, 'measure' => $num, 'lh_heading_ratio' => $num, 'lh_body_ratio' => $num,
+							'gutter' => $str, 'popout_space' => $str, 'flow_space' => $str, 'flow_heading_space' => $str,
+							'flow_enabled' => [ 'type' => 'boolean' ],
+							'space_pairs'  => [ 'type' => 'array', 'items' => $str, 'maxItems' => 10 ],
+						] ),
+					],
+				],
+			],
+			'output_schema'       => [ 'type' => 'object' ],
+			'permission_callback' => $perm,
+			'execute_callback'    => [ $this, 'update_css_framework' ],
+			'meta'                => [
+				'show_in_rest' => true,
+				'mcp'          => [ 'public' => true ],
+				'annotations'  => [ 'readonly' => false, 'destructive' => true, 'idempotent' => true ],
+			],
+		] );
+	}
+
+	/** Zet de help uit PDK_CSS_Framework::fields() als description bij elke schema-eigenschap (één bron). */
+	private static function with_help( array $properties ): array {
+		foreach ( PDK_CSS_Framework::fields() as $key => $f ) {
+			if ( isset( $properties[ $key ] ) ) {
+				$properties[ $key ]['description'] = $f['help'];
+			}
+		}
+		return $properties;
+	}
+
+	/** Tokens zonder de extra tabelkolommen: alleen name en value. */
+	private static function css_tokens( array $config ): array {
+		return array_map( static fn( $t ) => [ 'name' => $t['name'], 'value' => $t['value'] ], PDK_CSS_Framework::tokens( $config ) );
+	}
+
+	public function get_css_framework(): array {
+		$config = PDK_CSS_Framework::config();
+
+		return [
+			'config'  => $config,
+			'fields'  => PDK_CSS_Framework::fields(),
+			'tokens'  => self::css_tokens( $config ),
+			'classes' => [ 'pdk-off', 'pdk-container', 'pdk-content', 'pdk-popout', 'pdk-popout-start', 'pdk-popout-end', 'pdk-wide-start', 'pdk-wide-end', 'pdk-full', 'pdk-full-start', 'pdk-full-end', 'pdk-grid', 'pdk-flow-off' ],
+			'css_url' => PDK_STORAGE_URL . 'css-framework.css',
+			'oxygen'  => [ 'active' => pdk_oxygen6_active(), 'modern_normalize' => PDK_CSS_Framework::modern_normalize_state() ],
+		];
+	}
+
+	/** @return array|WP_Error */
+	public function update_css_framework( $input ) {
+		$new    = is_array( $input ) && is_array( $input['config'] ?? null ) ? $input['config'] : [];
+		$result = PDK_CSS_Framework::save( $new );
+
+		if ( ! $result['saved'] ) {
+			return new WP_Error(
+				'pdk_invalid_config',
+				__( 'Ongeldige configuratie, niets opgeslagen.', 'pdk-theme-options' ),
+				[ 'errors' => $result['errors'] ]
+			);
+		}
+
+		return [
+			'saved'  => true,
+			'config' => $result['config'],
+			'tokens' => self::css_tokens( $result['config'] ),
+			'oxygen' => $result['oxygen'],
+		];
 	}
 
 	/** Lezen en bewerken van bestaande Element Studio-bestanden; aanmaken kan hier bewust niet. */
@@ -357,10 +471,11 @@ class PDK_Agent_Abilities {
 				'custom_css'   => __( 'custom-style.css wordt op de frontend ingeladen als stylesheet-handle pdk-custom-style, met filemtime als versie. Alleen als de module Custom CSS aan staat en het bestand niet leeg is.', 'pdk-theme-options' ),
 				'custom_js'    => __( 'custom-script.js wordt in de footer ingeladen als script-handle pdk-custom-script. Alleen als de module Custom JavaScript aan staat en het bestand niet leeg is.', 'pdk-theme-options' ),
 				'custom_fonts' => __( '@font-face-blok in wp_head (prioriteit 5), inline of als bestand pdk-custom-fonts.css. Gebruik de font-family-namen in Custom CSS.', 'pdk-theme-options' ),
+				'css_framework' => __( 'css-framework.css (module CSS Framework): fluid tokens (--pdk-step-*, --pdk-space-*), basisstijlen voor h1-h6 en p, flow-marges tussen tekstelementen en de section als grid met de klassen .pdk-content, .pdk-popout(-start/-end), .pdk-wide-start/-end, .pdk-full(-start/-end), .pdk-grid, .pdk-container, .pdk-off en .pdk-flow-off. Lezen en wijzigen met get-css-framework en update-css-framework.', 'pdk-theme-options' ),
 				'login_page'   => __( 'Vaste PDK-huisstijl op wp-login.php; geen frontend-uitvoer en niet configureerbaar.', 'pdk-theme-options' ),
 				'product_cat'  => __( 'Productcategorieën hebben een extra term-meta short_description; opvragen met get_term_meta( $term_id, "short_description", true ).', 'pdk-theme-options' ),
 			],
-			'notes'            => __( 'Codeer bedrijfsgegevens, adressen en openingstijden nooit hard: gebruik bovenstaande helpers, dan blijft de klant ze zelf beheren via PDK Tools → Site Instellingen. De plugin levert geen frontend-CSS mee — opmaak van de uitvoer hoort in custom-style.css, op de klassen uit frontend_output.', 'pdk-theme-options' ),
+			'notes'            => __( 'Codeer bedrijfsgegevens, adressen en openingstijden nooit hard: gebruik bovenstaande helpers, dan blijft de klant ze zelf beheren via PDK Tools → Site Instellingen. De plugin levert geen frontend-CSS mee, behalve css-framework.css als de module CSS Framework aan staat — opmaak van de uitvoer hoort in custom-style.css, op de klassen uit frontend_output.', 'pdk-theme-options' ),
 		];
 	}
 

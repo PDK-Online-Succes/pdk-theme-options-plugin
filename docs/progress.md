@@ -1,78 +1,135 @@
-# Voortgang — IMGX LCP-LQIP-placeholder
+# Progress — CSS Framework module
 
-**Doel**: IMGX maakt per afbeeldingsmaat automatisch een LQIP (low-quality JPEG, ≥0,055 bpp) en zet die als
-`background-image` op de `<img>`, volgens https://csswizardry.com/2023/09/the-ultimate-lqip-lcp-technique/.
+**Goal**: Build a modern CSS framework as a new plugin module: fluid type, line-height and spacing (Utopia-style, clamp + cqi), a layout with max-width and breakout, an auto-responsive grid, MCP abilities and a sync to Oxygen 6 variables.
 
-Brief: `docs/imgx-lqip-brief.md` · Module-doc: `docs/modules/imgx.md`
-Vorige ledger (Afbeeldingsmaten, uitgebracht in 2.10.0): zie git-historie van dit bestand.
+Branch: `css-framework` · Brief: `docs/css-framework-brief.md` · Previous ledger (IMGX LQIP, released in 2.12.x): see the git history of this file.
 
-## Profiel
+## Profile
 
-- **Standard** — triagescore 4 (bestanden >10: 2, gedeeltelijk precedent: 1, rest-ambiguïteit: 1, onomkeerbaar: 0, parallel: 0)
-- `Overgeslagen: architect` — bestaande IMGX-architectuur, uitbreiding van Generator/Renderer
-- `Overgeslagen: ui-ux-designer` — één checkbox op de bestaande IMGX-tab
-- `Overgeslagen: adversarial debate` — Standard draait nul cycli
+- **Standard**, triage score 5. Files >10: 1, novel pattern: 1, ambiguous: 2, irreversible: 0, parallel: 1.
+- `Skipped: architect` — the existing module structure is enough; precedents are `custom-css` (generated CSS) and `agent-abilities` (MCP).
+- `Skipped: ui-ux-designer` — one settings tab in the existing admin style.
+- `Skipped: adversarial debate` — the Standard profile runs zero debate cycles.
 
-## Runteller
+## Run counter
 
-11 (limiet 12, twee keer verhoogd door gebruiker) — backend-dev 9 (fixes 1–4, 194/2: 2 checks te streng, string blijft gesloten), tester 10, backend-dev 11 one-liner `;`→`%3B`; recheck = 12; `Overgeslagen: docs/test-plan.md — project kent die conventie niet, §11 van de brief is de traceability`; tester 6, backend-dev 7, code-review 8; elke extra rework raakt de circuit-breaker
+31 (limit 31, raised by the user: … → 30 → 31): product-analyst draft, product-analyst patch with the OQ answers, doc-reviewer (1 blocker, 4 majors, 13 minors; math correct), product-analyst rework 1/2 (all findings fixed, 20 AC), product-analyst patch V7 Modern Normalize + flow rule, tester slice 1 Mode A (red for the right reason, 11 existing files green, math 26/26 + 6 extra configs), backend-dev slice 1 (H green 12/12, live 66/71), product-analyst V8 patch, tester slice 1 rework (54 expected-red), product-analyst V10/V11 (24 AC), product-analyst V12, tester rework 2 (70 expected-red, 11 files green), backend-dev rework 2 (H 12/12, live 111/111), code-reviewer slice 1 (DONE_WITH_CONCERNS: 4 important, 3 minor), frontend-dev demo page dev.local (Oxygen html-to-page, 0 mismatches at 400/1024/1600), tester slice 2 Mode A + slice 1 test fixes (84 + 12 expected-red, 11 files green), backend-dev slice 2 + review fixes + release 2.13.0, tester fix test-bug slice2:302 (`?? 'x'` can never be satisfied), code-reviewer final cross-cutting, backend-dev final fixes, tester final fixes, product-analyst brief §1c/R-CSS-10 (=21), line-height fix: product-analyst + tester + backend-dev (=24), tester Oxygen-off opt-in + demo NaN (=25), V14 package: product-analyst + tester + backend-dev (=28), tester demo clamp px/rem bug + config-safe live scripts (=29), backend-dev admin unit+help inline + measure help single source (=30), backend-dev modifier-key steps (=31)
 
-## Infrastructuur
+## Infrastructure
 
-`Local stack: N/A — WordPress-plugin zonder externe runtime-afhankelijkheden. Zelftests via php tests/run.php; live check op dev.local.`
+`Local stack: N/A — WordPress plugin with no external runtime dependencies. Self-tests via php tests/run.php; live check on dev.local (Oxygen 6.2-rc.1, activate it temporarily for slice 2).`
 
-## Gebruikersantwoorden
+## Input inventory
 
-| # | Vraag | Antwoord |
+- None (no mockups or brief). Reference: utopia.fyi. Oxygen source: `~/Local Sites/dev/app/public/wp-content/plugins/oxygen/`.
+
+## User answers
+
+| # | Question | Answer |
 |---|---|---|
-| V1 | Mini inline blur of LCP-LQIP uit het artikel? | LCP-LQIP (artikel) |
-| V2 | Bereik | Alle IMGX-afbeeldingen |
-| V3 | Standaard aan/uit | Standaard uit |
-| V4 | R-101: CSS-achtergrond laadt ook bij loading=lazy — toch alle afbeeldingen? | Ja, toch alle afbeeldingen (risico geaccepteerd) |
-| V5 | OQ-101: LQIP ook bij picture_enabled=0? | Ja, onafhankelijk; alleen `lqip_enabled` telt |
+| V1 | Form | Module + admin tab + MCP abilities |
+| V2 | Fluid unit | cqi ("the fallback of cqi is already vi") |
+| V3 | Baseline | Newly available |
+| V4 | Oxygen | Sync to Oxygen 6 variables |
+| V5 | Default viewports | Keep Oxygen's default viewports (breakpoints) |
+| V6 | Site width | 1440px |
+| V8 | Widths (2026-11-09) | site_width in rem (90rem), new `measure` 65ch as the content track of the breakout grid; tracks full/feature/popout/content following ryanmulligan.dev/blog/layout-breakouts; feature edge = site width. Josh Comeau's reason for avoiding ch (font-size of the element itself) does not apply to a grid track |
+| V9 | D13 spacing (2026-11-09) | Confirmed: margins/paddings via `var(--pdk-space-*)` plus the flow rule, no utility classes |
+| V10 | Section grid (2026-11-09) | The section itself is the grid (lines full / wide = site width / popout / content = measure); the `section > div` rule and `.pdk-breakout` are dropped; children default to `wide` |
+| V11 | RTL/LTR (2026-11-09) | Breakout variants `-start`/`-end` instead of left/right; logical properties throughout |
+| V12 | Fluid measure (2026-11-10) | The section gets `font-size: var(--pdk-step-0)` by default, so 65ch scales with it |
+| V13 | Line-height (2026-11-10) | Measured with Playwright: h1 lh = 1.07 × fs, glyph descenders overlap the next text. New formula `calc(ratio·1em + leading)`: headings 1.1em + 0.25rem, body 1.3em + 0.25rem; new settings `lh_heading_ratio`/`lh_body_ratio` |
+| V14 | User feedback after manual checks (2026-11-10) | Builder canvas OK; error messages clear; warning OK. Changes: grid_min in **ch** (default 30, range 10–80); admin fields grouped with a Dutch name + unit + explanation; the same text as a `description` per field in the MCP schema (single source); demo reads its expectations live from the CSS tokens (stale after a settings change), tidier padding, clearer grid explanation |
+| V15 | Admin layout (2026-11-10) | Unit and explanation inline, right after the field; the extra measure sentence goes into fields() so admin = MCP |
+| V16 | Step sizes (2026-11-10) | Float fields: plain 1, Ctrl 0.1, Alt 0.01; factor fields: plain 0.1, Ctrl/Alt 0.01; integer fields always 1 without a modifier |
+| V7 | Modern Normalize | Framework assumes Oxygen's Modern Normalize option is on (no own normalize, plugin does not turn the option on); flow rule with space tokens + admin warning when the option is off |
 
-## Grondwaarheid
+## Tasks
 
-- Chromium telt een afbeelding pas als LCP-kandidaat bij ≥0,05 bits per pixel van de *weergegeven* grootte; auteur mikt op 0,055. Minimum bytes = w × h × 0,055 / 8. Upscalen verkleint het gerapporteerde oppervlak (`size × min(display, natural) / display`), dus LQIP nooit kleiner dan weergave. Bron: artikel, geverifieerd 2026-10-23.
+| # | Subtask | Agent | Status | Evidence |
+|---|---|---|---|---|
+| 1 | Delta brief + Oxygen ground truth | product-analyst | done | 7 FR, 19 AC (slice 1: 001–010, 019; slice 2: 011–018), all OQs answered, vectors 400→1440 recomputed by hand |
+| 2 | Brief review | doc-reviewer | done | B1, M1–M4, 13 minors; rework 1 processed; recheck by tester + code-review in slice 1 |
+| 3 | Slice 1 — core (AC 001–010, 019–023) | tester A → backend-dev (incl. live) → code-reviewer; Mode B slice 1 merges with tester slice 2 | in progress | brief: 8 FR, 23 AC |
+| 4 | Slice 2 — MCP + Oxygen sync + version 2.13.0 + slice 1 fixes | tester / backend-dev / code-reviewer | review DONE_WITH_CONCERNS | H 13/13 green; live slice 2 15/15; slice 1 123/124 (global-styles in the footer with Oxygen active); demo 0/94 mismatches |
 
-## Besluiten (intern, omkeerbaar — gelogd)
+## Decisions
 
-| # | Besluit | Waarom |
-|---|---|---|
-| D1 | Eén LQIP-JPEG per geregistreerde maat, sidecar `naam.lqip.jpg`, geregistreerd in `_imgx_variants`; renderer kiest de LQIP van de maat van `src` | Server kent weergavegrootte niet; `src`-maat is de beste benadering en voorkomt upscalen |
-| D2 | Kwaliteitslus vanaf q=10 omhoog tot bestand ≥ w×h×0,055/8 bytes, plafond q=60; startwaarde filterbaar | Artikel: minimum is ondergrens, q≈10 visueel acceptabel |
-| D3 | Inline longhands op `<img>`, samengevoegd met bestaande `style` | Geen extra stylesheet; thema-`background-color` blijft intact |
-| D4 | PNG met alfakanaal krijgt geen LQIP | Achtergrond zou permanent door transparantie heen schijnen |
-| D5 | Preload alleen in `whole_page`-modus en alleen voor `fetchpriority=high` | Buiten de outputbuffer is `<head>` al verstuurd |
-| D6 | Instelling `lqip_enabled`, standaard 0, onderdeel van `encoding_signature`; versie 2.12.0 (minor) | V3 + CLAUDE.md semver |
+- D-P1 (user, 2026-11-10): the slice 1 review fixes go along with the slice 2 dispatches (tester + backend-dev), with one combined code-review at the end. This is a deliberate deviation from the DoD 'slice 1 review DONE before slice 2'. Debt to close in slice 2: review findings 1–7 (space_pairs regex /D, snippet font-size: inherit + AC-019 font-size check, AC-009 inline global-styles check, regeneration on PDK_PLUGIN_VERSION change, validated config() fallback to defaults, measure hint, live-script restore in finally + missing checks).
+- D-P2 (coordinator): regenerate the CSS file when the stored `pdk_css_framework_built` != PDK_PLUGIN_VERSION (reversible).
+- Demo page on dev.local requested by the user (2026-11-10), re-creatable via tests/live/css-framework-demo.php.
 
-## Taken
+- D-L1 (coordinator, after live finding Concern 3): no cascade layers at all. Layout rules unlayered in `:where()` (specificity 0), after normalize and the flow rules. Reason: an unlayered `*{margin:0;padding:0}` from Modern Normalize beats every layered rule, so `margin-inline:auto` and the gutter were lost.
+- D-L2: with the default normalize (Modern Normalize off), the h1 margin stays .67em. Accepted, because V7 assumes Modern Normalize; AC-020 only checks font-size/line-height in that case.
+- D-L3: `feature_space` is renamed to `popout_space` (not yet released, so not breaking).
 
-| Stap | Agent | Status | Evidence |
+- Version 2.13.0 (minor: new module).
+
+## Open questions
+
+| OQ | Trigger | Status | Answer |
 |---|---|---|---|
-| Thin delta brief | product-analyst | DONE | 11 AC (AC-101–111), OQ-101 beantwoord (V5), R-101 geaccepteerd (V4), D7 use cases inline |
-| Brief-review | doc-reviewer | DONE_WITH_CONCERNS | 1 Critical (signature breekt bestaande tests), 8 Important, 4 Suggesties — alle verwerkt in rework 1/2 |
-| Brief-rework 1 | product-analyst | DONE | 14 bevindingen verwerkt; nieuw D8, D9, AC-112, R-106; 12 AC |
-| Brief-recheck 1 | doc-reviewer | DONE_WITH_CONCERNS → geaccepteerd | C1, I1–I8, S1–S4 opgelost. Rest: AC-104 (H) precondition `imgx_enabled_formats`→[] — niet-materieel, doorgegeven aan tester; backend-dev past brieftekst aan (geen rework 2) |
-| Tests Mode A | tester | DONE | tests/test-imgx.php: 129 passed / 59 failed (alle 59 expected-red LQIP), baseline 88/0 intact; naamaannames 1–4 vastgepind door coördinator |
-| Implementatie | backend-dev | DONE_WITH_CONCERNS | run.php 11/0 mislukt (coördinator herhaald: groen), test-imgx 188/0; 14 bestanden; versie 2.12.0; concern: kwaliteitslus niet live gedraaid (AC-103 L) |
-| Fix-tests | tester | DONE_WITH_CONCERNS | esc_attr-stub = WP (geen dubbel-encode); +8 checks; 191/5 rood — wachten op bronfix (#1 uitbraak, #4 highx); #2 niet testbaar in harness → live |
-| Fixes 1–4 + `;`→`%3B` | backend-dev | DONE | 196/0; WP 7.1.3 quality-reset geverifieerd (class-wp-image-editor.php:410-419) |
-| Review-recheck | code-reviewer | DONE | alle 4 fixes correct, geen regressies |
-| Code review | code-reviewer | DONE_WITH_CONCERNS | 0 Critical; Important: (1) url()-uitbraak via `&amp;quot;` want echte esc_attr dubbel-encodeert niet (stub wel), (2) wees-.lqip.jpg bij mislukte latere pass; Suggestie: (3) PNG-bron mogelijk q82 door WP≥6.1 quality-reset, (4) fetchpriority-regex losjes |
+| OQ-CSS-01 | before Slice 1 | answered | Max viewport **1440** (site width); min 400 (Oxygen phone portrait) |
+| OQ-CSS-02 | before Slice 1 | answered | Proposed defaults approved |
+| OQ-CSS-03 | before Slice 1 | answered | Automatic `section` container-type + `section > div` max-width, opt-out class |
+| OQ-CSS-04 | before Slice 2 | answered | Sync via the internal `saveVariables()`, guarded |
 
-## Sessiestatus
+## Session state
 
-- Fase: 2 — dispatch · Slice: 0 · Local stack: N/A
-- Circuit-breaker 8/8: gebruiker koos fix-ronde 1–4, plafond 11 → 12
-- Herdispatch: backend-dev 3/3, tester 2/3
-- Code-review recheck (run 12): DONE — fixes 1–4 correct, geen regressies. run.php 11/0, test-imgx 196/0
-- Open (live, dev.local): AC-103, AC-110, AC-112 + L-helften AC-102/104/107/109/111; review-#2 (wees-bestand) en #3 (PNG-kwaliteit) live bevestigen; R-101 request-telling
-- Vervolgtaken: R-106 (verouderde varianten na beeldbewerking); WebP/AVIF-kwaliteit waarschijnlijk ook gereset door WP ≥6.1 get_output_format (niet geverifieerd)
-- Live check (run 13, tester): AC-102/103/104/107/109/110/111/112 + preload PASS; LCP = `lqip-hero.lqip.jpg` @1480 ms vs controle avif @2280 ms; R-101: 9 extra requests op 10 afbeeldingen. BLOCKED (login): builder-canvas, batch-UI, anonieme HTTP REST. Niet geraakt: q=60-plafondtak, Oxygen Classic
-- Bug live gevonden: opake PNG-submaten worden als `has-alpha` overgeslagen — WP's GD schrijft submaten als RGBA (colortype 6). Alleen `full` krijgt LQIP
-- Gebruiker: PNG-fix + commit/PR. Besluit D4b: alfa één keer per bijlage op het origineel bepalen. backend-dev (run 14, incl. live) + tester (run 15) parallel
-- PNG-fix DONE: alfa op origineel (`original_has_alpha()`), 202/0, live opake PNG 24 gegenereerd/0 overgeslagen, alfa-PNG alle maten has-alpha
-- dev.local opgeruimd door coördinator: `imgx_settings` terug naar origineel (lqip stond nog aan), LQIP's van bijlagen 11/14 verwijderd, WebP/AVIF opnieuw gegenereerd, 0 `.lqip.jpg`
-- Commit 246b529 op feature/imgx-lqip, PR #4 geopend
-- PR #4 gemerged (7cae98d), tag v2.12.0, release gepubliceerd als latest (niet pre-release). Taak afgerond
+- Phase 5 (report). Slices 1+2 done, final review fixed, local proof green (see Local proof).
+- Debt: AC-009 with Oxygen: the brief also requires 'no h1–h6/p selector in the footer global-styles'; the live script only checks the position (minor).
+- Next: manual checks by the user (AC-017 builder, AC-010/023 admin UI), then commit + PR + release v2.13.0 on the user's go.
+
+## Concerns
+
+- With Oxygen active, WP prints `global-styles-inline-css` in the footer, after css-framework.css (brief §1c is wrong). theme.json element rules (h1) could win from the base rules. It has no effect on dev.local (AC-020 green). Final review: harmless (oxygen-zero has no theme.json; core theme.json only styles button). Document it, no code fix; adjust the live check.
+- Final review (run 18): I1 Oxygen sync drops the user's collection list when the collections option is empty/null (seed from the variables, as Oxygen does); I2 uninstall leaves `pdk_css_framework_built` behind. Minor: M1 doc head order + R-CSS-10, M2 abilities notes text, M3 `is_string` on `$_GET['warning'|'error']`, M4 `??` fallback test 682 + MCP partial save with a non-default value, M5 slice2.mjs restores agent_abilities, M6 redundant check in config(). Circuit breaker hit at 18/18.
+
+- R-CSS-05: **resolved** (2026-11-09). utopia-core 1.6.0 (npm, scratchpad, with user approval) `calculateTypeScale`/`calculateSpaceScale` with relativeTo `container`, 400→1440, 18→20, 1.2→1.25, custom `s-l`: all 26 clamp strings match the brief/test table character for character, including step--2 `0.7813rem`.
+- Brief V12 patch (2026-11-10): AC-007 probes `#ch`/`#m` inside the section with `font-style:normal` + an `overflow:hidden` wrapper. The tester's live script uses its own 1ch probe inside the section; that is equivalent, but check `font-style:normal` if the ch measurement mismatches live.
+
+## Local proof (coordinator, 2026-11-10)
+
+- `php tests/run.php` → 13 files, 0 failed.
+- Plugin copied to mu-plugins; dev.local: Oxygen active, Modern Normalize true, PDK_PLUGIN_VERSION 2.13.0, `pdk_css_framework_built` 2.13.0.
+- `node tests/live/css-framework-slice1.mjs` → 124 checks, 0 failed (Oxygen restored to active).
+- `node tests/live/css-framework-slice2.mjs` → 15 checks, 0 failed (Oxygen and agent_abilities restored).
+- Demo page rebuilt (page 21682, `warnings: []`); mismatch bar 0/94 at 400, 1024 and 1600, no horizontal scroll.
+- Still manual (user): AC-017 builder canvas, admin-UI steps for AC-010/AC-023.
+
+## Local proof V13 (coordinator, 2026-11-10)
+
+- `php tests/run.php` → 13/13 green. Live slice 2 → 16/16.
+- Live slice 1 → 130/136: the 6 failures were p line-height 31.4/34, caused by the saved dev.local option `leading_body` 0.5 (old default, valid so kept). After `PDK_CSS_Framework::save(['leading_body'=>'0.25'])` (sync: synced) the demo measures: h1 53.27/71.14 (1.17–1.19), h6 23.8/26, p 27.4/30 (1.5), 1024 also correct; screenshot shows no ink overlap.
+- Demo: 2 of 101 mismatches = a generator bug (lh expected NaN in the `.pdk-container` section, the ratio/leading args are missing); the measured value there is correct (h1 1.1×47.91+4 = 56.70).
+- User: "En weer is oxygen uitgeschakeld" — slice1.mjs turns Oxygen off for the 'Oxygen inactief' cases during the run (restored afterwards: active). Proposal: make Oxygen-off cases opt-in.
+
+## Local proof final (coordinator, 2026-11-10)
+
+- `php tests/run.php` → 13/13 green.
+- Live slice 1 (default, Oxygen stays active) → 120 checks, 0 failed; Oxygen-off cases skipped (opt-in `PDK_LIVE_OXYGEN_OFF=1`).
+- Live slice 2 → 16 checks, 0 failed.
+- Oxygen status polled every 5 s during both runs: 14× `active`, never off.
+- Demo page 21690: 0/103 mismatches at 400/1024/1600, no horizontal scroll; h1 1.17–1.19, h6 1.30–1.32, p 1.50–1.52.
+- Next: manual checks by the user (AC-017 builder, AC-010/023 admin UI), then commit/PR/release on the user's go.
+
+## V14 local round (coordinator, 2026-11-10)
+
+- `php tests/run.php` 13/13 green; Oxygen 16× active during the runs.
+- dev.local has the user setting `font_min = 16` (keep it, user's answer) → the live scripts with fixed default expectations fail (slice1 14/122, slice2 2/16): an environment issue, not a code bug. Fix: the scripts temporarily put the defaults in place and restore the user config in finally.
+- Demo bug: tests/live/css-framework-demo.php:179 multiplies the cqi term (already px) by 16 → wrong expectation at small widths. Being fixed by the tester (run 29).
+- Debt: the admin tab appends an extra sentence to the measure help (for an old test) → admin and MCP descriptions differ slightly for `measure`.
+
+## Final local round (coordinator, 2026-11-10, after run 30)
+
+- `php tests/run.php` → 13/13 green.
+- Live slice 1 → 122/122; live slice 2 → 16/16. Both scripts kept the user config (font_min 16), temporarily applied the defaults and restored the config afterwards (checked: font_min=16).
+- Oxygen 16× active during the runs.
+- Demo page 21698 (with the user config font_min 16): 0/109 at 400 and 1600; 3/109 at 1024 = lane start/width off by 0.3–0.75px. The demo's own JS model of the grid distribution at intermediate widths (already flagged as a limitation by the demo author); the real browser layout is the measured value. Not a framework bug; residual debt for the demo.
+- Status: ready for the user's review of the admin tab (V15) and the go for commit/PR/release v2.13.0.
+
+## V16 check (coordinator, 2026-11-10)
+
+- `php tests/run.php` 13/13 green.
+- Tab HTML rendered via `render_inline()` and tested with Playwright (keyboard ArrowUp with/without Ctrl/Alt): 11/11 cases correct (measure 65 → 66 / 65.1 / 65.01; lh_heading_ratio 1.1 → 1.2 / 1.11 / 1.11; site_width Ctrl 90.1; font_min Alt 16.01; min_viewport always 401). After keyup step = any; 65.25 typed in by hand is valid. Spinner clicks and the mouse wheel use the same pointerdown/wheel handler but were not tested automatically (admin needs a login).
+- Debt: no H check for the data-pdk-step attributes (tests read-only that round).

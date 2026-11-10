@@ -29,6 +29,7 @@ class PDK_Plugin {
 		'imgx'             => [ 'file' => 'modules/imgx/class-pdk-imgx.php',                         'class' => 'PDK_ImgX' ],
 		'image_sizes'      => [ 'file' => 'modules/image-sizes/class-pdk-image-sizes.php',           'class' => 'PDK_Image_Sizes' ],
 		'oxygen_elements'  => [ 'file' => 'modules/oxygen-elements/class-pdk-oxygen-elements.php',   'class' => 'PDK_Oxygen_Elements' ],
+		'css_framework'    => [ 'file' => 'modules/css-framework/class-pdk-css-framework.php',       'class' => 'PDK_CSS_Framework' ],
 	];
 
 	private function __construct() {

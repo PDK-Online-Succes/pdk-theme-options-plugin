@@ -29,7 +29,8 @@ class PDK_Custom_CSS {
 		wp_enqueue_style(
 			'pdk-custom-style',
 			PDK_STORAGE_URL . 'custom-style.css',
-			[],
+			// Het CSS Framework print eerst, zodat eigen CSS altijd wint.
+			wp_style_is( 'pdk-css-framework', 'registered' ) ? [ 'pdk-css-framework' ] : [],
 			filemtime( $file )
 		);
 	}
