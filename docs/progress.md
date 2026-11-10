@@ -143,3 +143,8 @@ Branch: `css-framework` · Brief: `docs/css-framework-brief.md` · Previous ledg
 - Open debt: brief AC-006 (exact section/lane rules + capped tracks) does not yet reflect the review fixes; run 34 (product-analyst) has not been approved.
 - Open items processed (2026-11-10, runs 34–36): brief synced with the code after PR #10 (D30–D35, R-CSS-19/20, §14 review findings resolved; typo `PDK_PDK_` fixed by the coordinator). Demo probes for gutter/popout/site moved outside the section → demo 0/111 at 400/800/1024/1280/1600. AC-009 checks that the footer global-styles contain no h1–h6/p selector (pass). Live slice1 128/128.
 - AC-007 #s2/#s3 (site cap) checked by hand by the coordinator via Playwright with an inline `--pdk-site-width` on an extra section (1600px, measure 700.8px): 40rem → wide/popout/content 640/640/640; 65ch+2rem → 732.8/732.8/700.8; 90rem → 1440/860.8/700.8. All within site/measure. The live script itself covers the site_width 20 case; #s2/#s3 are not scripted (small debt).
+
+## Release (2026-11-10)
+
+- PR #10 merged (merge commit f4e4c2d), tag v2.13.0 pushed, GitHub release v2.13.0 published: not a pre-release, not a draft, `releases/latest` = v2.13.0. Release notes = the CHANGELOG 2.13.0 section (rewritten once as UTF-8 after a cp1252 encoding error).
+- Customers get the update through the installer's `zipball_url`. pdk-mu-installer was unchanged, so no zip re-upload is needed.
