@@ -31,6 +31,10 @@
 		var button = findSaveButton();
 		if (!button || button.disabled) return;
 
+		// SEO Health Check: de eerste knop daar start een scan of draait checks
+		// (binnen .shc-panel) — nooit via Ctrl+S.
+		if (button.closest('.shc-panel')) return;
+
 		e.preventDefault();
 
 		// Focus weghalen zodat de laatste toetsaanslag in een veld meegaat

@@ -76,6 +76,39 @@ Adressering: `path` (`elements/<Naam>/<bestand>`, `macros/<naam>.twig`, `presets
 
 **De poort: eerst aanmaken, dan bewerken.** Deze abilities maken nooit een map of bestand aan. Bestaat het element (of de macro/preset) nog niet, dan geeft lezen én schrijven de fout `element_not_found`: "Maak het eerst aan in de Oxygen-builder: Element Studio → New element → opslaglocatie 'PDK Elementen'. Roep daarna list-oxygen-elements opnieuw aan." Bestaat het element wel maar ontbreekt het bestand, dan `file_not_found`; een ongeldig of `..`-pad geeft `pdk_invalid_path`. Na het schrijven moet het element opnieuw geopend worden in Element Studio om het resultaat te zien.
 
+## SEO Health Check-abilities
+
+Alleen beschikbaar als de modules SEO Health Check en AI-agent toegang aan staan én de module SEO Health Check zelf
+draait (niet als de losse plugin actief is). Rechten: altijd `manage_options` (beheerder); schrijf-abilities
+vereisen ook `edit_post` op de post, en bij alt-tekst ook op de bijlage. Die controle staat ook in de callbacks
+zelf, omdat een MCP-plugin de `permission_callback` kan vervangen. Zonder rechten geeft de Abilities API zelf de
+fout `ability_invalid_permissions` (REST: 403). Een agent met een beheerdersaccount kan dus posts aanpassen; elke
+content-wijziging krijgt een revisie met de oude content en een rescan.
+
+Alle inputs hebben `additionalProperties: false`. Weigerregels en foutcodes: `docs/modules/seo-health-check.md`.
+Via REST: `/wp-abilities/v1/abilities/pdk-theme-options/<naam>/run`; de HTTP-methode volgt de annotaties
+(readonly: GET, overige: POST).
+
+| Ability | Input | Doet |
+|---|---|---|
+| `seo-get-status` | — | `{ status, processed, total, started_at, finished_at, summary, provider, background }` |
+| `seo-list-issues` | `issue_type`, `status` (`open`, `new`, `unchanged`, `resolved`), `post_id`, `severity`, `page` ≥1, `per_page` 1–100 | `{ total, page, per_page, items:[ id, post_id, post_title, issue_type, label, severity, details, object_id, first_seen, resolved_at, editable_field ] }` |
+| `seo-list-pages` | `band` (`good`, `fair`, `poor`), `post_type`, `page`, `per_page` | `{ total, page, per_page, items:[ post_id, post_title, post_type, post_status, score, band, previous_score, issue_count, word_count, scanned_at ] }` |
+| `seo-get-scan-history` | — | `{ items }`: de afgeronde scans, oudste eerst |
+| `seo-get-launch-checks` | — | `{ time, results }` van de laatste run; draait de checks niet |
+| `seo-get-headings` | `post_id` | `{ post_id, editable, reason, headings:[ index, level, text, block, editable, reason ] }` |
+| `seo-start-scan` | — | start een volledige scan; `pdk_seo_scan_running` als er al een loopt |
+| `seo-rescan-post` | `post_id` | `{ rescanned, post_id, score, issues }`; `pdk_seo_not_found` / `pdk_seo_not_scannable` |
+| `seo-update-meta` | `post_id`, `field` (`seo_title`, `meta_description`), `value` (≤500) | via Yoast of Rank Math; `pdk_seo_no_seo_plugin` zonder; HTML wordt gestript, leeg verwijdert |
+| `seo-update-image-alt` | `attachment_id`, `value` (≤125), `post_id` (optioneel) | mediabibliotheek, en met `post_id` ook de `<img>` in de content; `content_skipped` op builderpagina's |
+| `seo-set-heading-level` | `post_id`, `index` ≥0, `expected_text`, `level` 1–6 | wijzigt alleen de tags (en `level` bij `core/heading`) van die ene kop |
+| `seo-insert-h1` | `post_id`, `text` (1–200) | H1 vooraan; weigert bij een bestaande H1 of `theme_outputs_h1` |
+
+Fouten krijgen een HTTP-status voor de REST-route: 404 `pdk_seo_not_found`; 403 `ability_invalid_permissions`; 409 `pdk_seo_scan_running`, `pdk_seo_heading_mismatch` en `pdk_seo_h1_exists`; 422 alle overige weigeringen (builder, unfiltered_html, revisies, blok, theme_h1, no_seo_plugin, invalid_input, not_scannable). Validatiefouten van de Abilities API zelf blijven 400.
+
+Schrijf-abilities geven `{ saved, post_id, score, issues:[ id, issue_type, details ] }` (na de rescan), met
+`content_skipped` bij alt-tekst op een builderpagina. De schrijf-abilities zijn `destructive`, niet `idempotent`.
+
 ## Voor themaontwikkelaars
 
 - `pdk_register_frontend_output( $name, $render, $markup )` — wat je hiermee registreert, verschijnt automatisch in `get-site-info` onder `frontend_output`, inclusief live gerenderde HTML (`includes/helpers.php:158-168`, `modules/agent-abilities/class-pdk-agent-abilities.php:244-262`).

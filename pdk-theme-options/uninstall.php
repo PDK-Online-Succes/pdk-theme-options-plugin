@@ -42,6 +42,10 @@ delete_transient( 'imgx_stats' );
 require_once __DIR__ . '/modules/imgx/includes/class-generator.php';
 IMGX\Generator::clear_scheduled_events();
 
+// SEO Health Check: tabellen, opties, transients, uploads-map, events en usermeta
+// (niet bij een actieve losse plugin, die gebruikt dezelfde data).
+require_once __DIR__ . '/modules/seo-health-check/uninstall.php';
+
 // Verwijder gecachte GitHub-release-transients.
 global $wpdb;
 $wpdb->query(

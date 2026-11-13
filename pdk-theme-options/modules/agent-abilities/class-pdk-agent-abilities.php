@@ -124,6 +124,130 @@ class PDK_Agent_Abilities {
 		if ( class_exists( 'PDK_Oxygen_Elements' ) ) {
 			$this->register_oxygen_abilities();
 		}
+
+		// SEO Health Check: alleen als de module zelf draait (niet als de losse plugin het doet).
+		if ( class_exists( 'PDK_SEO_Health_Check' ) && PDK_SEO_Health_Check::is_active() ) {
+			$this->register_seo_health_abilities();
+		}
+	}
+
+	/**
+	 * SEO Health Check: scanresultaten lezen, scans starten en gericht bewerken (meta,
+	 * alt-tekst, koppen). Alles manage_options; schrijven ook edit_post op de post.
+	 * Contenteditors weigeren builderpagina's (zie PDK_SEO_Health_Check::editable_reason).
+	 * Normatief: docs/seo-health-check-brief.md §7.
+	 */
+	private function register_seo_health_abilities(): void {
+		$admin    = static fn(): bool => current_user_can( 'manage_options' );
+		$edit     = static fn( $input = null ): bool => self::seo_may_edit( (int) ( is_array( $input ) ? $input['post_id'] ?? 0 : 0 ) );
+		$edit_alt = static fn( $input = null ): bool => self::seo_may_edit(
+			(int) ( is_array( $input ) ? $input['attachment_id'] ?? 0 : 0 ),
+			(int) ( is_array( $input ) ? $input['post_id'] ?? 0 : 0 )
+		);
+
+		$post_id  = [ 'type' => 'integer', 'minimum' => 1 ];
+		$paging   = [
+			'page'     => [ 'type' => 'integer', 'minimum' => 1, 'default' => 1 ],
+			'per_page' => [ 'type' => 'integer', 'minimum' => 1, 'maximum' => 100, 'default' => 20 ],
+		];
+		$object   = static function ( array $properties = [], array $required = [] ): array {
+			$schema = [ 'type' => 'object', 'additionalProperties' => false ];
+			if ( $properties ) {
+				$schema['properties'] = $properties;
+			} else {
+				$schema['default'] = []; // zonder invoer: leeg object i.p.v. null (anders is de invoer ongeldig)
+			}
+			return $required ? $schema + [ 'required' => $required ] : $schema;
+		};
+		$register = function ( string $name, string $label, string $description, array $input, string $callback, $permission, bool $readonly, bool $destructive ): void {
+			wp_register_ability( self::CATEGORY . '/' . $name, [
+				'label'               => $label,
+				'description'         => $description,
+				'category'            => self::CATEGORY,
+				'input_schema'        => $input,
+				'output_schema'       => [ 'type' => 'object' ],
+				'permission_callback' => $permission,
+				'execute_callback'    => [ $this, $callback ],
+				'meta'                => [
+					'show_in_rest' => true,
+					'mcp'          => [ 'public' => true ],
+					// idempotent=false: de Abilities REST-route eist dan POST (idempotent+destructive wordt DELETE).
+					'annotations'  => [ 'readonly' => $readonly, 'destructive' => $destructive, 'idempotent' => $readonly ],
+				],
+			] );
+		};
+
+		$register( 'seo-get-status', __( 'SEO-scanstatus', 'pdk-theme-options' ),
+			__( 'Geeft de status van de SEO-scan (idle, running, done, cancelled), de voortgang, het totaal aantal pagina\'s, issues en de gemiddelde score, de gedetecteerde SEO-plugin (Yoast, Rank Math of geen) en of de scan op de achtergrond draait.', 'pdk-theme-options' ),
+			$object(), 'seo_get_status', $admin, true, false );
+
+		$register( 'seo-list-issues', __( 'SEO-issues tonen', 'pdk-theme-options' ),
+			__( 'Geeft de issues van de laatste SEO-scan, gefilterd en gepagineerd. status: open (standaard), new (nieuw sinds de laatste volledige scan), unchanged of resolved (opgelost). editable_field zegt welk veld met seo-update-meta of seo-update-image-alt te herstellen is (seo_title, meta_description, alt); null betekent dat het in de content zit (koppen: seo-get-headings).', 'pdk-theme-options' ),
+			$object( [
+				'issue_type' => [ 'type' => 'string', 'enum' => array_keys( SEOHC_Issue_Types::all() ) ],
+				'status'     => [ 'type' => 'string', 'enum' => [ 'open', 'new', 'unchanged', 'resolved' ] ],
+				'post_id'    => $post_id,
+				'severity'   => [ 'type' => 'string', 'enum' => [ SEOHC_Issue_Types::SEVERITY_ERROR, SEOHC_Issue_Types::SEVERITY_WARNING ] ],
+			] + $paging ), 'seo_list_issues', $admin, true, false );
+
+		$register( 'seo-list-pages', __( 'SEO-pagina-scores tonen', 'pdk-theme-options' ),
+			__( 'Geeft de gescande pagina\'s met score (0-100), aantal issues en woorden, gefilterd op scoreband (good, fair, poor) of posttype, gepagineerd.', 'pdk-theme-options' ),
+			$object( [
+				'band'      => [ 'type' => 'string', 'enum' => array_keys( SEOHC_Repository::score_bands() ) ],
+				'post_type' => [ 'type' => 'string' ],
+			] + $paging ), 'seo_list_pages', $admin, true, false );
+
+		$register( 'seo-get-scan-history', __( 'SEO-scanhistorie', 'pdk-theme-options' ),
+			__( 'Geeft de samenvattingen van de afgeronde scans, oudste eerst: aantallen, wat er nieuw en opgelost was en de issues per type.', 'pdk-theme-options' ),
+			$object(), 'seo_get_scan_history', $admin, true, false );
+
+		$register( 'seo-get-launch-checks', __( 'Launch checks tonen', 'pdk-theme-options' ),
+			__( 'Geeft de resultaten van de laatst uitgevoerde launch checks (id, phase, label, status, message). Voert de checks niet uit; zonder eerdere run is het resultaat leeg.', 'pdk-theme-options' ),
+			$object(), 'seo_get_launch_checks', $admin, true, false );
+
+		$register( 'seo-get-headings', __( 'Koppen van een pagina', 'pdk-theme-options' ),
+			__( 'Geeft alle koppen (h1-h6) in de ruwe post_content in documentvolgorde: index, level, text, block en of de kop editable is (anders met reason: unsupported_block, builder_content, rendered_source, not_scannable, unfiltered_html of revisions_disabled). Gebruik de index en text voor seo-set-heading-level.', 'pdk-theme-options' ),
+			$object( [ 'post_id' => $post_id ], [ 'post_id' ] ), 'seo_get_headings', $admin, true, false );
+
+		$register( 'seo-start-scan', __( 'Volledige SEO-scan starten', 'pdk-theme-options' ),
+			__( 'Start een volledige SEO-scan op de achtergrond. Geeft een fout als er al een scan loopt. Volg de voortgang met seo-get-status.', 'pdk-theme-options' ),
+			$object(), 'seo_start_scan', $admin, false, false );
+
+		$register( 'seo-rescan-post', __( 'Eén pagina opnieuw scannen', 'pdk-theme-options' ),
+			__( 'Scant één gepubliceerde post opnieuw en geeft diens score en open issues terug.', 'pdk-theme-options' ),
+			$object( [ 'post_id' => $post_id ], [ 'post_id' ] ), 'seo_rescan_post', $admin, false, false );
+
+		$register( 'seo-update-meta', __( 'SEO-titel of meta description opslaan', 'pdk-theme-options' ),
+			__( 'Slaat de SEO-titel of meta description van een post op via Yoast SEO of Rank Math (zonder een van beide volgt een fout). HTML wordt gestript; een lege waarde verwijdert het veld. Scant de post daarna opnieuw en geeft de resterende issues terug.', 'pdk-theme-options' ),
+			$object( [
+				'post_id' => $post_id,
+				'field'   => [ 'type' => 'string', 'enum' => [ 'seo_title', 'meta_description' ] ],
+				'value'   => [ 'type' => 'string', 'maxLength' => 500 ],
+			], [ 'post_id', 'field', 'value' ] ), 'seo_update_meta', $edit, false, true );
+
+		$register( 'seo-update-image-alt', __( 'Alt-tekst opslaan', 'pdk-theme-options' ),
+			__( 'Zet de alt-tekst van een bijlage in de mediabibliotheek en, met post_id, ook op de <img> in de content van die post (alleen als de content bewerkbaar is; op builderpagina\'s blijft alleen de mediabibliotheek bijgewerkt en meldt content_skipped waarom). Maakt eerst een revisie en scant de post opnieuw.', 'pdk-theme-options' ),
+			$object( [
+				'attachment_id' => $post_id,
+				'value'         => [ 'type' => 'string', 'maxLength' => 125 ],
+				'post_id'       => $post_id,
+			], [ 'attachment_id', 'value' ] ), 'seo_update_image_alt', $edit_alt, false, true );
+
+		$register( 'seo-set-heading-level', __( 'Kopniveau wijzigen', 'pdk-theme-options' ),
+			__( 'Wijzigt het niveau (h1-h6) van één kop in de ruwe post_content; alleen de tags (en bij core/heading het level-attribuut) veranderen. Lees eerst seo-get-headings: index en expected_text moeten kloppen, anders volgt een fout. Weigert builderpagina\'s en koppen buiten klassieke HTML of core/heading. Maakt eerst een revisie en scant opnieuw.', 'pdk-theme-options' ),
+			$object( [
+				'post_id'       => $post_id,
+				'index'         => [ 'type' => 'integer', 'minimum' => 0 ],
+				'expected_text' => [ 'type' => 'string' ],
+				'level'         => [ 'type' => 'integer', 'minimum' => 1, 'maximum' => 6 ],
+			], [ 'post_id', 'index', 'expected_text', 'level' ] ), 'seo_set_heading_level', $edit, false, true );
+
+		$register( 'seo-insert-h1', __( 'H1 invoegen', 'pdk-theme-options' ),
+			__( 'Voegt een H1 met de opgegeven tekst vooraan in de ruwe post_content in (als heading-blok bij blokcontent). Weigert als de pagina al een H1 heeft, als het thema de H1 zelf uitvoert, en op builderpagina\'s. Maakt eerst een revisie en scant opnieuw.', 'pdk-theme-options' ),
+			$object( [
+				'post_id' => $post_id,
+				'text'    => [ 'type' => 'string', 'minLength' => 1, 'maxLength' => 200 ],
+			], [ 'post_id', 'text' ] ), 'seo_insert_h1', $edit, false, true );
 	}
 
 	/**
@@ -392,6 +516,383 @@ class PDK_Agent_Abilities {
 		return [ 'saved' => true, 'path' => $rel, 'bytes' => strlen( $content ) ];
 	}
 
+	// -------------------------------------------------------------------------
+	// SEO Health Check-callbacks
+	// -------------------------------------------------------------------------
+
+	/** HTTP-status per foutcode voor de REST-route (zonder status geeft WP een 500). */
+	private const SEO_STATUS = [
+		'pdk_seo_not_found'          => 404,
+		'ability_invalid_permissions' => 403,
+		'seohc_forbidden'            => 403,
+		'pdk_seo_scan_running'       => 409,
+		'pdk_seo_heading_mismatch'   => 409,
+		'pdk_seo_h1_exists'          => 409,
+	];
+
+	/** Zet data.status (404, 403, 409, anders 422: de aanvraag is geldig maar de post of staat staat het niet toe). */
+	private static function seo_status( WP_Error $e ): WP_Error {
+		if ( ! isset( $e->get_error_data()['status'] ) ) {
+			$e->add_data( [ 'status' => self::SEO_STATUS[ $e->get_error_code() ] ?? 422 ] );
+		}
+
+		return $e;
+	}
+
+	private static function seo_error( string $code, string $message ): WP_Error {
+		return self::seo_status( new WP_Error( $code, $message ) );
+	}
+
+	/**
+	 * manage_options plus edit_post op elke opgegeven bestaande post. Een onbekende post
+	 * laat de callback zelf als pdk_seo_not_found afhandelen. Staat ook in de schrijf-
+	 * callbacks: een MCP-plugin kan de permission_callback vervangen (Agent Connector doet dat).
+	 */
+	private static function seo_may_edit( int ...$post_ids ): bool {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return false;
+		}
+		foreach ( $post_ids as $id ) {
+			if ( $id && self::seo_post( $id ) && ! current_user_can( 'edit_post', $id ) ) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/** Zelfde code als de Abilities API bij een geweigerde permission_callback. */
+	private static function seo_forbidden(): WP_Error {
+		return self::seo_error( 'ability_invalid_permissions', __( 'Je hebt geen rechten om deze post te bewerken.', 'pdk-theme-options' ) );
+	}
+
+	/** get_post() met een veilige 0: een ID <= 0 valt anders terug op de globale $post. */
+	private static function seo_post( int $id ): ?WP_Post {
+		return $id > 0 ? get_post( $id ) : null;
+	}
+
+	private static function seo_not_found(): WP_Error {
+		return self::seo_error( 'pdk_seo_not_found', __( 'Deze post bestaat niet.', 'pdk-theme-options' ) );
+	}
+
+	/** Foutcode pdk_seo_<reden> voor een reden uit PDK_SEO_Health_Check::editable_reason(). */
+	private static function seo_reason_error( string $reason ): WP_Error {
+		$messages = [
+			'not_scannable'      => __( 'Alleen gepubliceerde posts van de gescande posttypes zijn te bewerken (instelling Posttypes van SEO Health Check).', 'pdk-theme-options' ),
+			'builder_content'    => __( 'De content van deze pagina staat niet in post_content (lege content of een builder zoals Oxygen, Elementor of Bricks). Pas de kop aan in de builder of de editor.', 'pdk-theme-options' ),
+			'rendered_source'    => __( 'SEO Health Check scant de gerenderde pagina (instelling Content source = rendered), dus post_content is niet de bron. Pas de pagina in de editor of builder aan.', 'pdk-theme-options' ),
+			'unfiltered_html'    => __( 'De huidige gebruiker mag geen ongefilterde HTML opslaan (unfiltered_html), dus WordPress zou de content bij het opslaan filteren.', 'pdk-theme-options' ),
+			'revisions_disabled' => __( 'Revisies staan uit voor deze post, dus er kan geen herstelpunt worden gemaakt.', 'pdk-theme-options' ),
+		];
+
+		return self::seo_error( 'pdk_seo_' . $reason, $messages[ $reason ] ?? $reason );
+	}
+
+	/** Laadt de inline-edit-klasse; die staat normaal alleen in de admin geladen. */
+	private static function seo_inline_edit(): void {
+		if ( ! class_exists( 'SEOHC_Inline_Edit', false ) ) {
+			require_once SEOHC_DIR . 'includes/admin/class-seohc-inline-edit.php';
+		}
+	}
+
+	/** Scoreband-gegevens van één post, of null als hij niet (meer) gescand is. */
+	private static function seo_score( int $post_id ): ?int {
+		global $wpdb;
+		$score = $wpdb->get_var( $wpdb->prepare( 'SELECT score FROM ' . SEOHC_Repository::pages_table() . ' WHERE post_id = %d', $post_id ) );
+
+		return null === $score ? null : (int) $score;
+	}
+
+	/** Open issues van een post, kort: id, issue_type, details. */
+	private static function seo_post_issues( int $post_id ): array {
+		return array_map(
+			static fn( $i ): array => [ 'id' => (int) $i->id, 'issue_type' => $i->issue_type, 'details' => $i->details ],
+			SEOHC_Repository::get_issues( [ 'post_id' => $post_id, 'per_page' => 0 ] )
+		);
+	}
+
+	/** Scant de post opnieuw (D18) en geeft score en open issues terug. */
+	private static function seo_rescan( int $post_id ): array {
+		if ( $post_id ) {
+			SEOHC_Scan_Queue::scan_single( $post_id );
+		}
+
+		return [ 'post_id' => $post_id ?: null, 'score' => $post_id ? self::seo_score( $post_id ) : null, 'issues' => $post_id ? self::seo_post_issues( $post_id ) : [] ];
+	}
+
+	public function seo_get_status(): array {
+		$state = SEOHC_Scan_Queue::get_state();
+
+		return [
+			'status'      => $state['status'],
+			'processed'   => (int) $state['processed'],
+			'total'       => (int) $state['total'],
+			'started_at'  => $state['started_at'],
+			'finished_at' => $state['finished_at'],
+			'summary'     => SEOHC_Repository::summary(),
+			'provider'    => SEOHC_SEO_Meta::provider_label(),
+			'background'  => (bool) SEOHC_Scan_Queue::use_action_scheduler(),
+		];
+	}
+
+	public function seo_list_issues( $input = null ): array {
+		self::seo_inline_edit();
+		$input  = is_array( $input ) ? $input : [];
+		$status = (string) ( $input['status'] ?? 'open' );
+		$args   = array_filter( [
+			'issue_type' => $input['issue_type'] ?? '',
+			'severity'   => $input['severity'] ?? '',
+			'post_id'    => (int) ( $input['post_id'] ?? 0 ),
+			'status'     => 'open' === $status ? '' : $status,
+			'new_since'  => in_array( $status, [ 'new', 'unchanged' ], true ) ? SEOHC_Repository::scan_started_at() : '',
+		] );
+		$page     = (int) ( $input['page'] ?? 1 );
+		$per_page = (int) ( $input['per_page'] ?? 20 );
+		$fields   = SEOHC_Inline_Edit::fields_by_issue_type();
+
+		$items = array_map(
+			static fn( $i ): array => [
+				'id'             => (int) $i->id,
+				'post_id'        => (int) $i->post_id,
+				'post_title'     => $i->post_title,
+				'issue_type'     => $i->issue_type,
+				'label'          => SEOHC_Issue_Types::label( $i->issue_type ),
+				'severity'       => $i->severity,
+				'details'        => $i->details,
+				'object_id'      => (int) $i->object_id ?: null,
+				'first_seen'     => $i->first_seen,
+				'resolved_at'    => $i->resolved_at,
+				'editable_field' => $fields[ $i->issue_type ] ?? null,
+			],
+			SEOHC_Repository::get_issues( $args + [ 'per_page' => $per_page, 'page' => $page ] )
+		);
+
+		return [ 'total' => SEOHC_Repository::count_issues( $args ), 'page' => $page, 'per_page' => $per_page, 'items' => $items ];
+	}
+
+	public function seo_list_pages( $input = null ): array {
+		$input    = is_array( $input ) ? $input : [];
+		$args     = array_filter( [ 'band' => $input['band'] ?? '', 'post_type' => $input['post_type'] ?? '' ] );
+		$page     = (int) ( $input['page'] ?? 1 );
+		$per_page = (int) ( $input['per_page'] ?? 20 );
+
+		$items = array_map(
+			static fn( $p ): array => [
+				'post_id'        => (int) $p->post_id,
+				'post_title'     => $p->post_title,
+				'post_type'      => $p->post_type,
+				'post_status'    => $p->post_status,
+				'score'          => (int) $p->score,
+				'band'           => SEOHC_Repository::band_for_score( (int) $p->score ),
+				'previous_score' => null === $p->previous_score ? null : (int) $p->previous_score,
+				'issue_count'    => (int) $p->issue_count,
+				'word_count'     => (int) $p->word_count,
+				'scanned_at'     => $p->scanned_at,
+			],
+			SEOHC_Repository::get_pages( $args + [ 'per_page' => $per_page, 'page' => $page ] )
+		);
+
+		return [ 'total' => SEOHC_Repository::count_pages( $args ), 'page' => $page, 'per_page' => $per_page, 'items' => $items ];
+	}
+
+	public function seo_get_scan_history(): array {
+		return [ 'items' => SEOHC_Repository::run_history() ];
+	}
+
+	public function seo_get_launch_checks(): array {
+		$saved = get_option( SEOHC_Launch_Checks::RESULTS_KEY );
+
+		return is_array( $saved ) && isset( $saved['results'] )
+			? [ 'time' => $saved['time'] ?? null, 'results' => array_values( (array) $saved['results'] ) ]
+			: [ 'time' => null, 'results' => [] ];
+	}
+
+	/** @return array|WP_Error */
+	public function seo_get_headings( $input ) {
+		$post = self::seo_post( (int) ( $input['post_id'] ?? 0 ) );
+		if ( ! $post ) {
+			return self::seo_not_found();
+		}
+
+		// De reden geldt voor de hele post; een kop in een ander blok houdt zijn eigen reden.
+		$reason   = PDK_SEO_Health_Check::editable_reason( $post );
+		$headings = array_map(
+			static function ( array $h ) use ( $reason ): array {
+				if ( '' !== $reason ) {
+					$h['editable'] = false;
+					$h['reason']   = $reason;
+				}
+				return $h;
+			},
+			PDK_SEO_Health_Check::headings( $post->post_content )
+		);
+
+		return [ 'post_id' => $post->ID, 'editable' => '' === $reason, 'reason' => $reason ?: null, 'headings' => $headings ];
+	}
+
+	/** @return array|WP_Error */
+	public function seo_start_scan() {
+		if ( ! SEOHC_Scan_Queue::start() ) {
+			return self::seo_error( 'pdk_seo_scan_running', __( 'Er loopt al een scan.', 'pdk-theme-options' ) );
+		}
+
+		return [ 'started' => true, 'status' => SEOHC_Scan_Queue::get_state()['status'] ];
+	}
+
+	/** @return array|WP_Error */
+	public function seo_rescan_post( $input ) {
+		$post = self::seo_post( (int) ( $input['post_id'] ?? 0 ) );
+		if ( ! $post ) {
+			return self::seo_not_found();
+		}
+		if ( ! SEOHC_Scanner::is_scannable( $post ) ) {
+			return self::seo_reason_error( 'not_scannable' );
+		}
+
+		return [ 'rescanned' => true ] + self::seo_rescan( $post->ID );
+	}
+
+	/** @return array|WP_Error */
+	public function seo_update_meta( $input ) {
+		$post = self::seo_post( (int) $input['post_id'] );
+		if ( ! $post ) {
+			return self::seo_not_found();
+		}
+		if ( ! self::seo_may_edit( $post->ID ) ) {
+			return self::seo_forbidden();
+		}
+		if ( 'none' === SEOHC_SEO_Meta::provider() ) {
+			return self::seo_error( 'pdk_seo_no_seo_plugin', __( 'Activeer Yoast SEO of Rank Math om dit veld op te slaan.', 'pdk-theme-options' ) );
+		}
+
+		self::seo_inline_edit();
+		$saved = SEOHC_Inline_Edit::save_meta( $post->ID, $input['field'], sanitize_text_field( $input['value'] ) );
+		if ( is_wp_error( $saved ) ) {
+			return self::seo_status( $saved );
+		}
+
+		return [ 'saved' => true ] + self::seo_rescan( $post->ID );
+	}
+
+	/** @return array|WP_Error */
+	public function seo_update_image_alt( $input ) {
+		$attachment = self::seo_post( (int) $input['attachment_id'] );
+		if ( ! $attachment || 'attachment' !== $attachment->post_type ) {
+			return self::seo_not_found();
+		}
+
+		$value   = sanitize_text_field( $input['value'] );
+		$post    = ! empty( $input['post_id'] ) ? self::seo_post( (int) $input['post_id'] ) : null;
+		$extra   = [];
+		$post_id = 0;
+
+		if ( ! empty( $input['post_id'] ) && ! $post ) {
+			return self::seo_not_found();
+		}
+		if ( ! self::seo_may_edit( $attachment->ID, $post ? $post->ID : 0 ) ) {
+			return self::seo_forbidden();
+		}
+
+		self::seo_inline_edit();
+
+		if ( $post ) {
+			$post_id = $post->ID;
+			$reason  = PDK_SEO_Health_Check::editable_reason( $post );
+
+			if ( '' === $reason ) {
+				if ( false !== strpos( $post->post_content, '<img' ) ) {
+					self::seo_ensure_revision( $post );
+				}
+			} else {
+				$extra['content_skipped'] = $reason;
+			}
+		}
+
+		// Post 0 laat de broncode de content overslaan: alleen de mediabibliotheek wordt bijgewerkt.
+		$saved = SEOHC_Inline_Edit::save_alt( $attachment->ID, $value, $extra ? 0 : $post_id );
+		if ( is_wp_error( $saved ) ) {
+			return self::seo_status( $saved );
+		}
+
+		return [ 'saved' => true ] + self::seo_rescan( $post_id ) + $extra;
+	}
+
+	/** @return array|WP_Error */
+	public function seo_set_heading_level( $input ) {
+		return $this->seo_write_content( (int) $input['post_id'], static function ( string $content ) use ( $input ) {
+			return PDK_SEO_Health_Check::set_heading_level( $content, (int) $input['index'], (string) $input['expected_text'], (int) $input['level'] );
+		} );
+	}
+
+	/** @return array|WP_Error */
+	public function seo_insert_h1( $input ) {
+		$text = sanitize_text_field( $input['text'] );
+		if ( '' === PDK_SEO_Health_Check::normalize_text( $text ) ) {
+			return self::seo_error( 'pdk_seo_invalid_input', __( 'De tekst van de H1 is leeg na het verwijderen van HTML.', 'pdk-theme-options' ) );
+		}
+
+		return $this->seo_write_content( (int) $input['post_id'], static function ( string $content ) use ( $text ) {
+			if ( SEOHC_Settings::get( 'theme_outputs_h1' ) ) {
+				return new WP_Error( 'pdk_seo_theme_h1', __( 'Het thema voert zelf de H1 uit (instelling "theme outputs H1"), dus een H1 in de content zou er een tweede van maken.', 'pdk-theme-options' ) );
+			}
+			foreach ( PDK_SEO_Health_Check::headings( $content ) as $h ) {
+				if ( 1 === $h['level'] ) {
+					return new WP_Error( 'pdk_seo_h1_exists', __( 'Deze pagina heeft al een H1. Wijzig het niveau ervan met seo-set-heading-level.', 'pdk-theme-options' ) );
+				}
+			}
+
+			return PDK_SEO_Health_Check::insert_h1( $content, $text );
+		} );
+	}
+
+	/**
+	 * Eén content-write (D20): controles in volgorde, daarna revisie, opslaan en rescan.
+	 * Een fout wijzigt niets.
+	 *
+	 * @param callable(string): (string|WP_Error) $change Nieuwe content uit de huidige.
+	 * @return array|WP_Error
+	 */
+	private function seo_write_content( int $post_id, callable $change ) {
+		$post = self::seo_post( $post_id );
+		if ( ! $post ) {
+			return self::seo_not_found();
+		}
+
+		if ( ! self::seo_may_edit( $post->ID ) ) {
+			return self::seo_forbidden();
+		}
+
+		$reason = PDK_SEO_Health_Check::editable_reason( $post );
+		if ( '' !== $reason ) {
+			return self::seo_reason_error( $reason );
+		}
+
+		$new = $change( $post->post_content );
+		if ( is_wp_error( $new ) ) {
+			return self::seo_status( $new );
+		}
+
+		if ( $new !== $post->post_content ) {
+			self::seo_ensure_revision( $post );
+			$result = wp_update_post( wp_slash( [ 'ID' => $post->ID, 'post_content' => $new ] ), true );
+			if ( is_wp_error( $result ) ) {
+				return $result;
+			}
+		}
+
+		return [ 'saved' => true ] + self::seo_rescan( $post->ID );
+	}
+
+	/** Zorgt dat er een revisie met de huidige content bestaat voordat die verandert (D20). */
+	private static function seo_ensure_revision( WP_Post $post ): void {
+		foreach ( wp_get_post_revisions( $post->ID ) as $revision ) {
+			if ( $revision->post_content === $post->post_content ) {
+				return;
+			}
+		}
+		wp_save_post_revision( $post->ID );
+	}
+
 	/**
 	 * Alles wat een agent nodig heeft om de site te begrijpen: de ingevulde
 	 * gegevens én de bestaande API om ze op te vragen. Eén ability, één ronde.
@@ -438,6 +939,11 @@ class PDK_Agent_Abilities {
 		$oxygen = class_exists( 'PDK_Oxygen_Elements' )
 			? [ 'oxygen_elements' => __( 'Module oxygen_elements is aan: list-oxygen-elements, read-oxygen-element-file en write-oxygen-element-file bewerken bestaande Element Studio-elementen; nieuwe maak je in de Oxygen-builder.', 'pdk-theme-options' ) ]
 			: [];
+
+		// Idem voor SEO Health Check.
+		if ( class_exists( 'PDK_SEO_Health_Check' ) && PDK_SEO_Health_Check::is_active() ) {
+			$oxygen['seo_health_check'] = __( 'Module seo_health_check is aan: seo-get-status, seo-list-issues, seo-list-pages, seo-get-scan-history, seo-get-launch-checks en seo-get-headings lezen scanresultaten; seo-start-scan en seo-rescan-post scannen; seo-update-meta, seo-update-image-alt, seo-set-heading-level en seo-insert-h1 bewerken posts (met een revisie en een rescan; builderpagina\'s worden geweigerd). Alleen voor beheerders.', 'pdk-theme-options' );
+		}
 
 		return $oxygen + [
 			'company'          => $company + [

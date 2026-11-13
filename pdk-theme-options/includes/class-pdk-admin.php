@@ -35,6 +35,7 @@ class PDK_Admin {
 		'image_sizes'      => 'Afbeeldingsmaten',
 		'oxygen_elements'  => 'Element Studio',
 		'css_framework'    => 'CSS Framework',
+		'seo_health_check' => 'SEO Health',
 	];
 
 	/** Tabs met een code-editor → het bestand in de storage-map. */
@@ -735,7 +736,7 @@ class PDK_Admin {
 		}
 
 		// Tabs met eigen forms (geen wrapper-form nodig — anders geneste forms).
-		$standalone_tabs = [ 'language_checker', 'custom_fonts', 'libraries', 'imgx', 'image_sizes', 'oxygen_elements' ];
+		$standalone_tabs = [ 'language_checker', 'custom_fonts', 'libraries', 'imgx', 'image_sizes', 'oxygen_elements', 'seo_health_check' ];
 		$use_form        = ! in_array( $tab, $standalone_tabs, true );
 		?>
 		<div class="wrap pdk-wrap">
@@ -809,6 +810,7 @@ class PDK_Admin {
 			'image_sizes'      => __( 'Afbeeldingsmaten', 'pdk-theme-options' ),
 			'oxygen_elements'  => __( 'Element Studio', 'pdk-theme-options' ),
 			'css_framework'    => __( 'CSS Framework', 'pdk-theme-options' ),
+			'seo_health_check' => __( 'SEO Health', 'pdk-theme-options' ),
 		];
 
 		foreach ( $module_tab_labels as $module => $label ) {
@@ -888,6 +890,11 @@ class PDK_Admin {
 			case 'css_framework':
 				if ( class_exists( 'PDK_CSS_Framework' ) ) {
 					PDK_CSS_Framework::render_inline();
+				}
+				break;
+			case 'seo_health_check':
+				if ( class_exists( 'PDK_SEO_Health_Check' ) ) {
+					PDK_SEO_Health_Check::render_inline();
 				}
 				break;
 		}

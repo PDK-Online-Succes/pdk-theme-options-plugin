@@ -30,6 +30,7 @@ class PDK_Plugin {
 		'image_sizes'      => [ 'file' => 'modules/image-sizes/class-pdk-image-sizes.php',           'class' => 'PDK_Image_Sizes' ],
 		'oxygen_elements'  => [ 'file' => 'modules/oxygen-elements/class-pdk-oxygen-elements.php',   'class' => 'PDK_Oxygen_Elements' ],
 		'css_framework'    => [ 'file' => 'modules/css-framework/class-pdk-css-framework.php',       'class' => 'PDK_CSS_Framework' ],
+		'seo_health_check' => [ 'file' => 'modules/seo-health-check/class-pdk-seo-health-check.php', 'class' => 'PDK_SEO_Health_Check' ],
 	];
 
 	private function __construct() {
@@ -188,7 +189,34 @@ class PDK_Plugin {
 		require_once PDK_PLUGIN_DIR . 'modules/imgx/includes/class-generator.php';
 		IMGX\Generator::clear_scheduled_events();
 
+		self::deactivate_seo_health_check();
+
 		flush_rewrite_rules();
+	}
+
+	/**
+	 * SEO Health Check: geplande scans afmelden, tenzij de losse plugin draait
+	 * (die gebruikt dezelfde hooks). Het afmelden hoeft de module niet geladen
+	 * te hebben: ensure_booked() boekt het event anders bij elke init opnieuw.
+	 */
+	private static function deactivate_seo_health_check(): void {
+		require_once PDK_PLUGIN_DIR . 'modules/seo-health-check/class-pdk-seo-health-check.php';
+
+		if ( PDK_SEO_Health_Check::standalone_plugin_active() ) {
+			return;
+		}
+
+		foreach ( [ 'seohc_process_batch', 'seohc_scan_single_post', 'seohc_scheduled_scan' ] as $hook ) {
+			wp_unschedule_hook( $hook );
+		}
+		if ( function_exists( 'as_unschedule_all_actions' ) ) {
+			as_unschedule_all_actions( 'seohc_process_batch' );
+		}
+
+		// Scanstatus en lock raak je alleen aan als de module de klassen geladen heeft.
+		if ( PDK_SEO_Health_Check::is_active() ) {
+			SEOHC_Installer::deactivate();
+		}
 	}
 
 	/**

@@ -269,6 +269,10 @@ class PDK_Settings {
 				'flow_space'         => 's',
 				'flow_heading_space' => 'l',
 			],
+			// SEO Health Check: eigen opties (`seohc_*`), hier alleen de aan/uit-schakelaar.
+			'seo_health_check' => [
+				'enabled' => false,
+			],
 			// Uitgeschakelde maten (blocklist, zie PDK_Image_Sizes::disabled()) en
 			// eigen maten (sleutel => breedte/hoogte/crop, altijd voorvoegsel `pdk_`).
 			'image_sizes' => [
@@ -303,6 +307,7 @@ class PDK_Settings {
 			'image_sizes'             => __( 'Afbeeldingsmaten', 'pdk-theme-options' ),
 			'oxygen_elements'         => __( 'Oxygen Element Studio', 'pdk-theme-options' ),
 			'css_framework'           => __( 'CSS Framework', 'pdk-theme-options' ),
+			'seo_health_check'        => __( 'SEO Health Check', 'pdk-theme-options' ),
 		];
 	}
 
@@ -321,11 +326,12 @@ class PDK_Settings {
 			'delivery_time'           => __( 'Levertijd per weekdag met cutoff-tijd, shortcode [levertijd] (vereist WooCommerce).', 'pdk-theme-options' ),
 			'sku_restriction'         => __( 'SKU\'s beperken tot a-z, A-Z, 0-9, punt en koppelteken; automatisch opschonen en duplicaten blokkeren (vereist WooCommerce).', 'pdk-theme-options' ),
 			'language_checker'        => __( 'Taalbestanden beheren en verweesde vertalingen opschonen.', 'pdk-theme-options' ),
-			'agent_abilities'         => __( 'Eigen PHP, CSS en JS lees- en schrijfbaar maken voor een AI-agent via de Abilities API (WordPress 6.9+, bijvoorbeeld met de Agent Connector-plugin). De agent moet inloggen als gebruiker met code-editor rechten — zie de Rechten-tab.', 'pdk-theme-options' ),
+			'agent_abilities'         => __( 'Eigen PHP, CSS en JS lees- en schrijfbaar maken voor een AI-agent via de Abilities API (WordPress 6.9+, bijvoorbeeld met de Agent Connector-plugin). De agent moet inloggen als gebruiker met code-editor rechten — zie de Rechten-tab. Met de module SEO Health Check aan komen er ook SEO-abilities bij (scanresultaten lezen, scannen, meta, alt-tekst en koppen aanpassen); die vereisen manage_options (beheerder).', 'pdk-theme-options' ),
 			'imgx'                    => __( 'WebP- en AVIF-versies naast je bestaande JPEG- en PNG-bestanden zetten en uitserveren via <picture>. De originelen worden nooit gewijzigd.', 'pdk-theme-options' ),
 			'image_sizes'             => __( 'Geregistreerde afbeeldingsmaten bekijken, aan/uit zetten en eigen maten aanmaken. Uitzetten stopt alleen nieuwe generatie — bestaande bestanden blijven staan.', 'pdk-theme-options' ),
 			'oxygen_elements'         => __( 'Eigen opslaglocatie "PDK Elementen" voor Element Studio in Oxygen 6: elementen, macro\'s en presets die je in de builder maakt, komen in wp-content/uploads/pdk-theme-options/oxygen-elements/ (net als custom-functions.php) en overleven plugin- en Oxygen-updates.', 'pdk-theme-options' ),
 			'css_framework'           => __( 'Fluid typografie en ruimte (Utopia-stijl, clamp en cqi), basisstijlen voor koppen en p, flow-regel en layoutklassen (section-breedte, breakout, auto-grid) als één gegenereerd CSS-bestand.', 'pdk-theme-options' ),
+			'seo_health_check'        => __( 'Scant berichten en pagina’s op on-page SEO-problemen (titels, beschrijvingen, alt-teksten, koppen, dunne content, kapotte interne links), met paginascores, geplande scans en launch checks. Alleen voor beheerders. Gebruik niet tegelijk met de losse plugin SEO Health Check.', 'pdk-theme-options' ),
 		];
 	}
 }

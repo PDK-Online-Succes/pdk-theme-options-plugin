@@ -1,0 +1,1726 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: SEO Health Check 0.4.0\n"
+"Report-Msgid-Bugs-To: https://github.com/DeEchteMika/seo-health-check\n"
+"Language: nl_NL\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Generator: hand-written\n"
+
+#. translators: %s: credit text.
+#: includes/class-seohc-launch-checks.php:351
+msgid "\"%s\" was found on the homepage."
+msgstr "\"%s\" is gevonden op de homepage."
+
+#. translators: %s: credit text.
+#: includes/class-seohc-launch-checks.php:354
+msgid "\"%s\" was not found on the homepage."
+msgstr "\"%s\" is niet gevonden op de homepage."
+
+#: includes/class-seohc-launch-checks.php:514
+msgid "\"Discourage search engines from indexing this site\" is on (Settings > Reading). Correct on a staging site, but turn it off after launch."
+msgstr "\"Zoekmachines ontmoedigen deze site te indexeren\" staat aan (Instellingen > Lezen). Prima op een testsite, maar zet het uit na de livegang."
+
+#. translators: 1: length, 2: maximum length.
+#: includes/class-seohc-scanner.php:146
+msgid "%1$d characters (max %2$d)."
+msgstr "%1$d tekens (max %2$d)."
+
+#. translators: 1: length, 2: maximum length, 3: the title.
+#: includes/class-seohc-scanner.php:123
+msgid "%1$d characters (max %2$d): %3$s"
+msgstr "%1$d tekens (max %2$d): %3$s"
+
+#. translators: 1: characters used, 2: recommended maximum.
+#: includes/admin/class-seohc-admin.php:191
+msgid "%1$d of %2$d characters"
+msgstr "%1$d van %2$d tekens"
+
+#. translators: 1: word count, 2: minimum word count.
+#: includes/class-seohc-scanner.php:60
+msgid "%1$d words (minimum %2$d)."
+msgstr "%1$d woorden (minimaal %2$d)."
+
+#. translators: 1: domain, 2: number of posts, 3: number of meta fields.
+#: includes/class-seohc-launch-checks.php:437
+msgid "%1$s (%2$d posts, %3$d fields)"
+msgstr "%1$s (%2$d berichten, %3$d velden)"
+
+#. translators: 1: page title, 2: menu name, 3: status such as draft or private.
+#: includes/class-seohc-launch-checks.php:632
+msgid "%1$s (in \"%2$s\", %3$s)"
+msgstr "%1$s (in \"%2$s\", %3$s)"
+
+#. translators: 1: record names such as "SPF, DMARC", 2: domain name.
+#: includes/class-seohc-launch-checks.php:749
+msgid "%1$s are set for %2$s."
+msgstr "%1$s staan ingesteld voor %2$s."
+
+#. translators: 1: URL, 2: final URL.
+#. translators: 1: development URL, 2: where it ends up.
+#: includes/class-seohc-launch-checks.php:573
+#: includes/class-seohc-launch-checks.php:884
+msgid "%1$s ends at %2$s"
+msgstr "%1$s eindigt op %2$s"
+
+#. translators: 1: file name, 2: size of the file, 3: maximum size.
+#: includes/class-seohc-scanner.php:209
+msgid "%1$s is %2$s (maximum %3$s)."
+msgstr "%1$s is %2$s (maximaal %3$s)."
+
+#. translators: 1: form name, 2: email address.
+#: includes/class-seohc-launch-checks.php:1038
+msgid "%1$s mails to %2$s"
+msgstr "%1$s mailt naar %2$s"
+
+#. translators: 1: number of pages with issues, 2: number of pages scanned.
+#: includes/admin/class-seohc-dashboard-widget.php:65
+msgid "%1$s of %2$s pages need attention"
+msgstr "%1$s van %2$s pagina’s hebben aandacht nodig"
+
+#. translators: 1: processed posts, 2: total posts.
+#: includes/admin/class-seohc-admin.php:186
+#: includes/admin/class-seohc-admin.php:609
+msgid "%1$s of %2$s pages scanned"
+msgstr "%1$s van %2$s pagina’s gescand"
+
+#. translators: 1: date of the scan, 2: number of issues, 3: average score.
+#: includes/class-seohc-mailer.php:252
+msgid "%1$s: %2$s issues, score %3$s"
+msgstr "%1$s: %2$s problemen, score %3$s"
+
+#. translators: %d: number of development domains.
+#: includes/class-seohc-launch-checks.php:903
+msgid "%d development domain sends visitors to the live site, or cannot be reached at all."
+msgid_plural "%d development domains send visitors to the live site, or cannot be reached at all."
+msgstr[0] "%d ontwikkeldomein stuurt bezoekers door naar de live site, of is helemaal niet bereikbaar."
+msgstr[1] "%d ontwikkeldomeinen sturen bezoekers door naar de live site, of zijn helemaal niet bereikbaar."
+
+#. translators: %d: number of forms.
+#: includes/class-seohc-launch-checks.php:1065
+msgid "%d form mails to an address of its own."
+msgid_plural "%d forms mail to an address of their own."
+msgstr[0] "%d formulier mailt naar een eigen adres."
+msgstr[1] "%d formulieren mailen naar een eigen adres."
+
+#. translators: %d: number of H1 headings.
+#: includes/class-seohc-scanner.php:287
+msgid "%d H1 headings, including the post title shown by the theme."
+msgstr "%d H1-koppen, inclusief de berichttitel die het thema toont."
+
+#. translators: %d: number of H1 headings.
+#: includes/class-seohc-scanner.php:289
+msgid "%d H1 headings."
+msgstr "%d H1-koppen."
+
+#. translators: %d: number of further heading jumps on the same page.
+#: includes/class-seohc-scanner.php:344
+msgid "%d more jump further down."
+msgid_plural "%d more jumps further down."
+msgstr[0] "Nog %d sprong verderop."
+msgstr[1] "Nog %d sprongen verderop."
+
+#. translators: %d: number of pages.
+#: includes/class-seohc-launch-checks.php:665
+msgid "%d page is not published yet and is correctly kept out of the menus. Remember that it still needs its text."
+msgid_plural "%d pages are not published yet and are correctly kept out of the menus. Remember that they still need their text."
+msgstr[0] "%d pagina is nog niet gepubliceerd en staat terecht niet in de menu’s. Denk eraan dat die nog tekst nodig heeft."
+msgstr[1] "%d pagina’s zijn nog niet gepubliceerd en staan terecht niet in de menu’s. Denk eraan dat die nog tekst nodig hebben."
+
+#. translators: %s: form name.
+#: includes/class-seohc-launch-checks.php:1023
+msgid "%s has no recipient at all"
+msgstr "%s heeft helemaal geen ontvanger"
+
+#. translators: %s: URL.
+#: includes/class-seohc-launch-checks.php:567
+msgid "%s is not reachable"
+msgstr "%s is niet bereikbaar"
+
+#. translators: %s: number of issues.
+#: includes/admin/class-seohc-dashboard-widget.php:59
+msgid "%s issue"
+msgid_plural "%s issues"
+msgstr[0] "%s probleem"
+msgstr[1] "%s problemen"
+
+#. translators: %s: number of issues.
+#: includes/admin/class-seohc-admin.php:529
+msgid "%s issue appeared"
+msgid_plural "%s issues appeared"
+msgstr[0] "%s probleem erbij"
+msgstr[1] "%s problemen erbij"
+
+#. translators: %s: number of issues.
+#: includes/admin/class-seohc-admin.php:539
+msgid "%s issue was solved"
+msgid_plural "%s issues were solved"
+msgstr[0] "%s probleem opgelost"
+msgstr[1] "%s problemen opgelost"
+
+#. translators: %s: number of seconds.
+#: includes/admin/class-seohc-scans-page.php:209
+msgid "%s second"
+msgid_plural "%s seconds"
+msgstr[0] "%s seconde"
+msgstr[1] "%s seconden"
+
+#. translators: %s: form name.
+#: includes/class-seohc-launch-checks.php:1030
+msgid "%s still mails to the WordPress administrator"
+msgstr "%s mailt nog naar de WordPress-beheerder"
+
+#. translators: %s: plugin name.
+#: includes/class-seohc-launch-checks.php:1227
+msgid "%s takes care of the mail. This check can only look inside WP Mail SMTP, so check its settings yourself."
+msgstr "%s verzorgt de mail. Deze controle kan alleen in WP Mail SMTP kijken, dus loop de instellingen daarvan zelf even na."
+
+#. translators: %s: how much the number improved.
+#: includes/class-seohc-mailer.php:283
+msgid "(%s better)"
+msgstr "(%s beter)"
+
+#. translators: %s: how much the number got worse.
+#: includes/class-seohc-mailer.php:285
+msgid "(%s worse)"
+msgstr "(%s slechter)"
+
+#: includes/admin/class-seohc-admin.php:627
+msgid "(cancelled)"
+msgstr "(geannuleerd)"
+
+#: includes/class-seohc-scanner.php:170
+msgid "(image without source)"
+msgstr "(afbeelding zonder bron)"
+
+#: includes/admin/class-seohc-issues-list-table.php:198
+#: includes/admin/class-seohc-pages-list-table.php:197
+msgid "(no title)"
+msgstr "(geen titel)"
+
+#: includes/class-seohc-mailer.php:275
+msgid "(unchanged)"
+msgstr "(gelijk)"
+
+#: includes/class-seohc-launch-checks.php:97
+msgid "404 page"
+msgstr "404-pagina"
+
+#. translators: %s: the normal subject line.
+#: includes/class-seohc-mailer.php:142
+msgid "[Test] %s"
+msgstr "[Test] %s"
+
+#: includes/class-seohc-launch-checks.php:997
+msgid "A form plugin is active but no forms were made yet."
+msgstr "Er is een formulierplugin actief, maar er zijn nog geen formulieren gemaakt."
+
+#: includes/admin/class-seohc-admin.php:392
+msgid "A scan is already running."
+msgstr "Er loopt al een scan."
+
+#: includes/class-seohc-launch-checks.php:284
+msgid "A site icon is set in WordPress."
+msgstr "Er is een site-icoon ingesteld in WordPress."
+
+#: includes/class-seohc-launch-checks.php:1284
+msgid "A user called \"admin\" still exists, without administrator rights. Bots try that name anyway, so give it another one."
+msgstr "Er bestaat nog een gebruiker die \"admin\" heet, zonder beheerdersrechten. Bots proberen die naam toch, dus geef hem een andere."
+
+#: includes/class-seohc-settings.php:508
+msgid "About this plugin"
+msgstr "Over deze plugin"
+
+#: includes/class-seohc-launch-checks.php:178
+msgid "Action needed"
+msgstr "Actie nodig"
+
+#: includes/class-seohc-settings.php:503
+msgid "Action Scheduler"
+msgstr "Action Scheduler"
+
+#: includes/admin/class-seohc-inline-edit.php:317
+msgid "Activate Yoast SEO or Rank Math to store this field."
+msgstr "Activeer Yoast SEO of Rank Math om dit veld op te slaan."
+
+#: includes/class-seohc-launch-checks.php:81
+msgid "After launch"
+msgstr "Na de livegang"
+
+#: includes/admin/class-seohc-admin.php:511
+msgid "After the next scan you will also see what changed since this one."
+msgstr "Na de volgende scan zie je hier ook wat er sinds deze scan is veranderd."
+
+#: includes/admin/class-seohc-issues-list-table.php:127
+#: includes/admin/class-seohc-pages-list-table.php:119
+msgid "All"
+msgstr "Alles"
+
+#: includes/admin/class-seohc-issues-list-table.php:179
+msgid "All open issues"
+msgstr "Alle open problemen"
+
+#: includes/admin/class-seohc-issues-list-table.php:161
+#: includes/admin/class-seohc-pages-list-table.php:150
+msgid "All post types"
+msgstr "Alle berichttypen"
+
+#: includes/admin/class-seohc-issues-list-table.php:172
+msgid "All severities"
+msgstr "Alle ernstniveaus"
+
+#. translators: %s: comma separated plugin names.
+#: includes/class-seohc-launch-checks.php:374
+msgid "All standard plugins are active. Check that they are configured."
+msgstr "Alle standaardplugins zijn actief. Controleer of ze ook zijn ingesteld."
+
+#. translators: %s: site address.
+#: includes/class-seohc-launch-checks.php:582
+msgid "All variants redirect to %s."
+msgstr "Alle varianten verwijzen door naar %s."
+
+#: includes/admin/class-seohc-inline-edit.php:81
+msgid "Alt text"
+msgstr "Alt-tekst"
+
+#: includes/class-seohc-settings.php:355
+msgid "Always use the rendered page (most accurate, slowest)"
+msgstr "Altijd de weergegeven pagina gebruiken (nauwkeurigst, langzaamst)"
+
+#: includes/class-seohc-launch-checks.php:1281
+msgid "An administrator called \"admin\" still exists. That is the first name login bots try. Make a new administrator under a different name, hand the content over to it and remove this one."
+msgstr "Er bestaat nog een beheerder die \"admin\" heet. Dat is de eerste naam die inlogbots proberen. Maak een nieuwe beheerder met een andere naam, draag de content over en verwijder deze."
+
+#. translators: 1: heading level before the jump, 2: heading level after it.
+#: includes/class-seohc-scanner.php:325
+msgid "An H%1$d is followed by an H%2$d."
+msgstr "Een H%1$d wordt gevolgd door een H%2$d."
+
+#: includes/class-seohc-launch-checks.php:80
+msgid "At launch"
+msgstr "Bij de livegang"
+
+#: includes/admin/class-seohc-admin.php:72
+#: includes/admin/class-seohc-schedule-page.php:33
+#: includes/class-seohc-schedule.php:237
+msgid "Automatic scan"
+msgstr "Automatisch scannen"
+
+#: includes/class-seohc-settings.php:353
+msgid "Automatic: use the rendered page when the post content is empty (page builders)"
+msgstr "Automatisch: de weergegeven pagina gebruiken als de berichtinhoud leeg is (paginabouwers)"
+
+#: includes/admin/class-seohc-admin.php:476
+#: includes/admin/class-seohc-dashboard-widget.php:48
+#: includes/admin/class-seohc-scans-page.php:62
+#: includes/class-seohc-mailer.php:174
+msgid "Average score"
+msgstr "Gemiddelde score"
+
+#: includes/class-seohc-settings.php:501
+msgid "Background work through"
+msgstr "Achtergrondwerk via"
+
+#: includes/class-seohc-settings.php:176
+msgid "Batch size"
+msgstr "Batchgrootte"
+
+#: includes/class-seohc-launch-checks.php:79
+msgid "Before launch"
+msgstr "Voor de livegang"
+
+#: includes/class-seohc-issue-types.php:74
+msgid "Broken internal link"
+msgstr "Kapotte interne link"
+
+#: includes/admin/class-seohc-issues-list-table.php:360
+msgid "Cancel"
+msgstr "Annuleren"
+
+#: includes/admin/class-seohc-admin.php:615
+msgid "Cancel scan"
+msgstr "Scan annuleren"
+
+#: includes/class-seohc-launch-checks.php:1181
+msgid "Captcha in WPForms"
+msgstr "Captcha in WPForms"
+
+#: includes/admin/class-seohc-pages-list-table.php:50
+#: includes/admin/class-seohc-scans-page.php:149
+msgid "Change"
+msgstr "Verschil"
+
+#: includes/class-seohc-launch-checks.php:177
+#: includes/class-seohc-launch-checks.php:217
+msgid "Check"
+msgstr "Controle"
+
+#. translators: %s: list of forms and what is wrong with them.
+#: includes/class-seohc-launch-checks.php:1051
+msgid "Check the recipients: %s."
+msgstr "Controleer de ontvangers: %s."
+
+#: includes/class-seohc-schedule.php:270
+msgid "Choose at least one day, otherwise the scan never runs."
+msgstr "Kies minstens één dag, anders draait de scan nooit."
+
+#: includes/class-seohc-settings.php:253
+msgid "Comma separated, for example \"staging.example.com, example.test\". After launch, content must not link to these domains anymore."
+msgstr "Gescheiden door komma’s, bijvoorbeeld \"staging.voorbeeld.nl, voorbeeld.test\". Na de livegang mag de content niet meer naar deze domeinen linken."
+
+#: includes/class-seohc-settings.php:217
+msgid "Comma separated, for example \"youragency.com\". Forms that still mail to one of these have not been handed over to the client yet. Leave empty to skip that part of the check."
+msgstr "Gescheiden door komma’s, bijvoorbeeld \"jouwbureau.nl\". Formulieren die hier nog naartoe mailen zijn nog niet overgedragen aan de klant. Laat leeg om dat deel van de controle over te slaan."
+
+#: includes/class-seohc-settings.php:112
+msgid "Content source"
+msgstr "Bron van de content"
+
+#. translators: %s: list of domains with counts.
+#: includes/class-seohc-launch-checks.php:443
+msgid "Content still refers to: %s. Use a search-replace plugin to update the URLs."
+msgstr "De content verwijst nog naar: %s. Gebruik een zoek-en-vervangplugin om de URL’s bij te werken."
+
+#: includes/class-seohc-settings.php:126
+msgid "Content with fewer words is reported as thin content. Use 0 to disable this check."
+msgstr "Content met minder woorden wordt gemeld als dunne content. Gebruik 0 om deze controle uit te zetten."
+
+#: includes/class-seohc-launch-checks.php:111
+msgid "Cookie notice"
+msgstr "Cookiemelding"
+
+#. translators: %s: plugin folder names.
+#: includes/class-seohc-launch-checks.php:502
+msgid "Cookie plugin active: %s"
+msgstr "Cookieplugin actief: %s"
+
+#. translators: %s: list of form names.
+#: includes/class-seohc-launch-checks.php:1113
+msgid "could not be read: %s"
+msgstr "konden niet worden uitgelezen: %s"
+
+#: includes/admin/class-seohc-admin.php:189
+msgid "Could not save. Try again."
+msgstr "Opslaan is niet gelukt. Probeer het opnieuw."
+
+#: includes/class-seohc-settings.php:325
+msgid "Counts links from the content of other pages and from your menus. Links in a sidebar, a footer or a widget are not scanned, so a page only reachable from there is reported as well. Blog posts that are only listed on an archive page count as unlinked too."
+msgstr "Telt links uit de content van andere pagina’s en uit je menu’s. Links in een zijbalk, een footer of een widget worden niet gescand, dus een pagina die alleen daar staat wordt ook gemeld. Blogberichten die alleen op een archiefpagina staan tellen eveneens als niet gelinkt."
+
+#: includes/class-seohc-launch-checks.php:107
+msgid "Custom login screen"
+msgstr "Eigen inlogscherm"
+
+#: includes/class-seohc-settings.php:498
+msgid "Database version"
+msgstr "Databaseversie"
+
+#: includes/class-seohc-schedule.php:238
+msgid "Days"
+msgstr "Dagen"
+
+#: includes/class-seohc-launch-checks.php:119
+msgid "Default \"admin\" login"
+msgstr "Standaard inlognaam \"admin\""
+
+#: includes/admin/class-seohc-inline-edit.php:82
+msgid "Describe what the image shows. Leave empty only for decoration."
+msgstr "Beschrijf wat er op de afbeelding staat. Laat alleen leeg bij versiering."
+
+#: includes/admin/class-seohc-issues-list-table.php:61
+#: includes/class-seohc-csv-exporter.php:85
+#: includes/class-seohc-launch-checks.php:219
+msgid "Details"
+msgstr "Details"
+
+#: includes/class-seohc-settings.php:246
+msgid "Development domains"
+msgstr "Ontwikkeldomeinen"
+
+#: includes/class-seohc-launch-checks.php:112
+msgid "Development site redirects"
+msgstr "Ontwikkelsite verwijst door"
+
+#: includes/class-seohc-launch-checks.php:741
+msgid "DKIM is not checked: fill in the selector of your mail server under Settings."
+msgstr "DKIM wordt niet gecontroleerd: vul bij Instellingen de selector van je mailserver in."
+
+#: includes/class-seohc-settings.php:234
+msgid "DKIM selector"
+msgstr "DKIM-selector"
+
+#: includes/admin/class-seohc-admin.php:150
+msgid "Documentation"
+msgstr "Documentatie"
+
+#: includes/admin/class-seohc-schedule-page.php:157
+msgid "Download"
+msgstr "Downloaden"
+
+#: includes/admin/class-seohc-schedule-page.php:181
+msgid "Download CSV"
+msgstr "CSV downloaden"
+
+#: includes/class-seohc-issue-types.php:46
+msgid "Duplicate meta description"
+msgstr "Dubbele meta description"
+
+#: includes/class-seohc-issue-types.php:34
+msgid "Duplicate title"
+msgstr "Dubbele titel"
+
+#: includes/admin/class-seohc-issues-list-table.php:202
+#: includes/admin/class-seohc-pages-list-table.php:215
+msgid "Edit"
+msgstr "Bewerken"
+
+#. translators: %s: field name, for example "Alt text".
+#: includes/admin/class-seohc-issues-list-table.php:355
+msgid "Edit %s"
+msgstr "%s bewerken"
+
+#: includes/class-seohc-csv-exporter.php:82
+msgid "Edit link"
+msgstr "Bewerklink"
+
+#: includes/admin/class-seohc-issues-list-table.php:246
+msgid "Error"
+msgstr "Fout"
+
+#: includes/admin/class-seohc-issues-list-table.php:173
+msgid "Errors"
+msgstr "Fouten"
+
+#: includes/class-seohc-launch-checks.php:950
+msgid "Every administrator has an address on one of your own domains, so the client has no account yet. Do not forget the manual either."
+msgstr "Elke beheerder heeft een adres op een van je eigen domeinen, dus de klant heeft nog geen account. Vergeet de handleiding ook niet."
+
+#: includes/class-seohc-launch-checks.php:1099
+msgid "Every form sends the visitor to a page of its own afterwards."
+msgstr "Elk formulier stuurt de bezoeker daarna naar een eigen pagina."
+
+#: includes/class-seohc-launch-checks.php:676
+msgid "Every menu item leads to a published page."
+msgstr "Elk menu-item leidt naar een gepubliceerde pagina."
+
+#: includes/admin/class-seohc-admin.php:566
+msgid "Every scanned page scores from 0 to 100. Each kind of problem costs points, errors twice as much as warnings, and repeats of the same problem a little extra."
+msgstr "Elke gescande pagina krijgt een score van 0 tot 100. Elk soort probleem kost punten, een fout twee keer zoveel als een waarschuwing, en herhalingen van hetzelfde probleem nog iets extra."
+
+#: includes/class-seohc-launch-checks.php:390
+msgid "Everything is up to date."
+msgstr "Alles is up-to-date."
+
+#: includes/admin/class-seohc-admin.php:439
+msgid "Export CSV"
+msgstr "CSV exporteren"
+
+#: includes/class-seohc-launch-checks.php:96
+msgid "Favicon"
+msgstr "Favicon"
+
+#: includes/class-seohc-launch-checks.php:98
+msgid "Featured image on the homepage"
+msgstr "Uitgelichte afbeelding op de homepage"
+
+#. translators: %s: file name.
+#: includes/class-seohc-scanner.php:262
+msgid "Featured image: %s"
+msgstr "Uitgelichte afbeelding: %s"
+
+#: includes/class-seohc-link-checker.php:133
+msgid "File not found in the uploads folder."
+msgstr "Bestand niet gevonden in de uploadsmap."
+
+#: includes/admin/class-seohc-schedule-page.php:124
+msgid "Fill in an address first"
+msgstr "Vul eerst een adres in"
+
+#: includes/class-seohc-launch-checks.php:1058
+msgid "Fill in your own email domains under Settings to also catch forms that still mail to you."
+msgstr "Vul bij Instellingen je eigen e-maildomeinen in, dan worden ook formulieren gevonden die nog naar jou mailen."
+
+#: includes/class-seohc-launch-checks.php:920
+msgid "Fill in your own email domains under Settings, then this check can tell whether the client has an account of their own."
+msgstr "Vul bij Instellingen je eigen e-maildomeinen in, dan kan deze controle zien of de klant een eigen account heeft."
+
+#: includes/admin/class-seohc-issues-list-table.php:185
+#: includes/admin/class-seohc-pages-list-table.php:158
+msgid "Filter"
+msgstr "Filteren"
+
+#: includes/admin/class-seohc-issues-list-table.php:159
+#: includes/admin/class-seohc-pages-list-table.php:148
+msgid "Filter by post type"
+msgstr "Filteren op berichttype"
+
+#: includes/admin/class-seohc-issues-list-table.php:170
+msgid "Filter by severity"
+msgstr "Filteren op ernst"
+
+#: includes/admin/class-seohc-issues-list-table.php:177
+msgid "Filter by status"
+msgstr "Filteren op status"
+
+#: includes/admin/class-seohc-scans-page.php:60
+msgid "Finished"
+msgstr "Afgerond"
+
+#: includes/admin/class-seohc-admin.php:535
+#: includes/admin/class-seohc-dashboard-widget.php:109
+#: includes/admin/class-seohc-issues-list-table.php:279
+#: includes/admin/class-seohc-scans-page.php:65
+#: includes/class-seohc-csv-exporter.php:122
+msgid "Fixed"
+msgstr "Opgelost"
+
+#: includes/admin/class-seohc-issues-list-table.php:182
+msgid "Fixed since the last scan"
+msgstr "Opgelost sinds de laatste scan"
+
+#: includes/admin/class-seohc-inline-edit.php:192
+msgid "Fixed."
+msgstr "Opgelost."
+
+#: includes/class-seohc-launch-checks.php:99
+msgid "Footer credit"
+msgstr "Footervermelding"
+
+#: includes/class-seohc-settings.php:198
+msgid "Footer credit text"
+msgstr "Tekst van de footervermelding"
+
+#. translators: %s: what is the matter with which forms.
+#: includes/class-seohc-launch-checks.php:1122
+msgid "Forms %s. A thank you page is not always needed, but without one the submission cannot be counted as a conversion."
+msgstr "Formulieren %s. Een bedankpagina is niet altijd nodig, maar zonder is de inzending niet als conversie te tellen."
+
+#: includes/class-seohc-launch-checks.php:104
+msgid "Forms mail to the client"
+msgstr "Formulieren mailen naar de klant"
+
+#: includes/class-seohc-repository.php:885
+msgid "Good"
+msgstr "Goed"
+
+#: includes/class-seohc-launch-checks.php:110
+msgid "Google Analytics / Tag Manager"
+msgstr "Google Analytics / Tag Manager"
+
+#: includes/class-seohc-launch-checks.php:487
+msgid "Google Analytics or Tag Manager code was found. Fill in the measurement code under Settings to check that it is the right one."
+msgstr "Er is code van Google Analytics of Tag Manager gevonden. Vul bij Instellingen de meetcode in om te controleren of het de juiste is."
+
+#: includes/class-seohc-issue-types.php:66
+msgid "Heading level skipped"
+msgstr "Kopniveau overgeslagen"
+
+#: includes/class-seohc-schedule.php:353
+msgid "How many reports to keep on the site, so you can look back at them. Older ones are deleted. Use 0 to keep none; the report is then only emailed."
+msgstr "Hoeveel rapporten er op de site bewaard blijven, zodat je kunt terugkijken. Oudere worden verwijderd. Gebruik 0 om er geen te bewaren; het rapport wordt dan alleen gemaild."
+
+#: includes/class-seohc-launch-checks.php:108
+msgid "HTTPS"
+msgstr "HTTPS"
+
+#: includes/class-seohc-issue-types.php:54
+msgid "Image file too large"
+msgstr "Afbeeldingsbestand te groot"
+
+#: includes/class-seohc-issue-types.php:50
+msgid "Image without alt text"
+msgstr "Afbeelding zonder alt-tekst"
+
+#: includes/class-seohc-settings.php:154
+msgid "In characters. Google usually shows around 155-160."
+msgstr "In tekens. Google toont er meestal ongeveer 155-160."
+
+#: includes/class-seohc-settings.php:140
+msgid "In characters. Google usually shows around 60."
+msgstr "In tekens. Google toont er meestal ongeveer 60."
+
+#: includes/class-seohc-settings.php:169
+msgid "In KB. Images in your uploads folder above this size are reported, 300 is a sensible start. Use 0 to disable this check, which is how it starts out: on a site with many photos it can report a lot at once."
+msgstr "In KB. Afbeeldingen in je uploadsmap die groter zijn worden gemeld; 300 is een verstandig begin. Gebruik 0 om deze controle uit te zetten, en zo staat hij ook standaard: op een site met veel foto’s kan hij in één keer veel melden."
+
+#. translators: %s: the time zone of the site, for example Europe/Amsterdam.
+#: includes/class-seohc-schedule.php:323
+msgid "In the time zone of the site (%s)."
+msgstr "In de tijdzone van de site (%s)."
+
+#. translators: %s: plugin names.
+#: includes/class-seohc-launch-checks.php:602
+msgid "Inactive plugins: %s. Remove the ones you do not need."
+msgstr "Inactieve plugins: %s. Verwijder wat je niet nodig hebt."
+
+#: includes/class-seohc-launch-checks.php:179
+msgid "Info"
+msgstr "Info"
+
+#: includes/admin/class-seohc-issues-list-table.php:60
+#: includes/admin/class-seohc-scans-page.php:146
+#: includes/class-seohc-csv-exporter.php:83
+msgid "Issue"
+msgstr "Probleem"
+
+#. translators: %s: link to the issues overview.
+#: includes/admin/class-seohc-admin.php:485
+#: includes/admin/class-seohc-admin.php:69
+#: includes/admin/class-seohc-pages-list-table.php:52
+#: includes/admin/class-seohc-scans-page.php:38
+#: includes/admin/class-seohc-scans-page.php:63
+#: includes/class-seohc-mailer.php:175
+msgid "Issues"
+msgstr "Problemen"
+
+#: includes/class-seohc-schedule.php:241
+msgid "Keep reports"
+msgstr "Rapporten bewaren"
+
+#: includes/admin/class-seohc-schedule-page.php:142
+msgid "Kept reports"
+msgstr "Bewaarde rapporten"
+
+#. translators: %s: date and time the last report was sent.
+#: includes/admin/class-seohc-schedule-page.php:91
+msgid "Last report sent: %s"
+msgstr "Laatste rapport verstuurd: %s"
+
+#. translators: %s: date and time.
+#: includes/class-seohc-launch-checks.php:193
+msgid "Last run: %s"
+msgstr "Laatst uitgevoerd: %s"
+
+#. translators: %s: date and time of the last scan.
+#: includes/admin/class-seohc-admin.php:623
+#: includes/admin/class-seohc-dashboard-widget.php:145
+msgid "Last scan: %s"
+msgstr "Laatste scan: %s"
+
+#: includes/admin/class-seohc-scans-page.php:77
+msgid "Latest"
+msgstr "Nieuwste"
+
+#: includes/admin/class-seohc-admin.php:73
+#: includes/class-seohc-launch-checks.php:183
+#: includes/class-seohc-settings.php:192
+msgid "Launch checks"
+msgstr "Livegang-checks"
+
+#: includes/admin/class-seohc-schedule-page.php:35
+msgid "Let the plugin scan the site by itself and send the results by email afterwards, with the full list as a CSV file attached."
+msgstr "Laat de plugin de site zelf scannen en daarna de resultaten mailen, met de volledige lijst als CSV-bestand erbij."
+
+#. translators: %s: post status such as draft or trash.
+#: includes/class-seohc-link-checker.php:143
+msgid "Links to content with status \"%s\"."
+msgstr "Linkt naar content met status \"%s\"."
+
+#: includes/class-seohc-launch-checks.php:103
+msgid "Mail delivery set up"
+msgstr "Mailbezorging ingesteld"
+
+#: includes/class-seohc-settings.php:524
+msgid "Manual and examples"
+msgstr "Handleiding en voorbeelden"
+
+#: includes/class-seohc-settings.php:160
+msgid "Maximum image size"
+msgstr "Maximale afbeeldingsgrootte"
+
+#: includes/class-seohc-settings.php:145
+msgid "Maximum meta description length"
+msgstr "Maximale lengte meta description"
+
+#: includes/class-seohc-settings.php:131
+msgid "Maximum title length"
+msgstr "Maximale titellengte"
+
+#: includes/class-seohc-settings.php:222
+msgid "Measurement code"
+msgstr "Meetcode"
+
+#: includes/class-seohc-launch-checks.php:102
+msgid "Menus point at published pages"
+msgstr "Menu’s wijzen naar gepubliceerde pagina’s"
+
+#: includes/admin/class-seohc-inline-edit.php:108
+msgid "Meta description"
+msgstr "Meta description"
+
+#: includes/class-seohc-issue-types.php:42
+msgid "Meta description too long"
+msgstr "Meta description te lang"
+
+#: includes/class-seohc-settings.php:117
+msgid "Minimum word count"
+msgstr "Minimum aantal woorden"
+
+#: includes/class-seohc-issue-types.php:58
+msgid "Missing H1"
+msgstr "H1 ontbreekt"
+
+#: includes/class-seohc-issue-types.php:38
+msgid "Missing meta description"
+msgstr "Meta description ontbreekt"
+
+#: includes/class-seohc-issue-types.php:26
+msgid "Missing title"
+msgstr "Titel ontbreekt"
+
+#: includes/class-seohc-mailer.php:224
+msgid "Most common issues"
+msgstr "Meest voorkomende problemen"
+
+#: includes/class-seohc-issue-types.php:62
+msgid "Multiple H1s"
+msgstr "Meerdere H1’s"
+
+#: includes/class-seohc-settings.php:404
+msgid "My theme shows the post title as an H1 above the content"
+msgstr "Mijn thema toont de berichttitel als H1 boven de content"
+
+#: includes/class-seohc-repository.php:890
+msgid "Needs work"
+msgstr "Kan beter"
+
+#: includes/admin/class-seohc-admin.php:525
+#: includes/admin/class-seohc-dashboard-widget.php:105
+#: includes/admin/class-seohc-issues-list-table.php:287
+#: includes/admin/class-seohc-scans-page.php:64
+#: includes/class-seohc-csv-exporter.php:126
+msgid "New"
+msgstr "Nieuw"
+
+#: includes/admin/class-seohc-issues-list-table.php:180
+msgid "New since the last scan"
+msgstr "Nieuw sinds de laatste scan"
+
+#. translators: %s: date and time of the next scan.
+#: includes/admin/class-seohc-schedule-page.php:70
+msgid "Next scan: %s"
+msgstr "Volgende scan: %s"
+
+#: includes/class-seohc-launch-checks.php:94
+msgid "No \"Home\" in the homepage title"
+msgstr "Geen \"Home\" in de titel van de homepage"
+
+#. translators: 1: missing record names, 2: domain name.
+#: includes/class-seohc-launch-checks.php:760
+msgid "No %1$s record found for %2$s. Mail from this domain, including the scan report, is likely to end up in the spam folder."
+msgstr "Geen %1$s-record gevonden voor %2$s. Mail vanaf dit domein, inclusief het scanrapport, belandt waarschijnlijk in de map ongewenste e-mail."
+
+#: includes/class-seohc-launch-checks.php:993
+msgid "No Contact Form 7, WPForms or Gravity Forms found, so there is nothing to check here."
+msgstr "Geen Contact Form 7, WPForms of Gravity Forms gevonden, dus hier valt niets te controleren."
+
+#: includes/class-seohc-launch-checks.php:342
+msgid "No credit text configured in the settings."
+msgstr "Er is geen vermelding ingesteld bij de instellingen."
+
+#: includes/class-seohc-launch-checks.php:421
+#: includes/class-seohc-launch-checks.php:858
+msgid "No development domains configured in the settings."
+msgstr "Er zijn geen ontwikkeldomeinen ingesteld bij de instellingen."
+
+#: includes/admin/class-seohc-pages-list-table.php:182
+msgid "No earlier scan to compare this page with yet."
+msgstr "Nog geen eerdere scan om deze pagina mee te vergelijken."
+
+#: includes/class-seohc-launch-checks.php:290
+msgid "No favicon found. Set one under Appearance > Customize > Site Identity."
+msgstr "Geen favicon gevonden. Stel er een in bij Weergave > Aanpassen > Site-identiteit."
+
+#. translators: %s: link to the issues overview.
+#: includes/admin/class-seohc-scans-page.php:37
+msgid "No finished scan yet. Start a full scan on the %s screen and it will show up here."
+msgstr "Nog geen afgeronde scan. Start een volledige scan op het scherm %s, dan verschijnt hij hier."
+
+#: includes/class-seohc-launch-checks.php:490
+msgid "No Google Analytics or Tag Manager code found. Only needed when the client uses it."
+msgstr "Geen code van Google Analytics of Tag Manager gevonden. Alleen nodig als de klant het gebruikt."
+
+#: includes/class-seohc-launch-checks.php:116
+msgid "No inactive plugins"
+msgstr "Geen inactieve plugins"
+
+#: includes/admin/class-seohc-issues-list-table.php:408
+msgid "No issues found for these filters."
+msgstr "Geen problemen gevonden met deze filters."
+
+#: includes/class-seohc-mailer.php:218
+msgid "No issues were found at all. Nothing to do."
+msgstr "Er zijn helemaal geen problemen gevonden. Niets te doen."
+
+#. translators: %s: plugin folder names.
+#: includes/class-seohc-launch-checks.php:504
+msgid "No known cookie consent plugin is active. Check whether the site uses another solution."
+msgstr "Er is geen bekende cookieplugin actief. Controleer of de site een andere oplossing gebruikt."
+
+#: includes/class-seohc-launch-checks.php:109
+msgid "No links to the development site"
+msgstr "Geen links naar de ontwikkelsite"
+
+#: includes/class-seohc-issue-types.php:78
+msgid "No links to this page"
+msgstr "Geen links naar deze pagina"
+
+#: includes/class-seohc-launch-checks.php:840
+msgid "No login plugin found, but there are must-use plugins on this site and one of those may be doing it. Worth a look at the login screen yourself."
+msgstr "Geen inlogplugin gevonden, maar er staan must-use plugins op deze site en één daarvan doet het misschien. Kijk zelf even op het inlogscherm."
+
+#: includes/class-seohc-launch-checks.php:843
+msgid "No login plugin found. If your login screen is styled from the theme, this check cannot see that; the seo_health_check_login_plugins filter can add what you use."
+msgstr "Geen inlogplugin gevonden. Wordt je inlogscherm vanuit het thema opgemaakt, dan kan deze controle dat niet zien; met de filter seo_health_check_login_plugins voeg je toe wat jullie gebruiken."
+
+#: includes/class-seohc-launch-checks.php:1234
+msgid "No mail plugin is active, so WordPress hands mail to the PHP mail function. On most hosting that mail never arrives."
+msgstr "Er is geen mailplugin actief, dus WordPress geeft mail door aan de PHP-mailfunctie. Bij de meeste hosting komt die mail nooit aan."
+
+#: includes/class-seohc-scanner.php:138
+msgid "No meta description was written; search engines will pick their own snippet."
+msgstr "Er is geen meta description geschreven; zoekmachines kiezen dan zelf een fragment."
+
+#: includes/class-seohc-repository.php:447
+msgid "No other page links to this one, and it is not in a menu."
+msgstr "Geen enkele andere pagina linkt hiernaartoe, en hij staat niet in een menu."
+
+#: includes/class-seohc-link-checker.php:156
+msgid "No page matches this URL."
+msgstr "Geen enkele pagina hoort bij deze URL."
+
+#: includes/admin/class-seohc-pages-list-table.php:282
+msgid "No pages found. Start a scan first."
+msgstr "Geen pagina’s gevonden. Start eerst een scan."
+
+#. translators: %s: list of domains with counts.
+#: includes/class-seohc-launch-checks.php:445
+msgid "No references to the development domains found."
+msgstr "Geen verwijzingen naar de ontwikkeldomeinen gevonden."
+
+#: includes/admin/class-seohc-schedule-page.php:145
+msgid "No reports have been kept yet."
+msgstr "Er zijn nog geen rapporten bewaard."
+
+#: includes/admin/class-seohc-schedule-page.php:76
+msgid "No scan is planned."
+msgstr "Er staat geen scan gepland."
+
+#: includes/admin/class-seohc-issues-list-table.php:401
+msgid "No scan results yet. Start a scan to check your site."
+msgstr "Nog geen scanresultaten. Start een scan om je site te controleren."
+
+#: includes/class-seohc-scanner.php:137
+msgid "No SEO plugin is active, so no meta description is output."
+msgstr "Er is geen SEO-plugin actief, dus er wordt geen meta description meegegeven."
+
+#. translators: %s: sitemap URL.
+#: includes/class-seohc-launch-checks.php:536
+msgid "No sitemap found at %s. Enable it in your SEO plugin."
+msgstr "Geen sitemap gevonden op %s. Zet hem aan in je SEO-plugin."
+
+#: includes/class-seohc-launch-checks.php:1161
+msgid "No spam protection found. Without a captcha or a honeypot the spam bots will find the forms within weeks."
+msgstr "Geen spambescherming gevonden. Zonder captcha of honeypot vinden spambots de formulieren binnen een paar weken."
+
+#: includes/class-seohc-mailer.php:55
+msgid "No valid email address is set, so there was nobody to send the report to."
+msgstr "Er is geen geldig e-mailadres ingesteld, dus er was niemand om het rapport naartoe te sturen."
+
+#: includes/class-seohc-launch-checks.php:697
+msgid "No verification tag for Google Search Console found. If you verified the site through DNS or an HTML file, this check cannot see that."
+msgstr "Geen verificatietag voor Google Search Console gevonden. Heb je de site via DNS of een HTML-bestand geverifieerd, dan kan deze controle dat niet zien."
+
+#: includes/class-seohc-seo-meta.php:42
+msgid "none (WordPress defaults)"
+msgstr "geen (standaard van WordPress)"
+
+#. translators: %s: comma separated plugin names.
+#: includes/class-seohc-launch-checks.php:372
+msgid "Not active: %s. Also check that they are configured."
+msgstr "Niet actief: %s. Controleer ook of ze zijn ingesteld."
+
+#: includes/admin/class-seohc-scans-page.php:147
+msgid "Now"
+msgstr "Nu"
+
+#: includes/class-seohc-settings.php:185
+msgid "Number of posts scanned per background step. Lower this on slow hosting."
+msgstr "Aantal berichten dat per stap op de achtergrond wordt gescand. Zet dit lager bij trage hosting."
+
+#: includes/class-seohc-launch-checks.php:176
+msgid "OK"
+msgstr "OK"
+
+#: includes/class-seohc-schedule.php:341
+msgid "One or more addresses, separated by commas."
+msgstr "Eén of meer adressen, gescheiden door komma’s."
+
+#: includes/class-seohc-settings.php:405
+msgid "Only used when the post content is scanned. When checked, the content itself should not contain an H1."
+msgstr "Wordt alleen gebruikt als de berichtinhoud wordt gescand. Als dit aanstaat, hoort er in de content zelf geen H1 te staan."
+
+#: includes/class-seohc-mailer.php:204
+msgid "Open the overview in WordPress"
+msgstr "Het overzicht openen in WordPress"
+
+#: includes/admin/class-seohc-issues-list-table.php:58
+#: includes/admin/class-seohc-pages-list-table.php:51
+msgid "Page"
+msgstr "Pagina"
+
+#: includes/class-seohc-settings.php:392
+msgid "Page builders such as Oxygen, Breakdance and Elementor store their layout outside the normal post content. The rendered page is fetched with an HTTP request; the site header, footer and navigation are ignored."
+msgstr "Paginabouwers zoals Oxygen, Breakdance en Elementor slaan hun opmaak buiten de gewone berichtinhoud op. De weergegeven pagina wordt met een HTTP-verzoek opgehaald; de header, de footer en de navigatie van de site worden genegeerd."
+
+#: includes/class-seohc-issue-types.php:82
+msgid "Page could not be loaded"
+msgstr "Pagina kon niet worden geladen"
+
+#: includes/admin/class-seohc-admin.php:564
+#: includes/admin/class-seohc-admin.php:70
+#: includes/admin/class-seohc-dashboard-widget.php:80
+msgid "Page scores"
+msgstr "Paginascores"
+
+#: includes/admin/class-seohc-admin.php:503
+#: includes/admin/class-seohc-scans-page.php:67
+#: includes/class-seohc-mailer.php:177
+msgid "Pages scanned"
+msgstr "Pagina’s gescand"
+
+#: includes/admin/class-seohc-admin.php:494
+#: includes/admin/class-seohc-scans-page.php:66
+#: includes/class-seohc-mailer.php:176
+msgid "Pages with issues"
+msgstr "Pagina’s met problemen"
+
+#: includes/class-seohc-settings.php:172
+msgid "Pages without links"
+msgstr "Pagina’s zonder links"
+
+#: includes/admin/class-seohc-scans-page.php:132
+msgid "Per kind of problem"
+msgstr "Per soort probleem"
+
+#: includes/class-seohc-settings.php:106
+msgid "Performance"
+msgstr "Prestaties"
+
+#. translators: %s: permalink structure.
+#: includes/class-seohc-launch-checks.php:274
+msgid "Permalink structure: %s"
+msgstr "Permalinkstructuur: %s"
+
+#: includes/class-seohc-launch-checks.php:271
+msgid "Plain permalinks (?p=123) are used. Choose \"Post name\" under Settings > Permalinks."
+msgstr "Er worden eenvoudige permalinks (?p=123) gebruikt. Kies \"Berichtnaam\" bij Instellingen > Permalinks."
+
+#: includes/class-seohc-repository.php:895
+msgid "Poor"
+msgstr "Slecht"
+
+#: includes/class-seohc-settings.php:354
+msgid "Post content only (fastest)"
+msgstr "Alleen de berichtinhoud (snelst)"
+
+#: includes/class-seohc-csv-exporter.php:78
+msgid "Post ID"
+msgstr "Bericht-ID"
+
+#: includes/class-seohc-csv-exporter.php:80
+msgid "Post type"
+msgstr "Berichttype"
+
+#: includes/class-seohc-settings.php:111
+msgid "Post types"
+msgstr "Berichttypen"
+
+#: includes/admin/class-seohc-scans-page.php:148
+msgid "Previous scan"
+msgstr "Vorige scan"
+
+#: includes/class-seohc-launch-checks.php:1174
+msgid "reCAPTCHA in Contact Form 7"
+msgstr "reCAPTCHA in Contact Form 7"
+
+#: includes/class-seohc-mailer.php:246
+msgid "Recent scans"
+msgstr "Recente scans"
+
+#: includes/admin/class-seohc-schedule-page.php:155
+msgid "Report"
+msgstr "Rapport"
+
+#: includes/class-seohc-settings.php:324
+msgid "Report pages that nothing links to"
+msgstr "Pagina’s melden waar niets naartoe linkt"
+
+#: includes/admin/class-seohc-issues-list-table.php:219
+msgid "Rescan"
+msgstr "Opnieuw scannen"
+
+#: includes/class-seohc-settings.php:417
+msgid "Rescan a post in the background when it is saved"
+msgstr "Een bericht op de achtergrond opnieuw scannen zodra het wordt opgeslagen"
+
+#: includes/class-seohc-settings.php:188
+msgid "Rescan on save"
+msgstr "Opnieuw scannen bij opslaan"
+
+#. translators: %d: HTTP status code.
+#: includes/class-seohc-link-checker.php:160
+msgid "Returns HTTP %d."
+msgstr "Geeft HTTP %d terug."
+
+#: includes/class-seohc-settings.php:99
+msgid "Rules"
+msgstr "Regels"
+
+#: includes/class-seohc-launch-checks.php:197
+msgid "Run checks"
+msgstr "Controles uitvoeren"
+
+#: includes/class-seohc-launch-checks.php:197
+msgid "Run checks again"
+msgstr "Controles opnieuw uitvoeren"
+
+#: includes/admin/class-seohc-issues-list-table.php:359
+msgid "Save"
+msgstr "Opslaan"
+
+#. translators: %s: name of the active SEO plugin.
+#: includes/admin/class-seohc-inline-edit.php:100
+msgid "Saved in %s. Leave empty to use its default."
+msgstr "Opgeslagen in %s. Laat leeg om de standaard te gebruiken."
+
+#. translators: %s: name of the active SEO plugin.
+#: includes/admin/class-seohc-inline-edit.php:110
+msgid "Saved in %s. Summarise the page in one sentence."
+msgstr "Opgeslagen in %s. Vat de pagina samen in één zin."
+
+#: includes/admin/class-seohc-inline-edit.php:193
+msgid "Saved, but the issue is still reported."
+msgstr "Opgeslagen, maar het probleem wordt nog steeds gemeld."
+
+#. translators: 1: processed posts, 2: total posts.
+#: includes/admin/class-seohc-admin.php:188
+msgid "Saving…"
+msgstr "Bezig met opslaan…"
+
+#. translators: 1: processed posts, 2: total posts.
+#: includes/admin/class-seohc-admin.php:187
+msgid "Scan finished. Reloading…"
+msgstr "Scan afgerond. Bezig met herladen…"
+
+#: includes/admin/class-seohc-admin.php:71
+#: includes/admin/class-seohc-scans-page.php:27
+msgid "Scan history"
+msgstr "Scangeschiedenis"
+
+#: includes/admin/class-seohc-admin.php:602
+msgid "Scan in progress"
+msgstr "Scan bezig"
+
+#. translators: 1: processed posts, 2: total posts.
+#: includes/admin/class-seohc-dashboard-widget.php:129
+msgid "Scan in progress: %1$s of %2$s pages."
+msgstr "Scan bezig: %1$s van %2$s pagina’s."
+
+#: includes/class-seohc-schedule.php:289
+msgid "Scan the site automatically and send a report afterwards"
+msgstr "De site automatisch scannen en daarna een rapport sturen"
+
+#: includes/admin/class-seohc-pages-list-table.php:55
+msgid "Scanned"
+msgstr "Gescand"
+
+#: includes/class-seohc-csv-exporter.php:87
+msgid "Scanned at (UTC)"
+msgstr "Gescand op (UTC)"
+
+#: includes/admin/class-seohc-admin.php:71
+#: includes/admin/class-seohc-dashboard-widget.php:83
+msgid "Scans"
+msgstr "Scans"
+
+#: includes/admin/class-seohc-issues-list-table.php:59
+#: includes/admin/class-seohc-pages-list-table.php:49
+msgid "Score"
+msgstr "Score"
+
+#: includes/class-seohc-launch-checks.php:117
+msgid "Search Console verification"
+msgstr "Search Console-verificatie"
+
+#: includes/class-seohc-launch-checks.php:516
+msgid "Search engines are allowed to index the site."
+msgstr "Zoekmachines mogen de site indexeren."
+
+#: includes/class-seohc-launch-checks.php:113
+msgid "Search engines may index the site"
+msgstr "Zoekmachines mogen de site indexeren"
+
+#: includes/admin/class-seohc-admin.php:456
+#: includes/admin/class-seohc-admin.php:583
+msgid "Search pages"
+msgstr "Pagina’s zoeken"
+
+#: includes/admin/class-seohc-admin.php:546
+msgid "See all scans"
+msgstr "Alle scans bekijken"
+
+#: includes/class-seohc-settings.php:273
+msgid "Select at least one post type. The defaults were restored."
+msgstr "Kies minstens één berichttype. De standaardwaarden zijn hersteld."
+
+#: includes/admin/class-seohc-schedule-page.php:125
+msgid "Send a test report"
+msgstr "Testrapport versturen"
+
+#: includes/class-seohc-schedule.php:240
+msgid "Send the report to"
+msgstr "Rapport sturen naar"
+
+#: includes/admin/class-seohc-schedule-page.php:116
+msgid "Sends the report of the most recent scan right now, so you can see whether mail from this site arrives at all. Many hosts need an SMTP plugin before WordPress can send anything."
+msgstr "Stuurt nu meteen het rapport van de laatste scan, zodat je kunt zien of mail vanaf deze site überhaupt aankomt. Bij veel hosters heeft WordPress een SMTP-plugin nodig om iets te kunnen versturen."
+
+#: includes/admin/class-seohc-admin.php:62
+msgid "SEO Health"
+msgstr "SEO Health"
+
+#: includes/admin/class-seohc-admin.php:437
+#: includes/admin/class-seohc-admin.php:61
+#: includes/admin/class-seohc-dashboard-widget.php:25
+msgid "SEO Health Check"
+msgstr "SEO Health Check"
+
+#: includes/admin/class-seohc-admin.php:74
+#: includes/class-seohc-settings.php:468
+msgid "SEO Health Check settings"
+msgstr "Instellingen SEO Health Check"
+
+#: includes/admin/class-seohc-admin.php:69
+msgid "SEO issues"
+msgstr "SEO-problemen"
+
+#. translators: 1: site name, 2: date.
+#: includes/class-seohc-mailer.php:135
+msgid "SEO report for %1$s, %2$s"
+msgstr "SEO-rapport voor %1$s, %2$s"
+
+#: includes/admin/class-seohc-inline-edit.php:98
+msgid "SEO title"
+msgstr "SEO-titel"
+
+#: includes/admin/class-seohc-admin.php:142
+#: includes/admin/class-seohc-admin.php:74
+msgid "Settings"
+msgstr "Instellingen"
+
+#: includes/admin/class-seohc-issues-list-table.php:62
+#: includes/class-seohc-csv-exporter.php:84
+msgid "Severity"
+msgstr "Ernst"
+
+#. translators: %d: number of pages sharing the value.
+#: includes/class-seohc-repository.php:332
+msgid "Shared by %d pages."
+msgstr "Gedeeld door %d pagina’s."
+
+#: includes/admin/class-seohc-pages-list-table.php:211
+msgid "Show issues"
+msgstr "Problemen tonen"
+
+#. translators: %s: list of form names.
+#: includes/class-seohc-launch-checks.php:1106
+msgid "showing a message instead of a thank you page: %s"
+msgstr "tonen een melding in plaats van een bedankpagina: %s"
+
+#: includes/admin/class-seohc-issues-list-table.php:65
+msgid "Since"
+msgstr "Sinds"
+
+#: includes/admin/class-seohc-dashboard-widget.php:112
+msgid "since the previous scan"
+msgstr "sinds de vorige scan"
+
+#: includes/admin/class-seohc-admin.php:545
+msgid "since the previous scan."
+msgstr "sinds de vorige scan."
+
+#. translators: 1: number of new issues, 2: number of solved issues.
+#: includes/class-seohc-mailer.php:193
+msgid "Since the previous scan: %1$s new, %2$s solved."
+msgstr "Sinds de vorige scan: %1$s nieuw, %2$s opgelost."
+
+#: includes/class-seohc-launch-checks.php:184
+msgid "Site-wide settings from a typical go-live checklist. Manual tasks such as testing forms or informing the client are not included."
+msgstr "Instellingen voor de hele site, uit een gebruikelijke livegang-checklist. Handmatige taken zoals formulieren testen of de klant inlichten staan er niet bij."
+
+#. translators: %s: sitemap URL.
+#: includes/class-seohc-launch-checks.php:533
+msgid "Sitemap found at %s. Submit it in Google Search Console."
+msgstr "Sitemap gevonden op %s. Dien hem in bij Google Search Console."
+
+#: includes/admin/class-seohc-schedule-page.php:156
+msgid "Size"
+msgstr "Grootte"
+
+#. translators: %s: names of the plugins or settings found.
+#: includes/class-seohc-launch-checks.php:1155
+msgid "Spam protection found: %s. Check that it is switched on for every form, because this check only looks site-wide."
+msgstr "Spambescherming gevonden: %s. Controleer of die bij elk formulier aanstaat, want deze controle kijkt alleen sitebreed."
+
+#: includes/class-seohc-launch-checks.php:106
+msgid "Spam protection on forms"
+msgstr "Spambescherming op formulieren"
+
+#: includes/class-seohc-launch-checks.php:118
+msgid "SPF and DMARC"
+msgstr "SPF en DMARC"
+
+#: includes/class-seohc-launch-checks.php:100
+msgid "Standard plugins installed"
+msgstr "Standaardplugins geïnstalleerd"
+
+#: includes/admin/class-seohc-dashboard-widget.php:162
+msgid "Start a scan"
+msgstr "Een scan starten"
+
+#: includes/admin/class-seohc-admin.php:637
+msgid "Start full scan"
+msgstr "Volledige scan starten"
+
+#: includes/admin/class-seohc-issues-list-table.php:64
+#: includes/class-seohc-csv-exporter.php:86
+#: includes/class-seohc-launch-checks.php:218
+msgid "Status"
+msgstr "Status"
+
+#: includes/class-seohc-settings.php:205
+msgid "Text that must appear on the homepage, for example \"Website by Agency\". Leave empty to skip this check."
+msgstr "Tekst die op de homepage moet staan, bijvoorbeeld \"Website door Bureau\". Laat leeg om deze controle over te slaan."
+
+#: includes/class-seohc-launch-checks.php:105
+msgid "Thank you pages for forms"
+msgstr "Bedankpagina’s bij formulieren"
+
+#: includes/admin/class-seohc-schedule-page.php:213
+msgid "That report no longer exists."
+msgstr "Dat rapport bestaat niet meer."
+
+#. translators: %s: average score.
+#: includes/admin/class-seohc-admin.php:570
+msgid "The average for this site is %s."
+msgstr "Het gemiddelde van deze site is %s."
+
+#: includes/class-seohc-launch-checks.php:120
+msgid "The client has an account"
+msgstr "De klant heeft een account"
+
+#. translators: %s: list of login names.
+#: includes/class-seohc-launch-checks.php:944
+msgid "The client has an administrator of their own: %s."
+msgstr "De klant heeft een eigen beheerder: %s."
+
+#: includes/class-seohc-scanner.php:50
+msgid "The content is empty."
+msgstr "De content is leeg."
+
+#. translators: %s: list of development URLs and where they end up.
+#: includes/class-seohc-launch-checks.php:893
+msgid "The development site does not send visitors to the live site: %s."
+msgstr "De ontwikkelsite stuurt bezoekers niet door naar de live site: %s."
+
+#: includes/class-seohc-launch-checks.php:716
+msgid "The domain of the site could not be determined."
+msgstr "Het domein van de site kon niet worden bepaald."
+
+#: includes/class-seohc-mailer.php:203
+msgid "The full list is attached as a CSV file, ready for Excel."
+msgstr "De volledige lijst zit als CSV-bestand bij deze mail, klaar voor Excel."
+
+#: includes/class-seohc-settings.php:229
+msgid "The Google Analytics or Tag Manager code the site should use, for example G-ABC123DEF4. Fill in the one from the old site and the check confirms it really was carried over. Leave empty to only check that some code is present."
+msgstr "De Google Analytics- of Tag Manager-code die de site hoort te gebruiken, bijvoorbeeld G-ABC123DEF4. Vul die van de oude site in, dan bevestigt de controle dat hij echt is overgenomen. Laat leeg om alleen te controleren of er überhaupt code staat."
+
+#: includes/class-seohc-launch-checks.php:329
+msgid "The homepage has a featured image."
+msgstr "De homepage heeft een uitgelichte afbeelding."
+
+#: includes/class-seohc-launch-checks.php:331
+msgid "The homepage has no featured image, so social media shares show no image."
+msgstr "De homepage heeft geen uitgelichte afbeelding, dus bij delen op social media verschijnt er geen afbeelding."
+
+#: includes/class-seohc-launch-checks.php:326
+msgid "The homepage is not a static page."
+msgstr "De homepage is geen vaste pagina."
+
+#. translators: %d: HTTP status code.
+#: includes/class-seohc-launch-checks.php:1323
+msgid "The homepage returned HTTP status %d."
+msgstr "De homepage gaf HTTP-status %d terug."
+
+#: includes/class-seohc-launch-checks.php:251
+msgid "The homepage shows the latest posts; check its title in your SEO plugin."
+msgstr "De homepage toont de nieuwste berichten; controleer de titel in je SEO-plugin."
+
+#. translators: 1: expected measurement code, 2: the code that was found.
+#: includes/class-seohc-launch-checks.php:475
+msgid "The homepage uses %2$s, not %1$s. The wrong measurement code was carried over."
+msgstr "De homepage gebruikt %2$s, niet %1$s. Er is de verkeerde meetcode overgenomen."
+
+#: includes/admin/class-seohc-schedule-page.php:100
+msgid "The last attempt failed:"
+msgstr "De laatste poging is mislukt:"
+
+#: includes/admin/class-seohc-issues-list-table.php:405
+msgid "The last scan did not solve anything yet. Fix an issue and the next scan will list it here."
+msgstr "De laatste scan heeft nog niets opgelost. Los een probleem op, dan staat het na de volgende scan hier."
+
+#. translators: %s: plugin name.
+#: includes/class-seohc-launch-checks.php:834
+msgid "The login screen is handled by %s."
+msgstr "Het inlogscherm wordt verzorgd door %s."
+
+#. translators: %s: measurement code such as G-ABC123DEF4.
+#: includes/class-seohc-launch-checks.php:467
+msgid "The measurement code %s is on the homepage."
+msgstr "De meetcode %s staat op de homepage."
+
+#. translators: %s: measurement code.
+#: includes/class-seohc-launch-checks.php:483
+msgid "The measurement code %s was not found on the homepage."
+msgstr "De meetcode %s is niet op de homepage gevonden."
+
+#: includes/class-seohc-scanner.php:283
+msgid "The page has no H1 heading."
+msgstr "De pagina heeft geen H1-kop."
+
+#. translators: %d: HTTP status code.
+#: includes/class-seohc-content-resolver.php:117
+msgid "The page returned HTTP status %d."
+msgstr "De pagina gaf HTTP-status %d terug."
+
+#: includes/admin/class-seohc-admin.php:394
+msgid "The page was rescanned."
+msgstr "De pagina is opnieuw gescand."
+
+#: includes/class-seohc-scanner.php:35
+msgid "The post content was scanned instead."
+msgstr "In plaats daarvan is de berichtinhoud gescand."
+
+#: includes/class-seohc-content-resolver.php:97
+msgid "The post has no public URL."
+msgstr "Het bericht heeft geen openbare URL."
+
+#: includes/class-seohc-scanner.php:116
+msgid "The post has no title."
+msgstr "Het bericht heeft geen titel."
+
+#: includes/class-seohc-settings.php:529
+msgid "The project page, where you can read what changed per version"
+msgstr "De projectpagina, waar je per versie kunt lezen wat er is veranderd"
+
+#: includes/class-seohc-schedule.php:235
+msgid "The report"
+msgstr "Het rapport"
+
+#. translators: %s: site name.
+#: includes/class-seohc-mailer.php:169
+msgid "The results of the latest scan of %s."
+msgstr "De resultaten van de laatste scan van %s."
+
+#: includes/admin/class-seohc-admin.php:391
+msgid "The scan has started and runs in the background. You can leave this page."
+msgstr "De scan is gestart en draait op de achtergrond. Je kunt deze pagina rustig verlaten."
+
+#. translators: 1: date of the previous scan, 2: date of the most recent scan.
+#: includes/admin/class-seohc-scans-page.php:137
+msgid "The scan of %1$s compared with the one of %2$s."
+msgstr "De scan van %1$s vergeleken met die van %2$s."
+
+#: includes/admin/class-seohc-admin.php:393
+msgid "The scan was cancelled. Results scanned so far are kept."
+msgstr "De scan is geannuleerd. Wat tot nu toe is gescand blijft bewaard."
+
+#: includes/class-seohc-schedule.php:275
+msgid "The scan will run, but without a valid email address no report is sent."
+msgstr "De scan draait wel, maar zonder geldig e-mailadres wordt er geen rapport verstuurd."
+
+#: includes/class-seohc-settings.php:241
+msgid "The selector your mail server signs with, for example \"default\" or \"google\". Your mail provider knows it. Without it DKIM cannot be looked up, because the record hides behind a name only they know."
+msgstr "De selector waarmee je mailserver ondertekent, bijvoorbeeld \"default\" of \"google\". Je mailprovider weet welke. Zonder die selector is DKIM niet op te vragen, want het record zit achter een naam die alleen zij kennen."
+
+#: includes/class-seohc-launch-checks.php:408
+msgid "The site address does not use HTTPS. Change it under Settings > General after installing a certificate."
+msgstr "Het siteadres gebruikt geen HTTPS. Pas het aan bij Instellingen > Algemeen nadat je een certificaat hebt geïnstalleerd."
+
+#: includes/class-seohc-launch-checks.php:406
+msgid "The site address uses HTTPS."
+msgstr "Het siteadres gebruikt HTTPS."
+
+#: includes/admin/class-seohc-schedule-page.php:243
+msgid "The test report could not be sent. The reason is shown below."
+msgstr "Het testrapport kon niet worden verstuurd. De reden staat hieronder."
+
+#: includes/admin/class-seohc-schedule-page.php:235
+msgid "The test report was handed to WordPress. Check the inbox, and the spam folder."
+msgstr "Het testrapport is aan WordPress doorgegeven. Kijk in de inbox, en ook even in de map ongewenste e-mail."
+
+#: includes/class-seohc-launch-checks.php:288
+msgid "The theme outputs a favicon."
+msgstr "Het thema geeft zelf een favicon mee."
+
+#. translators: %s: the homepage title.
+#: includes/class-seohc-launch-checks.php:260
+msgid "The title is \"%s\"."
+msgstr "De titel is \"%s\"."
+
+#. translators: %s: the homepage title.
+#: includes/class-seohc-launch-checks.php:257
+msgid "The title is \"%s\". Replace \"Home\" with a descriptive title."
+msgstr "De titel is \"%s\". Vervang \"Home\" door een titel die zegt waar de pagina over gaat."
+
+#: includes/class-seohc-launch-checks.php:694
+msgid "The verification tag for Google Search Console is on the homepage. Check in Search Console itself that the site is really added."
+msgstr "De verificatietag voor Google Search Console staat op de homepage. Controleer in Search Console zelf of de site er ook echt in staat."
+
+#: includes/class-seohc-settings.php:113
+msgid "Theme H1"
+msgstr "H1 van het thema"
+
+#. translators: %s: plugin names.
+#: includes/class-seohc-launch-checks.php:604
+msgid "There are no inactive plugins."
+msgstr "Er zijn geen inactieve plugins."
+
+#: includes/class-seohc-launch-checks.php:1277
+msgid "There is no user called \"admin\"."
+msgstr "Er is geen gebruiker die \"admin\" heet."
+
+#: includes/admin/class-seohc-schedule-page.php:150
+msgid "These files name every page of the site and what is wrong with it, so they are shielded from visitors and can only be downloaded from here."
+msgstr "In deze bestanden staat van elke pagina van de site wat eraan mankeert, dus ze zijn afgeschermd voor bezoekers en alleen hiervandaan te downloaden."
+
+#. translators: %s: list of menu items.
+#: includes/class-seohc-launch-checks.php:645
+msgid "These menu items do not lead to a published page, so visitors end up on an error page: %s."
+msgstr "Deze menu-items leiden niet naar een gepubliceerde pagina, dus bezoekers belanden op een foutpagina: %s."
+
+#: includes/class-seohc-issue-types.php:70
+msgid "Thin content"
+msgstr "Dunne content"
+
+#: includes/class-seohc-launch-checks.php:130
+msgid "This check could not be completed."
+msgstr "Deze controle kon niet worden afgerond."
+
+#: includes/class-seohc-mailer.php:163
+msgid "This is a test message from the SEO Health Check settings. The numbers are the ones from the most recent scan."
+msgstr "Dit is een testbericht vanuit de instellingen van SEO Health Check. De cijfers zijn die van de laatste scan."
+
+#: includes/admin/class-seohc-inline-edit.php:168
+msgid "This issue cannot be fixed from this screen."
+msgstr "Dit probleem kun je niet vanaf dit scherm oplossen."
+
+#: includes/class-seohc-launch-checks.php:198
+msgid "This makes a few requests to your own site and can take up to half a minute."
+msgstr "Hiervoor worden een paar verzoeken aan je eigen site gedaan; dat kan tot een halve minuut duren."
+
+#: includes/class-seohc-updater.php:249
+msgid "This release came without notes."
+msgstr "Bij deze versie zijn geen release-notities meegegeven."
+
+#: includes/admin/class-seohc-inline-edit.php:163
+msgid "This result no longer exists. Refresh the page."
+msgstr "Dit resultaat bestaat niet meer. Ververs de pagina."
+
+#: includes/class-seohc-launch-checks.php:711
+msgid "This server does not allow DNS lookups, so the mail records cannot be checked from here."
+msgstr "Deze server staat geen DNS-opvragingen toe, dus de mailrecords kunnen hiervandaan niet worden gecontroleerd."
+
+#: includes/admin/class-seohc-admin.php:630
+#: includes/admin/class-seohc-dashboard-widget.php:159
+msgid "This site has not been scanned yet."
+msgstr "Deze site is nog niet gescand."
+
+#. translators: %s: domain.
+#: includes/class-seohc-launch-checks.php:429
+#: includes/class-seohc-launch-checks.php:869
+msgid "This site itself runs on %s, so this check only makes sense on the live site."
+msgstr "Deze site draait zelf op %s, dus deze controle is pas zinvol op de live site."
+
+#: includes/class-seohc-schedule.php:239
+msgid "Time"
+msgstr "Tijdstip"
+
+#: includes/class-seohc-csv-exporter.php:79
+msgid "Title"
+msgstr "Titel"
+
+#: includes/class-seohc-issue-types.php:30
+msgid "Title too long"
+msgstr "Titel te lang"
+
+#: includes/class-seohc-settings.php:499
+msgid "Titles and descriptions from"
+msgstr "Titels en descriptions uit"
+
+#: includes/admin/class-seohc-scans-page.php:61
+msgid "Took"
+msgstr "Duur"
+
+#: includes/admin/class-seohc-schedule-page.php:114
+msgid "Try it first"
+msgstr "Eerst uitproberen"
+
+#: includes/admin/class-seohc-issues-list-table.php:63
+#: includes/admin/class-seohc-pages-list-table.php:54
+msgid "Type"
+msgstr "Type"
+
+#: includes/admin/class-seohc-issues-list-table.php:181
+#: includes/admin/class-seohc-issues-list-table.php:290
+#: includes/class-seohc-csv-exporter.php:129
+msgid "Unchanged"
+msgstr "Onveranderd"
+
+#: includes/admin/class-seohc-admin.php:285
+msgid "unchanged"
+msgstr "gelijk"
+
+#. translators: 1: HTTP status code, 2: redirect target.
+#: includes/class-seohc-launch-checks.php:312
+msgid "Unknown URLs redirect (%1$d) to %2$s instead of showing a 404 page."
+msgstr "Onbekende URL’s verwijzen door (%1$d) naar %2$s in plaats van een 404-pagina te tonen."
+
+#. translators: %d: HTTP status code.
+#: includes/class-seohc-launch-checks.php:315
+msgid "Unknown URLs return status %d instead of 404, so search engines may index error pages."
+msgstr "Onbekende URL’s geven status %d in plaats van 404, waardoor zoekmachines foutpagina’s kunnen indexeren."
+
+#: includes/class-seohc-launch-checks.php:308
+msgid "Unknown URLs return status 404. Check the page design yourself."
+msgstr "Onbekende URL’s geven status 404. Controleer zelf nog hoe die pagina eruitziet."
+
+#. translators: 1: core updates, 2: plugin updates, 3: theme updates.
+#: includes/class-seohc-launch-checks.php:395
+msgid "Updates available: WordPress %1$d, plugins %2$d, themes %3$d."
+msgstr "Updates beschikbaar: WordPress %1$d, plugins %2$d, thema’s %3$d."
+
+#: includes/class-seohc-csv-exporter.php:81
+msgid "URL"
+msgstr "URL"
+
+#: includes/class-seohc-launch-checks.php:95
+msgid "URL structure"
+msgstr "URL-structuur"
+
+#: includes/class-seohc-settings.php:497
+msgid "Version"
+msgstr "Versie"
+
+#: includes/admin/class-seohc-issues-list-table.php:204
+#: includes/admin/class-seohc-pages-list-table.php:217
+msgid "View"
+msgstr "Bekijken"
+
+#: includes/admin/class-seohc-dashboard-widget.php:77
+msgid "View issues"
+msgstr "Problemen bekijken"
+
+#: includes/admin/class-seohc-issues-list-table.php:246
+msgid "Warning"
+msgstr "Waarschuwing"
+
+#: includes/admin/class-seohc-issues-list-table.php:174
+msgid "Warnings"
+msgstr "Waarschuwingen"
+
+#: includes/admin/class-seohc-scans-page.php:29
+msgid "What every finished scan found, newest first, so you can see whether the site is moving forwards. The last twenty scans are kept."
+msgstr "Wat elke afgeronde scan heeft gevonden, de nieuwste eerst, zodat je ziet of de site vooruitgaat. De laatste twintig scans worden bewaard."
+
+#: includes/class-seohc-settings.php:92
+msgid "What to scan"
+msgstr "Wat er wordt gescand"
+
+#: includes/class-seohc-schedule.php:234
+msgid "When to scan"
+msgstr "Wanneer er gescand wordt"
+
+#: includes/class-seohc-mailer.php:93
+msgid "WordPress could not send the mail and did not say why. Most hosts need an SMTP plugin for this."
+msgstr "WordPress kon de mail niet versturen en zei er niet bij waarom. Bij de meeste hosters is hiervoor een SMTP-plugin nodig."
+
+#: includes/admin/class-seohc-schedule-page.php:82
+msgid "WordPress runs planned jobs when someone visits the site, so on a quiet site the scan can start later than the time you set. A real cron job on the server that calls wp-cron.php makes it exact."
+msgstr "WordPress voert geplande taken uit zodra iemand de site bezoekt, dus op een rustige site kan de scan later beginnen dan het tijdstip dat je instelt. Een echte cronjob op de server die wp-cron.php aanroept maakt het exact."
+
+#: includes/class-seohc-launch-checks.php:101
+msgid "WordPress, plugins and themes up to date"
+msgstr "WordPress, plugins en thema’s up-to-date"
+
+#: includes/admin/class-seohc-pages-list-table.php:53
+msgid "Words"
+msgstr "Woorden"
+
+#: includes/class-seohc-launch-checks.php:1243
+msgid "WP Mail SMTP is active but still set to the PHP mail function, which is what it starts on. Choose a real mailer and fill in its details."
+msgstr "WP Mail SMTP is actief maar staat nog op de PHP-mailfunctie, en daar begint hij standaard op. Kies een echte mailer en vul de gegevens in."
+
+#. translators: 1: name of the mailer, 2: sender address.
+#: includes/class-seohc-launch-checks.php:1261
+msgid "WP Mail SMTP sends through %1$s, from %2$s."
+msgstr "WP Mail SMTP verstuurt via %1$s, vanaf %2$s."
+
+#. translators: %s: name of the mailer, for example smtp.
+#: includes/class-seohc-launch-checks.php:1251
+msgid "WP Mail SMTP sends through %s, but no sender address is filled in."
+msgstr "WP Mail SMTP verstuurt via %s, maar er is geen afzenderadres ingevuld."
+
+#: includes/class-seohc-settings.php:504
+msgid "WP-Cron"
+msgstr "WP-Cron"
+
+#: includes/class-seohc-launch-checks.php:115
+msgid "WWW / non-WWW and HTTP / HTTPS redirects"
+msgstr "Doorverwijzingen WWW / non-WWW en HTTP / HTTPS"
+
+#: includes/class-seohc-launch-checks.php:114
+msgid "XML sitemap"
+msgstr "XML-sitemap"
+
+#: includes/class-seohc-launch-checks.php:170
+#: includes/class-seohc-settings.php:464
+msgid "You do not have permission to access this page."
+msgstr "Je hebt geen toestemming om deze pagina te bekijken."
+
+#: includes/admin/class-seohc-admin.php:303
+#: includes/admin/class-seohc-inline-edit.php:155
+#: includes/admin/class-seohc-scans-page.php:20
+#: includes/admin/class-seohc-schedule-page.php:269
+#: includes/class-seohc-launch-checks.php:148
+msgid "You do not have permission to do this."
+msgstr "Je hebt geen toestemming om dit te doen."
+
+#: includes/admin/class-seohc-inline-edit.php:212
+msgid "You may not edit this image."
+msgstr "Je mag deze afbeelding niet bewerken."
+
+#: includes/admin/class-seohc-inline-edit.php:312
+msgid "You may not edit this page."
+msgstr "Je mag deze pagina niet bewerken."
+
+#: includes/class-seohc-schedule.php:340
+msgid "you@example.com"
+msgstr "naam@example.com"
+
+#: includes/class-seohc-settings.php:210
+msgid "Your own email domains"
+msgstr "Je eigen e-maildomeinen"
