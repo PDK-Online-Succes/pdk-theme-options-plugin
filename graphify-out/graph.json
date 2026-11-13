@@ -47682,16 +47682,6 @@
       "target": "docs_afbeeldingsmaten_brief_blocklist_pattern"
     },
     {
-      "relation": "conceptually_related_to",
-      "confidence": "AMBIGUOUS",
-      "confidence_score": 0.2,
-      "source_file": "docs/afbeeldingsmaten-brief.md",
-      "source_location": null,
-      "weight": 1.0,
-      "source": "docs_afbeeldingsmaten_brief_batch_regeneration",
-      "target": "docs_seo_health_check_brief_mcp_abilities"
-    },
-    {
       "relation": "references",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,

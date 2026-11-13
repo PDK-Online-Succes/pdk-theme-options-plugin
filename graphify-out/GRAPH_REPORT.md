@@ -395,10 +395,6 @@ Nodes (3): ref_clamp(), ref_n(), ref_tokens()
 Cohesion: 0.67
 Nodes (3): check(), lq_call(), lq_check()
 
-## Ambiguous Edges - Review These
-- `Resumable batch regeneration (pdk_image_sizes_batch)` → `SEO Health MCP abilities (12 seo-* abilities)`  [AMBIGUOUS]
-  docs/afbeeldingsmaten-brief.md · relation: conceptually_related_to
-
 ## Knowledge Gaps
 - **53 isolated node(s):** `LANGUAGES`, `theme`, `bundle`, `dom`, `textarea` (+48 more)
   These have ≤1 connection - possible missing edges or undocumented components.
@@ -407,8 +403,6 @@ Nodes (3): check(), lq_call(), lq_check()
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **What is the exact relationship between `Resumable batch regeneration (pdk_image_sizes_batch)` and `SEO Health MCP abilities (12 seo-* abilities)`?**
-  _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
 - **Why does `esc_html__()` connect `Admin 2` to `Site Settings`, `Test Seo Health Check`, `Admin`, `Settings`, `Seo Health Check`, `Mu Installer`, `Libraries`, `Css Framework`, `Security`, `Schedule`, `Admin 3`, `Helpers`, `Issues List Table`, `Csv Exporter`, `Custom Fonts`, `Loader`, `Pages List Table`, `Updater`, `Plugin 2`, `Cli`, `Delivery Time 2`, `Schedule Page`, `Vacation Mode`, `Admin 5`, `Mailer 2`, `Site Health`?**
   _High betweenness centrality (0.161) - this node is a cross-community bridge._
 - **Why does `delete_transient()` connect `Cli` to `Test Image Sizes`, `Test Css Framework Slice2`, `Updater`, `Mu Installer`?**
