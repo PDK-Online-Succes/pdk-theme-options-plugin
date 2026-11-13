@@ -83,5 +83,6 @@ Branch: `feature/seo-health-check` · Brief: `docs/seo-health-check-brief.md` ·
 
 ## Session state
 
-- Phase 5 (rapport). Alle AC's groen behalve 2 minors open. Module + agent_abilities AAN op dev.local; Rank Math actief. Local stack N/A.
-- Next: commit + PR naar main (geen tag/release).
+- Phase 5 (rapport). Alle AC's groen, minors opgelost. Module + agent_abilities AAN op dev.local; Rank Math actief. Local stack N/A.
+- Gecommit (c8065d2) en PR #11 naar main geopend. Geen tag/release.
+- Next: gebruiker reviewt PR #11 en de tab in wp-admin; daarna merge + tag v2.14.0 + release (niet pre-release).
