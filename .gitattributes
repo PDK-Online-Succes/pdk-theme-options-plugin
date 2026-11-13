@@ -1,0 +1,6 @@
+# Knowledge graph: merged by graphify instead of line-by-line (driver: `graphify hook install`).
+graphify-out/graph.json merge=graphify
+
+# Dev-only files stay out of the GitHub zipball that the installer downloads.
+graphify-out/** export-ignore
+.graphifyignore export-ignore

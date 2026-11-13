@@ -1,0 +1,5 @@
+# Minified CodeMirror build output: thousands of minified symbols, no project logic.
+pdk-theme-options/assets/js/editor.bundle.js
+# Only needed to rebuild the CodeMirror bundle.
+package.json
+package-lock.json
