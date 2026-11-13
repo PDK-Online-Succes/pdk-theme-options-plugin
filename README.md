@@ -78,6 +78,7 @@ Niet uitschakelbaar; deze drie worden onvoorwaardelijk geladen.
 | [**Afbeeldingsmaten**](docs/modules/image-sizes.md) | Geregistreerde afbeeldingsmaten bekijken, aan/uit zetten, eigen maten aanmaken en de mediabibliotheek in batches opnieuw genereren |
 | [**Oxygen Element Studio**](docs/modules/oxygen-elements.md) | Opslaglocatie "PDK Elementen" voor Element Studio (Oxygen 6): elementen, macro's en presets uit de builder komen in `wp-content/uploads/pdk-theme-options/oxygen-elements/` en overleven updates; de tab toont en bewerkt de bestanden (element.php, twig, css) |
 | [**CSS Framework**](docs/modules/css-framework.md) | Fluid typografie en ruimte (Utopia, `clamp()` + `cqi`), basisstijlen voor koppen en `p`, flow-marges en de section als grid met banen (wide, popout, content, full); sync naar Oxygen-variabelen en MCP-abilities |
+| [**SEO Health Check**](docs/modules/seo-health-check.md) | On-page SEO-scan van berichten en pagina's (titels, beschrijvingen, alt-teksten, koppen, dunne content, interne links) met paginascores, geplande scans en launch checks; zes sub-tabs, alleen voor beheerders |
 
 Modules met (WooCommerce) worden niet geladen zolang WooCommerce niet actief is, ook niet als de toggle aan staat. Hetzelfde geldt voor Oxygen Element Studio zonder actieve Oxygen 6.x.
 

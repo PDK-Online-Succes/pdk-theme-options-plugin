@@ -691,8 +691,13 @@ namespace {
 	// ============================================================================
 	$root = dirname( __DIR__ );
 	$main = (string) @file_get_contents( $pdk . '/pdk-theme-options-plugin.php' );
-	check( 'header Version: 2.13.0', (bool) preg_match( '/^\s*\*\s*Version:\s*2\.13\.0\s*$/m', $main ) );
-	check( "define( 'PDK_PLUGIN_VERSION', '2.13.0' )", (bool) preg_match( "/define\(\s*'PDK_PLUGIN_VERSION'\s*,\s*'2\.13\.0'\s*\)/", $main ) );
+	// De versie wordt uit het pluginbestand gelezen (elke latere release bumpt hem); header en define moeten gelijk
+	// zijn en minstens 2.13.0 (de release van deze module). De 2.13.0-kop in de CHANGELOG blijft staan.
+	$hv = preg_match( '/^\s*\*\s*Version:\s*(\d+\.\d+\.\d+)\s*$/m', $main, $hm ) ? $hm[1] : '';
+	$dv = preg_match( "/define\(\s*'PDK_PLUGIN_VERSION'\s*,\s*'(\d+\.\d+\.\d+)'\s*\)/", $main, $dm ) ? $dm[1] : '';
+	check( 'header Version: is een geldige semver', '' !== $hv, $hv );
+	check( "define( 'PDK_PLUGIN_VERSION' ) is een geldige semver en gelijk aan de header", '' !== $dv && $dv === $hv, "header={$hv} define={$dv}" );
+	check( 'versie is minstens 2.13.0', '' !== $hv && version_compare( $hv, '2.13.0', '>=' ), $hv );
 	$cl = (string) @file_get_contents( $root . '/CHANGELOG.md' );
 	$ok = preg_match( '/^## \[2\.13\.0\] — \d{4}-\d{2}-\d{2}\s*$(.*?)(?=^## \[|\z)/ms', $cl, $cm );
 	check( 'CHANGELOG-kop "## [2.13.0] — jjjj-mm-dd"', (bool) $ok );

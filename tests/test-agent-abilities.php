@@ -53,6 +53,9 @@ function wp_timezone(): DateTimeZone {
 function is_multisite(): bool {
 	return false;
 }
+function apply_filters( string $hook, $value, ...$args ) {
+	return $value;
+}
 function add_shortcode( string $tag, callable $cb ): void {}
 function add_action( string $hook, $cb, int $prio = 10, int $args = 1 ): void {}
 function add_filter( string $hook, $cb, int $prio = 10, int $args = 1 ): void {}
@@ -181,7 +184,8 @@ assert( isset( $info['php_helpers']['pdk_company_address()'] ) );
 // Element Studio-abilities: zonder de module worden ze niet geregistreerd.
 $GLOBALS['registered'] = [];
 function wp_register_ability( string $name, array $args ): void {
-	$GLOBALS['registered'][] = $name;
+	$GLOBALS['registered'][]            = $name;
+	$GLOBALS['registered_args'][ $name ] = $args; // AC-020: de annotaties en meta controleren
 }
 $m->register_abilities();
 assert( ! preg_grep( '#oxygen#', $GLOBALS['registered'] ) );
@@ -238,6 +242,52 @@ assert( $m->read_oxygen( [ 'element' => '..', 'file' => 'element.php' ] )->get_e
 assert( $m->read_oxygen( [ 'path' => 'elements/Kaart/geheim.txt' ] )->get_error_code() === 'pdk_invalid_path' );
 
 assert( isset( $m->site_info()['oxygen_elements'] ) );
+
+// AC-020 (brief §7.4): de 12 SEO Health Check-abilities. Zonder de klasse of met is_active() false: geen enkele seo-*.
+$seo_names = [ 'seo-get-status', 'seo-list-issues', 'seo-list-pages', 'seo-get-scan-history', 'seo-get-launch-checks', 'seo-get-headings', 'seo-start-scan', 'seo-rescan-post', 'seo-update-meta', 'seo-update-image-alt', 'seo-set-heading-level', 'seo-insert-h1' ];
+$seo_reg   = static function () use ( $m ): array {
+	$GLOBALS['registered'] = $GLOBALS['registered_args'] = [];
+	$m->register_abilities();
+	return array_values( preg_grep( '#^pdk-theme-options/seo-#', $GLOBALS['registered'] ) );
+};
+assert( ! class_exists( 'PDK_SEO_Health_Check', false ) );
+assert( $seo_reg() === [] ); // AC-020: geen klasse -> geen seo-abilities
+
+require_once $pdk . '/modules/seo-health-check/class-pdk-seo-health-check.php';
+require_once $pdk . '/modules/seo-health-check/includes/class-seohc-issue-types.php';
+require_once $pdk . '/modules/seo-health-check/includes/class-seohc-repository.php';
+assert( PDK_SEO_Health_Check::is_active() === false );
+assert( $seo_reg() === [] ); // AC-020: klasse aanwezig maar is_active() false -> geen seo-abilities
+
+( new ReflectionClass( 'PDK_SEO_Health_Check' ) )->setStaticPropertyValue( 'booted', true );
+assert( PDK_SEO_Health_Check::is_active() === true );
+$seo = $seo_reg();
+$exp = array_map( static fn( $n ) => 'pdk-theme-options/' . $n, $seo_names );
+assert( count( $seo ) === 12 ); // precies 12 seo-namen
+assert( array_diff( $exp, $seo ) === [] && array_diff( $seo, $exp ) === [] );
+$read_only = [ 'seo-get-status', 'seo-list-issues', 'seo-list-pages', 'seo-get-scan-history', 'seo-get-launch-checks', 'seo-get-headings' ];
+$destruct  = [ 'seo-update-meta', 'seo-update-image-alt', 'seo-set-heading-level', 'seo-insert-h1' ];
+foreach ( $seo_names as $n ) {
+	$a = $GLOBALS['registered_args'][ 'pdk-theme-options/' . $n ];
+	assert( $a['category'] === 'pdk-theme-options', "category {$n}" );
+	assert( $a['meta']['show_in_rest'] === true, "show_in_rest {$n}" );
+	assert( $a['meta']['mcp']['public'] === true, "mcp.public {$n}" );
+	assert( $a['meta']['annotations']['readonly'] === in_array( $n, $read_only, true ), "readonly {$n}" );
+	assert( $a['meta']['annotations']['destructive'] === in_array( $n, $destruct, true ), "destructive {$n}" );
+	assert( $a['input_schema']['additionalProperties'] === false, "additionalProperties {$n}" );
+	assert( is_callable( $a['permission_callback'] ) && is_callable( $a['execute_callback'] ), "callbacks {$n}" );
+}
+assert( count( array_filter( $read_only, static fn( $n ) => $GLOBALS['registered_args'][ 'pdk-theme-options/' . $n ]['meta']['annotations']['readonly'] ) ) === 6 );
+// Schema-grenzen uit §7.2.
+$sc = static fn( string $n ): array => $GLOBALS['registered_args'][ 'pdk-theme-options/' . $n ]['input_schema'];
+assert( $sc( 'seo-list-issues' )['properties']['per_page']['maximum'] === 100 && $sc( 'seo-list-issues' )['properties']['page']['minimum'] === 1 );
+assert( $sc( 'seo-set-heading-level' )['properties']['level']['maximum'] === 6 && $sc( 'seo-set-heading-level' )['properties']['index']['minimum'] === 0 );
+assert( $sc( 'seo-update-meta' )['properties']['value']['maxLength'] === 500 && $sc( 'seo-update-image-alt' )['properties']['value']['maxLength'] === 125 );
+assert( $sc( 'seo-insert-h1' )['properties']['text']['maxLength'] === 200 && $sc( 'seo-insert-h1' )['properties']['text']['minLength'] === 1 );
+// Het zijn dezelfde 6 gewone abilities + SEO: is_active() weer uit -> weer geen seo-abilities.
+( new ReflectionClass( 'PDK_SEO_Health_Check' ) )->setStaticPropertyValue( 'booted', false );
+assert( $seo_reg() === [] );
+echo "AC-020 OK\n";
 
 // Zonder capability: lezen mag (permission_callback regelt dat), schrijven niet.
 $GLOBALS['can_edit'] = false;

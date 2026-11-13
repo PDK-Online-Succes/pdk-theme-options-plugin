@@ -2,6 +2,27 @@
 
 Alle noemenswaardige wijzigingen in PDK Theme Options worden hier bijgehouden.
 
+## [2.14.0] — 2026-11-13
+
+### Nieuwe module: SEO Health Check
+
+- **Module SEO Health Check** (standaard uit, eigen tab "SEO Health"). De losse plugin SEO Health Check 0.10.1 is overgenomen als module: scant berichten en pagina's op on-page SEO-problemen (titels, beschrijvingen, alt-teksten, koppen, dunne content, kapotte interne links), geeft paginascores, plant scans met een rapportmail en draait launch checks. Zie `docs/modules/seo-health-check.md`
+- **Eén tab met zes sub-tabs.** Issues, Page scores, Scans, Automatic scan, Launch checks en Settings staan als sub-tabs (`?seohc_view=`) in de PDK-instellingenpagina. Er komt geen eigen top-level menu meer; elke link, redirect, formulier, dashboardwidget-link en de link in de rapportmail wijst naar de nieuwe tab
+- **Overstappen van de losse plugin.** Tabellen (`seohc_*`), opties en geplande scans blijven gelijk, dus de data is meteen beschikbaar. Staat de losse plugin nog actief, dan doet de module niets en toont de tab een melding. Deactiveer de losse plugin en haal de map weg via FTP of de shell (`rm -r wp-content/plugins/seo-health-check`). **Verwijder hem niet via Plugins → Verwijderen:** de uninstall van de losse plugin wist de gedeelde tabellen en opties, en dus ook de data van de module
+- **Vervallen.** De updater van de losse plugin en de links op het Plugins-scherm. Vertalingen (`seo-health-check`, nl_NL) laden uit de modulemap
+- **Alleen voor beheerders.** De tab vereist `manage_options`, ook als de filter `seo_health_check_capability` een lagere rol toestaat (die filter blijft wel gelden voor de handlers). Geaccepteerd risico: wie die filter lager had gezet, verliest de toegang
+- **Uninstall en deactiveren.** Verwijderen van PDK wist ook alle SEO Health Check-data (tabellen, opties, transients, bewaarde rapporten, events, usermeta), behalve als de losse plugin nog actief is. Deactiveren van PDK meldt de geplande scans af
+- **Fix: rapportmail vanuit cron.** De link in de rapportmail gebruikte een klasse die alleen in de admin geladen is; een mail vanuit WP-Cron kon daardoor een fatale fout geven (ook in 0.10.1). Dit gaat nu via een vaste URL-helper
+- **Fix: uninstall wist de uploads-map volledig.** `glob()` sloeg het bestand `.htaccess` over, waardoor `uploads/seo-health-check/` bleef staan; nu worden ook puntbestanden verwijderd
+- **Fix: CSV-export op PHP 8.4+.** `fputcsv()` kreeg geen `$escape`-argument en gaf een deprecation-melding; nu expliciet doorgegeven, met dezelfde uitvoer
+- **Ctrl+S.** `admin-save.js` doet niets meer als de gevonden knop in een `.shc-panel` staat, zodat Ctrl+S op Issues geen scan start en op Launch checks geen checks draait. Ctrl+S op Settings en Automatic scan slaat gewoon op
+- **MCP-abilities voor SEO Health Check.** Met de modules SEO Health Check en AI-agent toegang aan (en de losse plugin niet actief) komen er 12 abilities bij in de categorie `pdk-theme-options`: lezen (`seo-get-status`, `seo-list-issues`, `seo-list-pages`, `seo-get-scan-history`, `seo-get-launch-checks`, `seo-get-headings`), scannen (`seo-start-scan`, `seo-rescan-post`) en bewerken (`seo-update-meta`, `seo-update-image-alt`, `seo-set-heading-level`, `seo-insert-h1`). Alleen voor beheerders (`manage_options`); schrijven vereist ook `edit_post` op de post (en op de bijlage bij alt-tekst), en na elke schrijfactie volgt een rescan. Content-writes werken alleen op ruwe `post_content` (klassieke HTML en `core/heading`), maken eerst een revisie en weigeren builderpagina's (Oxygen, Elementor, Bricks, Beaver Builder, Divi), lege content, content source "rendered", gebruikers zonder `unfiltered_html`, uitgeschakelde revisies en koppen in andere blokken (zoals `core/html`). Bij alt-tekst wordt op builderpagina's alleen de mediabibliotheek bijgewerkt (`content_skipped`). Zie `docs/modules/agent-abilities.md`. Geaccepteerd risico: een agent met een beheerdersaccount kan hiermee posts aanpassen (altijd met een revisie)
+- **Fix: alt-tekst in de content verloor backslashes.** `update_alt_in_content()` riep `wp_update_post()` aan zonder `wp_slash()`; backslashes in de post_content (bijvoorbeeld in blokattributen met `\u0026` of in tekst als `C:\pad`) verdwenen bij het opslaan van een alt-tekst via de inline edit. Dit is hersteld ten opzichte van 0.10.1
+- **Fix: alt-tekst zonder post maakte een nieuwe post aan.** `SEOHC_Inline_Edit::save_alt()` met post 0 liep via `edit_post`/`get_post( 0 )` naar de globale `$post`, en `wp_update_post()` met `ID` 0 voegde dan een gepubliceerde kopie in. Post 0 betekent nu alleen de mediabibliotheek. De content-resolver bewaart en herstelt de globale `$post` rond zijn `setup_postdata()` (`wp_reset_postdata()` herstelt hem zonder hoofdquery, in CLI, REST en cron, niet); beide zaten ook al in 0.10.1
+- **Fix: backslashes in alt-tekst en SEO-meta.** `update_post_meta()` haalt slashes uit de waarde, waardoor `C:\pad` als `C:pad` werd opgeslagen en de alt in de mediabibliotheek afweek van die in de content. `save_alt()` en `save_meta()` geven de waarde nu met `wp_slash()` door (ook in 0.10.1 aanwezig)
+- **Repository.** `SEOHC_Repository` filtert issues nu ook op `post_id`
+- **Installer.** `pdk-mu-installer/` is ongewijzigd
+
 ## [2.13.0] — 2026-11-10
 
 ### Nieuwe module: CSS Framework

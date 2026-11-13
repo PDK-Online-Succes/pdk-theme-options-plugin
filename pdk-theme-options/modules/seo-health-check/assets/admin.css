@@ -1,0 +1,394 @@
+/* SEO Health Check admin styles. Uses WordPress admin colours so it fits every colour scheme. */
+
+.shc-cards {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+	gap: 12px;
+	margin: 16px 0;
+}
+
+.shc-card {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	padding: 14px 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.shc-card__value {
+	font-size: 26px;
+	font-weight: 600;
+	line-height: 1.2;
+	color: #1d2327;
+}
+
+.shc-card__value--small {
+	font-size: 16px;
+	line-height: 1.9;
+}
+
+.shc-card__label {
+	color: #50575e;
+}
+
+.shc-panel {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	padding: 4px 16px 14px;
+	margin: 0 0 16px;
+}
+
+.shc-progress {
+	height: 12px;
+	background: #f0f0f1;
+	border-radius: 6px;
+	overflow: hidden;
+	max-width: 560px;
+}
+
+.shc-progress__bar {
+	height: 100%;
+	width: 100%;
+	background: #2271b1;
+	transform-origin: left center;
+	transition: transform 0.4s ease;
+}
+
+.shc-badge {
+	display: inline-block;
+	padding: 2px 8px;
+	border-radius: 10px;
+	font-size: 12px;
+	font-weight: 500;
+	white-space: nowrap;
+}
+
+.shc-badge--error,
+.shc-badge--fail {
+	background: #fcf0f1;
+	color: #8a2424;
+}
+
+.shc-badge--warning {
+	background: #fcf9e8;
+	color: #6e4f00;
+}
+
+.shc-badge--pass {
+	background: #edfaef;
+	color: #00581c;
+}
+
+.shc-badge--info {
+	background: #f0f6fc;
+	color: #0a4b78;
+}
+
+.shc-wrap .column-details {
+	width: 35%;
+	word-break: break-word;
+}
+
+.shc-wrap .column-severity,
+.shc-wrap .column-post_type {
+	width: 9%;
+}
+
+.shc-launch-table {
+	margin-bottom: 24px;
+}
+
+.shc-launch-table td:first-child {
+	width: 30%;
+}
+
+.shc-launch-table td:nth-child(2) {
+	width: 120px;
+}
+
+/* Score badge, shown on the issues list and the page scores list. */
+.seohc-score {
+	display: inline-block;
+	min-width: 38px;
+	padding: 3px 9px;
+	border-radius: 10px;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	text-align: center;
+}
+
+.seohc-score--good {
+	background: #edfaef;
+	color: #00581c;
+}
+
+.seohc-score--fair {
+	background: #fcf9e8;
+	color: #6e4f00;
+}
+
+.seohc-score--poor {
+	background: #fcf0f1;
+	color: #8a2424;
+}
+
+/* Change since the previous scan. */
+.seohc-delta {
+	display: inline-block;
+	margin-left: 6px;
+	font-size: 12px;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.seohc-delta--better {
+	color: #00701f;
+}
+
+.seohc-delta--worse {
+	color: #b32d2e;
+}
+
+.seohc-delta--same {
+	color: #787c82;
+}
+
+.shc-card__value .seohc-score {
+	font-size: 26px;
+	padding: 2px 12px;
+}
+
+/* What the most recent scan did with an issue. */
+.seohc-badge--new {
+	display: inline-block;
+	padding: 1px 7px;
+	border-radius: 10px;
+	background: #f0f6fc;
+	color: #0a4b78;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.seohc-badge--resolved {
+	display: inline-block;
+	padding: 1px 7px;
+	border-radius: 10px;
+	background: #edfaef;
+	color: #00701f;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.seohc-badge--same {
+	display: inline-block;
+	padding: 1px 7px;
+	border-radius: 10px;
+	background: #f0f0f1;
+	color: #646970;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.seohc-row--new td:first-child {
+	box-shadow: inset 3px 0 0 #2271b1;
+}
+
+.seohc-row--fixed td:first-child {
+	box-shadow: inset 3px 0 0 #00a32a;
+}
+
+.seohc-row--fixed {
+	opacity: 0.55;
+}
+
+.seohc-row--fixed .seohc-details {
+	text-decoration: line-through;
+}
+
+/* The line under the cards: what the last scan added and solved. */
+.seohc-change {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px 16px;
+	margin: 4px 0 16px;
+}
+
+.seohc-change__link {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	text-decoration: none;
+}
+
+.seohc-change__note {
+	color: #50575e;
+}
+
+/* The widget on the dashboard. */
+.seohc-widget p {
+	margin: 0 0 10px;
+}
+
+.seohc-widget__score {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.seohc-widget__score .seohc-score {
+	font-size: 22px;
+	padding: 2px 10px;
+}
+
+.seohc-widget__label {
+	color: #50575e;
+}
+
+.seohc-widget__changes {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px 14px;
+}
+
+.seohc-widget__changes a {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	text-decoration: none;
+	font-variant-numeric: tabular-nums;
+}
+
+.seohc-widget__note {
+	color: #50575e;
+	font-size: 12px;
+}
+
+.seohc-widget__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-bottom: 0;
+}
+
+/* Version and surroundings, at the bottom of the settings screen. */
+.seohc-about {
+	border-collapse: collapse;
+	margin-bottom: 8px;
+}
+
+.seohc-about th {
+	padding: 4px 24px 4px 0;
+	font-weight: 400;
+	color: #50575e;
+	text-align: left;
+}
+
+.seohc-about td {
+	padding: 4px 0;
+	font-weight: 600;
+}
+
+.seohc-about__links {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 18px;
+}
+
+/* Automatic scan. */
+.seohc-days {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 16px;
+}
+
+.seohc-days label {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.seohc-mail-error {
+	color: #b32d2e;
+}
+
+/* Scan history. */
+.seohc-intro {
+	max-width: 46em;
+}
+
+.seohc-runs {
+	margin-bottom: 24px;
+}
+
+.seohc-runs td {
+	font-variant-numeric: tabular-nums;
+}
+
+.seohc-runs th {
+	font-weight: 600;
+}
+
+/* Fixing an issue without leaving the overview. */
+.seohc-inline {
+	margin-top: 4px;
+}
+
+.seohc-inline__form {
+	margin-top: 8px;
+	padding: 10px 12px;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	background: #f6f7f7;
+	max-width: 480px;
+}
+
+.seohc-inline__input {
+	width: 100%;
+	resize: vertical;
+}
+
+.seohc-inline__meta {
+	margin: 6px 0 10px;
+	color: #50575e;
+	font-size: 12px;
+}
+
+.seohc-inline__count {
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.seohc-inline__count.is-over {
+	color: #b32d2e;
+	font-weight: 600;
+}
+
+.seohc-inline__status {
+	margin-left: 8px;
+	font-size: 12px;
+	color: #50575e;
+}
+
+.shc-wrap .column-score {
+	width: 80px;
+}
+
+.shc-wrap .column-first_seen {
+	width: 110px;
+}
+
+.shc-wrap .column-issue_count,
+.shc-wrap .column-word_count {
+	width: 80px;
+}
